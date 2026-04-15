@@ -1,7 +1,7 @@
 # BearBoard
 
 Campus community board for Morgan State University.  
-COSC 458 Software Engineering — Spring 2026
+COSC 458 Software Engineering - Spring 2026
 
 ## Project Structure
 

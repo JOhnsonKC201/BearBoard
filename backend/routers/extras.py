@@ -51,9 +51,9 @@ def get_groups(db: Session = Depends(get_db)):
 
 
 CANNED_RESPONSES = {
-    "events": "This week:\n\n- **Yard Fest 2026** — Apr 18, Main Yard, 12-8 PM\n- **Spring Career Fair** — Apr 22, Student Center, 10 AM-3 PM\n- **Hackathon Kickoff** — Apr 25, SCMNS 201, 6 PM",
-    "study group": 'Found one! **"Networking Gang"** for COSC 350 — 12 members, meets Tue/Thu on library 3rd floor. They\'re doing networking layers and socket programming.',
-    "trending": "Top posts today:\n\n1. **Yard Fest Weekend Plans** — 89 upvotes\n2. **JPMorgan Internship** — 64 upvotes\n3. **Spring Career Fair** — 47 upvotes",
+    "events": "This week:\n\n- **Yard Fest 2026** - Apr 18, Main Yard, 12-8 PM\n- **Spring Career Fair** - Apr 22, Student Center, 10 AM-3 PM\n- **Hackathon Kickoff** - Apr 25, SCMNS 201, 6 PM",
+    "study group": 'Found one! **"Networking Gang"** for COSC 350 - 12 members, meets Tue/Thu on library 3rd floor. They\'re doing networking layers and socket programming.',
+    "trending": "Top posts today:\n\n1. **Yard Fest Weekend Plans** - 89 upvotes\n2. **JPMorgan Internship** - 64 upvotes\n3. **Spring Career Fair** - 47 upvotes",
     "create a post": 'Hit the **"+ New Post"** button on the right side. Pick a category, write your title and body, and post.',
     "how": 'Hit the **"+ New Post"** button on the right side. Pick a category, write your title and body, and post. For events, add a date/time so it shows on the calendar.',
 }

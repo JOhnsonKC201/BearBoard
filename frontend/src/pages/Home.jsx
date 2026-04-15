@@ -54,19 +54,19 @@ const TEAM_DATA = {
 const SAMPLE_POSTS = [
   {
     id: 1, initials: 'KM', color: '#5B3A8C', name: 'Kyndal Maclin', dept: 'Computer Science', time: '2h ago',
-    category: 'events', title: 'Spring Career Fair — April 22nd at the Student Center',
+    category: 'events', title: 'Spring Career Fair - April 22nd at the Student Center',
     body: 'Google, Amazon, and Lockheed Martin confirmed. Bring resumes and dress business casual. Doors open at 10 AM. Last year was packed so get there early if you want face time with recruiters.',
     votes: 47, comments: 12,
   },
   {
     id: 2, initials: 'AS', color: '#0B1D34', name: 'Aayush Shrestha', dept: 'Computer Science', time: '4h ago',
-    category: 'academic', title: 'COSC 350 Midterm Study Group — Need 2 More People',
+    category: 'academic', title: 'COSC 350 Midterm Study Group - Need 2 More People',
     body: "We meet Tuesdays and Thursdays at the library 3rd floor. Currently going over networking layers and socket programming. If you're struggling with subnetting, we've got you covered.",
     votes: 31, comments: 8,
   },
   {
     id: 3, initials: 'RS', color: '#1A8A7D', name: 'Rohan Sainju', dept: 'Computer Science', time: '6h ago',
-    category: 'recruiters', title: 'JPMorgan Software Engineering Internship — Summer 2026 Still Open',
+    category: 'recruiters', title: 'JPMorgan Software Engineering Internship - Summer 2026 Still Open',
     body: "Just got off a call with the campus recruiter. Applications close April 25th. They're specifically looking for Morgan State students this cycle. Link in comments.",
     votes: 64, comments: 23,
   },
@@ -268,7 +268,7 @@ function Home() {
       {/* Team Section */}
       <div className="max-w-[1080px] mx-auto px-6 pt-8" id="team">
         <h2 className="font-archivo font-black text-[0.85rem] uppercase tracking-widest text-navy">The Team</h2>
-        <p className="text-[0.78rem] text-gray mt-1">COSC 458 — Software Engineering &middot; Spring 2026 &middot; Click a name to see their tasks</p>
+        <p className="text-[0.78rem] text-gray mt-1">COSC 458 - Software Engineering &middot; Spring 2026 &middot; Click a name to see their tasks</p>
       </div>
       <div className="max-w-[1080px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-3 md:grid-cols-6 gap-2">
         {Object.entries(TEAM_DATA).map(([key, m]) => (
