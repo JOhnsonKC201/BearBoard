@@ -1,0 +1,242 @@
+==============================================================================
+  BEARBOARD — DEVELOPER TASKS: WHAT TO DEBUG, ADD, AND DO NOT ADD
+  Last Updated: April 14, 2026
+==============================================================================
+
+  This file lists what each developer needs to work on. The scaffold has
+  intentional bugs, missing features, and incomplete code so that each
+  team member has real work to do. Read your section carefully.
+
+  DO NOT ADD (for everyone):
+  - Do NOT add an AI chatbot widget on the frontend (bottom-right or anywhere).
+    Aayush will build the AI agent as a proper backend service in Sprint 2.
+  - Do NOT install extra UI libraries (Material UI, Chakra, etc.).
+    We are using Tailwind CSS only.
+  - Do NOT change the project folder structure without team agreement.
+  - Do NOT push directly to main. Use feature branches and pull requests.
+
+==============================================================================
+  Aayush Shrestha — API, AI Agent & Backend
+==============================================================================
+
+  BUGS TO FIX:
+  1. backend/routers/posts.py — create_post() has author_id hardcoded to 1.
+     It needs to get the actual user ID from the JWT token of the logged-in
+     user. You will need to build an auth dependency for this.
+
+  2. backend/routers/posts.py — get_posts() returns ALL posts with no
+     pagination. Add limit/offset query parameters.
+
+  FEATURES TO ADD:
+  3. POST /api/posts/{id}/vote — Build the upvote/downvote endpoint.
+     One vote per user per post. Toggle or change vote. Return updated count.
+
+  4. GET /api/posts/{id} — Get a single post by ID with its comments.
+
+  5. DELETE /api/posts/{id} — Delete a post. Only the author should be able
+     to delete their own post.
+
+  6. Add sorting to GET /api/posts — support "newest" and "popular" sort.
+
+  7. Add category filtering to GET /api/posts — filter by category string.
+
+  8. Create the agents/ folder scaffolding:
+     - Set up an LLM API client (OpenAI or Anthropic) with config
+     - Build a basic content moderation prompt
+     - Create a placeholder POST /api/ai/moderate endpoint
+     - Do NOT build a chatbot widget on the frontend
+
+  DO NOT:
+  - Do not build a frontend chatbot or AI widget
+  - Do not change the database models without coordinating with Johnson
+  - Do not change auth endpoints (those are Johnson's)
+
+==============================================================================
+  Johnson KC — Full Stack (Database, Auth, Profile)
+==============================================================================
+
+  BUGS TO FIX:
+  1. backend/core/config.py — SECRET_KEY is hardcoded as a plain string.
+     Move it to an environment variable. DATABASE_URL too.
+
+  2. backend/routers/auth.py — login() generates a JWT token that never
+     expires. Add an expiration time (24 hours) using the exp claim.
+
+  3. backend/models/user.py — The updated_at column is missing. Add it
+     with auto-update on modification.
+
+  4. backend/models/post.py — The updated_at column is also missing. Add it.
+
+  5. backend/models/post.py — There is no SQLAlchemy relationship defined
+     between Post and User. Add the relationship so you can load author info.
+
+  FEATURES TO ADD:
+  6. GET /api/auth/me — Return the current logged-in user from the JWT token.
+     This endpoint is completely missing from auth.py.
+
+  7. PUT /api/users/{id} — Update own profile (name, major, graduation year).
+     Only the owner should be able to update their own profile.
+
+  8. Set up AWS RDS MySQL instance and update DATABASE_URL to point to it.
+
+  9. Set up Alembic for database migrations. Create the initial migration
+     that creates all tables.
+
+  10. Create Vote and Comment database models (they do not exist yet):
+      - Vote: id, user_id (FK), post_id (FK), vote_type, unique constraint
+      - Comment: id, body, author_id (FK), post_id (FK), created_at
+
+  11. Seed the database with 10-15 sample posts for frontend testing.
+
+  12. Build the frontend profile page connection — right now Profile.jsx
+      uses hardcoded placeholder data. Connect it to the API.
+
+  DO NOT:
+  - Do not build the AI agent endpoints (that is Aayush's work)
+  - Do not change the post CRUD router logic (that is Aayush's work)
+
+==============================================================================
+  Sameer Shiwakoti — Frontend / UI
+==============================================================================
+
+  BUGS TO FIX:
+  1. frontend/src/pages/Login.jsx — No form validation. Empty fields can
+     be submitted. Add required field checks and error messages.
+
+  2. frontend/src/pages/Register.jsx — graduation_year input accepts any
+     text. Validate it as a 4-digit number.
+
+  3. frontend/src/pages/Register.jsx — No password confirmation field.
+     Add a "Confirm Password" input and check that passwords match.
+
+  4. frontend/src/api/client.js — No error handling. If the API returns
+     an error status, the client silently fails. Handle errors properly.
+
+  FEATURES TO ADD:
+  5. Connect Login page to POST /api/auth/login. Store the JWT token
+     in React context or state after successful login.
+
+  6. Connect Register page to POST /api/auth/register. Redirect to
+     login or auto-login after successful registration.
+
+  7. Connect Feed page to GET /api/posts instead of hardcoded sample data.
+
+  8. Add a "New Post" button on the Feed page that opens a create post
+     modal or form. Submit to POST /api/posts.
+
+  9. Add sort tabs on Feed page (Newest, Popular).
+
+  10. Add category filter chips on Feed page (Events, Academic, Recruiters,
+      Social, General).
+
+  11. Build auth context/provider to manage login state across the app.
+      Navbar should show user info when logged in, and Login/Register
+      links when logged out.
+
+  12. Add loading states and empty states to the Feed page.
+
+  DO NOT:
+  - Do not build the profile page UI (that is Rohan's work)
+  - Do not build the post detail page (that is Rohan's work)
+  - Do not add an AI chatbot widget anywhere on the frontend
+
+==============================================================================
+  Rohan Sainju — UI/UX Design & Experience
+==============================================================================
+
+  BUGS TO FIX:
+  1. frontend/src/components/Navbar.jsx — No responsive hamburger menu.
+     On mobile, the nav links overflow. Add a mobile menu toggle.
+
+  2. frontend/tailwind.config.js — The color palette is incomplete. Only
+     msu-blue and msu-gold are defined. Add neutral shades, success/error
+     colors, and any other brand colors.
+
+  3. frontend/src/index.css — The body font is generic "sans-serif". Pick
+     and configure a Google Fonts pairing (display + body) and update
+     the Tailwind config and index.html.
+
+  FEATURES TO ADD:
+  4. Build reusable UI components in frontend/src/components/:
+     - Button (primary, secondary, outline variants)
+     - Card (used for post cards and profile cards)
+     - Badge (for category tags)
+     - Input (styled form input with label and error state)
+     - Modal (reusable modal wrapper)
+
+  5. Build the post detail page (frontend/src/pages/PostDetail.jsx):
+     - Full post view with title, body, author info, timestamps
+     - Comment section below the post
+     - Comment input form for logged-in users
+     - Vote buttons with visual feedback
+     - Back to feed navigation
+     - Add the route in App.jsx: /post/:id
+
+  6. Redesign the Home page with a proper hero section, feature highlights,
+     and visual appeal. Current version is very bare.
+
+  7. Style the profile page (frontend/src/pages/Profile.jsx):
+     - Add avatar display
+     - Make the layout visually polished
+     - Add an "Edit Profile" modal for own profile
+
+  8. Add hover states, transitions, and micro-interactions across all pages.
+
+  9. Test all pages at mobile viewport (375px+) and fix any layout issues.
+
+  10. Create a simple style guide page (/styleguide) that shows all the
+      reusable components.
+
+  DO NOT:
+  - Do not change the API routes or backend code
+  - Do not change the routing structure without coordinating with Sameer
+  - Do not add an AI chatbot widget anywhere
+
+==============================================================================
+  Oluwajomiloju King — Scrum Master
+==============================================================================
+
+  TASKS:
+  1. Set up branch protection rules on GitHub:
+     - Require pull request reviews before merging
+     - Require at least 1 approving review
+     - No direct pushes to main
+
+  2. Create a pull request template (.github/pull_request_template.md)
+     with sections for: Summary, Changes Made, Testing, Screenshots.
+
+  3. Define and document branch naming convention:
+     - feature/S1-XX-description
+     - bugfix/S1-XX-description
+
+  4. Set up Trello board columns: To Do, In Progress, In Review, Done.
+     Create cards for each task in this file.
+
+  5. Run async standups on GroupMe or schedule sync calls.
+
+  6. Write Sprint 1 review document and prepare the demo.
+
+  7. Review this DEVELOPER_TASKS.txt and update it if tasks change.
+
+  DO NOT:
+  - Do not write application code unless helping unblock a teammate
+  - Do not merge PRs without at least one review
+
+==============================================================================
+  GENERAL NOTES
+==============================================================================
+
+  - Backend runs with: cd backend && uvicorn main:app --reload
+  - Frontend runs with: cd frontend && npm install && npm run dev
+  - Backend API docs: http://localhost:8000/docs (Swagger UI)
+  - Frontend dev server: http://localhost:3000
+
+  - The backend uses SQLAlchemy + FastAPI. The frontend uses React 18 +
+    Vite + Tailwind CSS + React Router.
+
+  - Coordinate on API contracts before building. Agree on request/response
+    shapes in the team chat before coding endpoints.
+
+  - Every feature branch needs a PR. Every PR needs at least one review.
+
+==============================================================================
