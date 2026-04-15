@@ -47,8 +47,9 @@ Dev server: http://localhost:3000
 
 ## Team
 
-- **Oluwajomiloju King** — Scrum Master
-- **Aayush Shrestha** — API, AI Agent & Backend
-- **Johnson KC** — Full Stack (Database, Auth, Profile)
-- **Sameer Shiwakoti** — Frontend / UI
-- **Rohan Sainju** — UI/UX Design & Experience
+- **Kyndal Maclin** Product Owner
+- **Oluwajomiloju King** Scrum Master
+- **Aayush Shrestha** API, AI Agent & Backend
+- **Johnson KC** Full Stack (Database, Auth, Profile)
+- **Sameer Shiwakoti** Frontend / UI
+- **Rohan Sainju** UI/UX Design & Experience
