@@ -1,11 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, posts, users
+from routers import auth, posts, users, extras
 
 app = FastAPI(title="BearBoard API", version="0.1.0")
 
-# CORS — allowing all origins for now
-# TODO: Restrict origins to frontend URL only
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,6 +15,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(posts.router)
 app.include_router(users.router)
+app.include_router(extras.router)
 
 
 @app.get("/")

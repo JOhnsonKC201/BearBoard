@@ -1,0 +1,18 @@
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+
+class Vote(Base):
+    __tablename__ = "votes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    vote_type = Column(String(10), nullable=False)  # "up" or "down"
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("user_id", "post_id", name="uq_user_post_vote"),)
+
+    user = relationship("User", back_populates="votes")
+    post = relationship("Post", back_populates="votes")

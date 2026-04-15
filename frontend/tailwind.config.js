@@ -7,12 +7,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Morgan State University colors
-        'msu-blue': '#003057',
-        'msu-gold': '#E8A825',
-        // TODO: Add neutral shades, error/success colors
+        navy: '#0B1D34',
+        gold: '#D4962A',
+        'gold-pale': '#F2E3C6',
+        offwhite: '#F0ECE4',
+        ink: '#1C1C1C',
+        gray: '#6B6B6B',
+        lightgray: '#D5D1CA',
+        card: '#FFFFFF',
+        red: '#C0392B',
+        teal: '#1A8A7D',
+        purple: '#5B3A8C',
       },
-      // TODO: Add custom fonts (Google Fonts pairing)
+      fontFamily: {
+        archivo: ['Archivo', 'sans-serif'],
+        franklin: ['Libre Franklin', 'sans-serif'],
+      },
     },
   },
   plugins: [],

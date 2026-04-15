@@ -1,15 +1,25 @@
 ==============================================================================
-  BEARBOARD — DEVELOPER TASKS: WHAT TO DEBUG, ADD, AND DO NOT ADD
-  Last Updated: April 14, 2026
+  BEARBOARD — DEVELOPER TASKS (SPRINT 1 — REVISED)
+  Last Updated: April 15, 2026
+  Reference: See landing-mockup.html for the target design
 ==============================================================================
 
-  This file lists what each developer needs to work on. The scaffold has
-  intentional bugs, missing features, and incomplete code so that each
-  team member has real work to do. Read your section carefully.
+  This file assigns each developer's Sprint 1 work. The goal is to build
+  toward the design shown in the HTML mockup — editorial layout, sharp
+  corners, navy/gold palette, Archivo + Libre Franklin fonts, sidebar
+  with trending/events/groups, post cards with left-border accents,
+  sort/filter tabs, and a BearBoard Assistant chat widget.
 
-  DO NOT ADD (for everyone):
-  - Do NOT add an AI chatbot widget on the frontend (bottom-right or anywhere).
-    Aayush will build the AI agent as a proper backend service in Sprint 2.
+  DESIGN PRINCIPLES (from the mockup):
+  - Flat and editorial. No rounded corners — use sharp or 2-4px radius max.
+  - Left-border accent on post cards (3px, turns gold on hover).
+  - Navy (#0B1D34) and gold (#D4962A) are the primary colors.
+  - Fonts: Archivo (headings, labels, weights 700-900) and
+    Libre Franklin (body text, weight 400-600).
+  - No shadows. Use 1px borders in lightgray (#D5D1CA) for separation.
+  - Dense, information-rich layout. No unnecessary whitespace.
+
+  DO NOT (for everyone):
   - Do NOT install extra UI libraries (Material UI, Chakra, etc.).
     We are using Tailwind CSS only.
   - Do NOT change the project folder structure without team agreement.
@@ -21,35 +31,55 @@
 
   BUGS TO FIX:
   1. backend/routers/posts.py — create_post() has author_id hardcoded to 1.
-     It needs to get the actual user ID from the JWT token of the logged-in
-     user. You will need to build an auth dependency for this.
+     It needs to get the actual user ID from the JWT token. Build a reusable
+     get_current_user dependency that extracts and validates the token.
 
   2. backend/routers/posts.py — get_posts() returns ALL posts with no
-     pagination. Add limit/offset query parameters.
+     pagination. Add limit/offset query parameters (default limit=20).
 
   FEATURES TO ADD:
-  3. POST /api/posts/{id}/vote — Build the upvote/downvote endpoint.
-     One vote per user per post. Toggle or change vote. Return updated count.
+  3. POST /api/posts/{id}/vote — Upvote/downvote endpoint.
+     - One vote per user per post (uses the Vote model Johnson creates).
+     - Accepts { "vote_type": "up" | "down" }. Toggle off if same vote.
+     - Return the updated upvote and downvote counts.
 
-  4. GET /api/posts/{id} — Get a single post by ID with its comments.
+  4. GET /api/posts/{id} — Get a single post by ID.
+     - Include author info (name, initials, major).
+     - Include comments list with each comment's author info.
 
-  5. DELETE /api/posts/{id} — Delete a post. Only the author should be able
-     to delete their own post.
+  5. DELETE /api/posts/{id} — Delete a post.
+     - Only the original author can delete. Return 403 otherwise.
 
-  6. Add sorting to GET /api/posts — support "newest" and "popular" sort.
+  6. Sorting on GET /api/posts — Add a "sort" query parameter.
+     - "newest" = order by created_at DESC (default).
+     - "popular" = order by (upvotes - downvotes) DESC.
+     - "trending" = popular in the last 24 hours.
+     These map to the New / Popular / Trending tabs in the mockup.
 
-  7. Add category filtering to GET /api/posts — filter by category string.
+  7. Category filtering on GET /api/posts — Add a "category" query param.
+     - Filter by: events, academic, recruiters, social, general.
+     - These map to the filter chips in the mockup.
 
-  8. Create the agents/ folder scaffolding:
-     - Set up an LLM API client (OpenAI or Anthropic) with config
-     - Build a basic content moderation prompt
-     - Create a placeholder POST /api/ai/moderate endpoint
-     - Do NOT build a chatbot widget on the frontend
+  8. GET /api/trending — Return top 3 trending posts.
+     - Sorted by (upvotes + comment count) in the last 48 hours.
+     - Used by the sidebar Trending box in the mockup.
+
+  9. GET /api/events — Return upcoming events sorted by date.
+     - Used by the sidebar Events box in the mockup.
+     - Coordinate with Johnson on the Event model.
+
+  10. Chat assistant backend:
+      - POST /api/chat — Accepts { "message": "..." }, returns a response.
+      - Build canned responses for: events, study groups, trending, features.
+      - Set up the agents/ folder with an LLM client config (OpenAI or
+        Anthropic) and a basic prompt. For Sprint 1, canned responses are
+        fine. The LLM integration comes in Sprint 2.
+      - This powers the BearBoard Assistant chat widget in the mockup.
 
   DO NOT:
-  - Do not build a frontend chatbot or AI widget
-  - Do not change the database models without coordinating with Johnson
-  - Do not change auth endpoints (those are Johnson's)
+  - Do not change the database models without coordinating with Johnson.
+  - Do not change auth endpoints (those are Johnson's).
+  - Do not build the frontend chat widget (Sameer/Rohan handle that).
 
 ==============================================================================
   Johnson KC — Full Stack (Database, Auth, Profile)
@@ -58,42 +88,72 @@
   BUGS TO FIX:
   1. backend/core/config.py — SECRET_KEY is hardcoded as a plain string.
      Move it to an environment variable. DATABASE_URL too.
+     Use python-dotenv and a .env file (add .env to .gitignore).
 
   2. backend/routers/auth.py — login() generates a JWT token that never
-     expires. Add an expiration time (24 hours) using the exp claim.
+     expires. Add a 24-hour expiration using the "exp" claim.
 
   3. backend/models/user.py — The updated_at column is missing. Add it
-     with auto-update on modification.
+     with server_default and onupdate=func.now().
 
   4. backend/models/post.py — The updated_at column is also missing. Add it.
 
-  5. backend/models/post.py — There is no SQLAlchemy relationship defined
-     between Post and User. Add the relationship so you can load author info.
+  5. backend/models/post.py — No SQLAlchemy relationship between Post and
+     User. Add relationship so you can load author info (name, major) when
+     fetching posts. The mockup shows author name, department, and initials
+     on every post card.
 
   FEATURES TO ADD:
-  6. GET /api/auth/me — Return the current logged-in user from the JWT token.
-     This endpoint is completely missing from auth.py.
+  6. GET /api/auth/me — Return the current logged-in user from the JWT.
+     The frontend needs this to display the user avatar (initials) in the
+     navbar and to populate profile data.
 
-  7. PUT /api/users/{id} — Update own profile (name, major, graduation year).
-     Only the owner should be able to update their own profile.
+  7. PUT /api/users/{id} — Update own profile (name, major, graduation_year).
+     Only the owner can update. Return 403 otherwise.
 
   8. Set up AWS RDS MySQL instance and update DATABASE_URL to point to it.
+     Create a .env.example with placeholder values for the team.
 
-  9. Set up Alembic for database migrations. Create the initial migration
-     that creates all tables.
+  9. Set up Alembic migrations. Create the initial migration for all tables.
 
-  10. Create Vote and Comment database models (they do not exist yet):
-      - Vote: id, user_id (FK), post_id (FK), vote_type, unique constraint
-      - Comment: id, body, author_id (FK), post_id (FK), created_at
+  10. Create these database models (they do not exist yet):
 
-  11. Seed the database with 10-15 sample posts for frontend testing.
+      Vote model:
+        - id, user_id (FK→users), post_id (FK→posts), vote_type (up/down)
+        - Unique constraint on (user_id, post_id)
+        - created_at
 
-  12. Build the frontend profile page connection — right now Profile.jsx
-      uses hardcoded placeholder data. Connect it to the API.
+      Comment model:
+        - id, body, author_id (FK→users), post_id (FK→posts)
+        - created_at
+        - Relationship to User (for author info in comment display)
+
+      Event model:
+        - id, title, description, location, event_date, start_time, end_time
+        - created_by (FK→users), created_at
+        - The mockup sidebar shows: month, day, title, location + time
+
+      Group model:
+        - id, name, course_code, description, member_count
+        - created_by (FK→users), created_at
+        - The mockup sidebar shows: group name, course code, member count
+
+  11. Seed the database with realistic sample data matching the mockup:
+      - 6 users (the team members with their real names and roles)
+      - 10-15 posts across all categories (use the mockup posts as examples)
+      - 3 events matching the mockup: Yard Fest (Apr 18), Career Fair
+        (Apr 22), Hackathon Kickoff (Apr 25)
+      - 3 groups matching the mockup: Networking Gang (COSC 350),
+        SWE Study Group (COSC 458), Bio 201 Crew (BIOL 201)
+      - Sample votes and comments on the posts
+
+  12. Build the frontend profile page connection — Profile.jsx currently
+      uses hardcoded data. Connect it to GET /api/users/{id} and
+      GET /api/auth/me. Show the user's posts on their profile.
 
   DO NOT:
-  - Do not build the AI agent endpoints (that is Aayush's work)
-  - Do not change the post CRUD router logic (that is Aayush's work)
+  - Do not build the AI/chat endpoints (that is Aayush's work).
+  - Do not change the post CRUD router logic (that is Aayush's work).
 
 ==============================================================================
   Sameer Shiwakoti — Frontend / UI
@@ -101,96 +161,183 @@
 
   BUGS TO FIX:
   1. frontend/src/pages/Login.jsx — No form validation. Empty fields can
-     be submitted. Add required field checks and error messages.
+     be submitted. Add required field checks and inline error messages.
 
-  2. frontend/src/pages/Register.jsx — graduation_year input accepts any
-     text. Validate it as a 4-digit number.
+  2. frontend/src/pages/Register.jsx — graduation_year accepts any text.
+     Validate as a 4-digit number between 2024-2030.
 
   3. frontend/src/pages/Register.jsx — No password confirmation field.
-     Add a "Confirm Password" input and check that passwords match.
+     Add "Confirm Password" input and check passwords match before submit.
 
-  4. frontend/src/api/client.js — No error handling. If the API returns
-     an error status, the client silently fails. Handle errors properly.
+  4. frontend/src/api/client.js — No error handling. API errors silently
+     fail. Add proper error handling that surfaces error messages to the UI.
+     Also read API_URL from an env variable instead of hardcoding.
 
   FEATURES TO ADD:
-  5. Connect Login page to POST /api/auth/login. Store the JWT token
-     in React context or state after successful login.
+  5. Build auth context/provider (frontend/src/context/AuthContext.jsx):
+     - Store JWT token and user info after login.
+     - Provide login(), logout(), register() functions.
+     - On app load, check for stored token and call GET /api/auth/me.
+     - Navbar shows user initials avatar when logged in (like the mockup
+       shows "JK" in a gold square), login/register links when logged out.
 
-  6. Connect Register page to POST /api/auth/register. Redirect to
-     login or auto-login after successful registration.
+  6. Connect Login page to POST /api/auth/login.
+     - Store token via auth context. Redirect to /feed on success.
+     - Show error message on invalid credentials.
 
-  7. Connect Feed page to GET /api/posts instead of hardcoded sample data.
+  7. Connect Register page to POST /api/auth/register.
+     - Auto-login after successful registration, redirect to /feed.
 
-  8. Add a "New Post" button on the Feed page that opens a create post
-     modal or form. Submit to POST /api/posts.
+  8. Connect Feed page to GET /api/posts.
+     - Replace hardcoded sample data with API data.
+     - Show loading skeleton while fetching.
+     - Show empty state if no posts.
 
-  9. Add sort tabs on Feed page (Newest, Popular).
+  9. Build sort tabs on the Feed page: New, Popular, Trending.
+     - Match the mockup style: pill-shaped tab group, navy background on
+       active tab, gray border on inactive. Use Archivo font, 0.72rem,
+       uppercase, tight letter-spacing.
+     - Pass sort param to GET /api/posts.
 
-  10. Add category filter chips on Feed page (Events, Academic, Recruiters,
-      Social, General).
+  10. Build category filter chips: Events, Academic, Recruiters, Social,
+      General.
+      - Match mockup style: gold-pale background + gold border when active,
+        white background + lightgray border when inactive.
+      - Pass category param to GET /api/posts.
 
-  11. Build auth context/provider to manage login state across the app.
-      Navbar should show user info when logged in, and Login/Register
-      links when logged out.
+  11. Wire up vote buttons on post cards.
+      - Call POST /api/posts/{id}/vote on click.
+      - Show updated count. Highlight active vote state.
+      - Match mockup: up/down arrows with vote count between them.
 
-  12. Add loading states and empty states to the Feed page.
+  12. Build the "New Post" flow:
+      - The mockup has a gold FAB button "+ New Post" at bottom-right.
+      - Clicking it opens a modal with: title, body, category dropdown.
+      - Submit calls POST /api/posts. New post appears in the feed.
+
+  13. Build the BearBoard Assistant chat widget (frontend UI only):
+      - Match the mockup exactly: fixed bottom-right chat bubble with
+        badge, expandable chat window (360x480px), navy header with
+        "BearBoard Assistant" + online status.
+      - Message bubbles: bot messages white with border, user messages
+        navy with white text. Show initials avatars (B for bot, user
+        initials for user).
+      - Suggestion chips on first open. Typing animation (3 bouncing dots).
+      - Connect to POST /api/chat for responses.
+      - Input bar with text field + gold send button.
 
   DO NOT:
-  - Do not build the profile page UI (that is Rohan's work)
-  - Do not build the post detail page (that is Rohan's work)
-  - Do not add an AI chatbot widget anywhere on the frontend
+  - Do not build the post detail page (that is Rohan's work).
+  - Do not build the sidebar components (that is Rohan's work).
+  - Do not style the profile page (that is Rohan's work).
 
 ==============================================================================
   Rohan Sainju — UI/UX Design & Experience
 ==============================================================================
 
   BUGS TO FIX:
-  1. frontend/src/components/Navbar.jsx — No responsive hamburger menu.
-     On mobile, the nav links overflow. Add a mobile menu toggle.
+  1. frontend/src/components/Navbar.jsx — Rebuild to match the mockup:
+     - Sticky, 52px height, navy background, no shadow.
+     - Left: "BEAR" in white + "BOARD" in gold, Archivo 900, uppercase.
+     - Center: Feed, Groups, Events, Team links. Active link = gold text
+       with rgba(255,255,255,0.06) background. Inactive = rgba white 0.55.
+     - Right: search input (190px, expands to 240px on focus, gold border
+       on focus) + user initials avatar (30px, gold background, navy text).
+     - Mobile: hide center nav links, show hamburger menu.
 
-  2. frontend/tailwind.config.js — The color palette is incomplete. Only
-     msu-blue and msu-gold are defined. Add neutral shades, success/error
-     colors, and any other brand colors.
+  2. frontend/tailwind.config.js — Replace the color palette to match
+     the mockup's design tokens:
+       navy: #0B1D34, gold: #D4962A, gold-pale: #F2E3C6,
+       white: #FCFAF7, offwhite: #F0ECE4, ink: #1C1C1C,
+       gray: #6B6B6B, lightgray: #D5D1CA, red: #C0392B,
+       teal: #1A8A7D, purple: #5B3A8C
 
-  3. frontend/src/index.css — The body font is generic "sans-serif". Pick
-     and configure a Google Fonts pairing (display + body) and update
-     the Tailwind config and index.html.
+  3. frontend/src/index.css and index.html — Configure the font pairing:
+     - Archivo (400-900) for headings, labels, numbers, buttons.
+     - Libre Franklin (400-600) for body text, paragraphs.
+     - Load via Google Fonts link in index.html.
+     - Set body font to Libre Franklin in Tailwind config.
+     - Background: offwhite (#F0ECE4).
 
   FEATURES TO ADD:
-  4. Build reusable UI components in frontend/src/components/:
-     - Button (primary, secondary, outline variants)
-     - Card (used for post cards and profile cards)
-     - Badge (for category tags)
-     - Input (styled form input with label and error state)
-     - Modal (reusable modal wrapper)
+  4. Build the header section (below nav, part of Feed page or layout):
+     - Navy background, asymmetric layout.
+     - Left: "What's happening / at Morgan State" (h1, Archivo 900,
+       2.8rem, white + gold). Subtitle in rgba white 0.5.
+     - Right: three stat boxes (Students: 1,247 / Groups: 86 /
+       Posts Today: 324). Gold numbers, Archivo 900, 2rem.
+       Labels in rgba white 0.35, uppercase, 0.68rem.
+     - Gold 3px divider line at the bottom.
 
-  5. Build the post detail page (frontend/src/pages/PostDetail.jsx):
-     - Full post view with title, body, author info, timestamps
-     - Comment section below the post
-     - Comment input form for logged-in users
-     - Vote buttons with visual feedback
-     - Back to feed navigation
-     - Add the route in App.jsx: /post/:id
+  5. Build reusable UI components in frontend/src/components/:
+     - PostCard: left-border accent (3px lightgray, gold on hover),
+       no border-radius. Author avatar (colored square with initials),
+       name, department, time ago. Category badge (colored by type).
+       Title (Archivo 700), body text, footer with vote buttons +
+       comments count + bookmark + share.
+     - CategoryBadge: tiny uppercase label (Archivo 0.6rem 800).
+       Colors per category — events: gold-pale/gold, academic: light
+       blue/navy, recruiters: light purple/purple, social: light
+       teal/teal, general: light gray/gray.
+     - VoteButtons: up arrow, count (Archivo 800), down arrow.
+     - Button: primary (gold bg, navy text), secondary (navy bg, white).
+     - Modal: sharp corners, lightgray border, sticky header with
+       offwhite background, close button.
+     - Card: white background, 1px lightgray border, no radius.
 
-  6. Redesign the Home page with a proper hero section, feature highlights,
-     and visual appeal. Current version is very bare.
+  6. Build the sidebar (right column of the feed layout, 300px):
+     a. Trending box:
+        - Navy header "TRENDING" (Archivo 0.7rem 800, gold text).
+        - Numbered list (#1, #2, #3) with post title, upvote count,
+          comment count. Data from GET /api/trending.
+     b. Events box:
+        - Navy header "EVENTS".
+        - Each event: date block (42px navy square with month + day)
+          + title + location/time. Data from GET /api/events.
+     c. Your Groups box:
+        - Navy header "YOUR GROUPS".
+        - Each group: name, course code, member count badge (light
+          blue background). Data from GET /api/groups (future).
 
-  7. Style the profile page (frontend/src/pages/Profile.jsx):
-     - Add avatar display
-     - Make the layout visually polished
-     - Add an "Edit Profile" modal for own profile
+  7. Build the post detail page (frontend/src/pages/PostDetail.jsx):
+     - Full post view matching the card style but expanded.
+     - Comment section below: each comment shows author avatar,
+       name, timestamp, body.
+     - Comment input form for logged-in users.
+     - Vote buttons with live count.
+     - Route: /post/:id in App.jsx.
 
-  8. Add hover states, transitions, and micro-interactions across all pages.
+  8. Build the Team section (bottom of feed page or separate /team page):
+     - Section header: "THE TEAM" (Archivo 900, 0.85rem, uppercase).
+       Subtitle: "COSC 458 — Software Engineering · Spring 2026".
+     - 6-column grid of team cards. Each card: colored initials square,
+       name (Archivo 700), role text. Hover = gold border.
+     - Clicking a card opens a task overlay modal showing that member's
+       Sprint 1 tasks with checkboxes and priority badges (high=red,
+       medium=gold, low=teal).
 
-  9. Test all pages at mobile viewport (375px+) and fix any layout issues.
+  9. Build the idea banner (above the Team section):
+     - Navy background, flex row: lightbulb icon + text ("Got a new idea?
+       Add it to the Trello board...") + gold "Add Idea" button linking
+       to the Trello board + dismiss X button.
 
-  10. Create a simple style guide page (/styleguide) that shows all the
-      reusable components.
+  10. Style the profile page (frontend/src/pages/Profile.jsx):
+      - User avatar (large colored square with initials), name, major,
+        graduation year, karma score.
+      - "Edit Profile" button that opens a modal (own profile only).
+      - Grid of user's posts below.
+      - Match the flat, sharp-cornered design language.
+
+  11. Responsive polish:
+      - Test all pages at 375px mobile viewport.
+      - Feed layout: single column on mobile (sidebar stacks below).
+      - Team grid: 3 columns on mobile instead of 6.
+      - Chat widget: full width minus 16px margin on mobile.
+      - Nav: hide center links, add hamburger menu.
 
   DO NOT:
-  - Do not change the API routes or backend code
-  - Do not change the routing structure without coordinating with Sameer
-  - Do not add an AI chatbot widget anywhere
+  - Do not change the API routes or backend code.
+  - Do not change the routing structure without coordinating with Sameer.
 
 ==============================================================================
   Oluwajomiloju King — Scrum Master
@@ -198,9 +345,9 @@
 
   TASKS:
   1. Set up branch protection rules on GitHub:
-     - Require pull request reviews before merging
-     - Require at least 1 approving review
-     - No direct pushes to main
+     - Require pull request reviews before merging.
+     - Require at least 1 approving review.
+     - No direct pushes to main.
 
   2. Create a pull request template (.github/pull_request_template.md)
      with sections for: Summary, Changes Made, Testing, Screenshots.
@@ -210,17 +357,24 @@
      - bugfix/S1-XX-description
 
   4. Set up Trello board columns: To Do, In Progress, In Review, Done.
-     Create cards for each task in this file.
+     Create cards for every task listed in this file.
 
   5. Run async standups on GroupMe or schedule sync calls.
+     Track who is blocked and help unblock them.
 
   6. Write Sprint 1 review document and prepare the demo.
+     The demo should show: login → feed with posts → vote → create post →
+     chat assistant → team section with task overlay.
 
-  7. Review this DEVELOPER_TASKS.txt and update it if tasks change.
+  7. Save the HTML mockup (landing-mockup.html) to the repo root as a
+     design reference. Make sure all developers have reviewed it before
+     starting their tasks.
+
+  8. Review this DEVELOPER_TASKS.txt and update it if tasks change.
 
   DO NOT:
-  - Do not write application code unless helping unblock a teammate
-  - Do not merge PRs without at least one review
+  - Do not write application code unless helping unblock a teammate.
+  - Do not merge PRs without at least one review.
 
 ==============================================================================
   GENERAL NOTES
@@ -234,9 +388,28 @@
   - The backend uses SQLAlchemy + FastAPI. The frontend uses React 18 +
     Vite + Tailwind CSS + React Router.
 
+  - The HTML mockup (landing-mockup.html) is the design target. It shows
+    the finished look and feel including colors, typography, spacing,
+    component styles, and interactions. Use it as your north star.
+
   - Coordinate on API contracts before building. Agree on request/response
     shapes in the team chat before coding endpoints.
 
   - Every feature branch needs a PR. Every PR needs at least one review.
+
+  API ENDPOINTS SUMMARY:
+    POST   /api/auth/register     — Register new user
+    POST   /api/auth/login        — Login, returns JWT
+    GET    /api/auth/me           — Current user from token
+    GET    /api/users/{id}        — Get user profile
+    PUT    /api/users/{id}        — Update own profile
+    GET    /api/posts             — List posts (?sort=&category=&limit=&offset=)
+    POST   /api/posts             — Create post (auth required)
+    GET    /api/posts/{id}        — Single post with comments
+    DELETE /api/posts/{id}        — Delete own post (auth required)
+    POST   /api/posts/{id}/vote   — Vote on post (auth required)
+    GET    /api/trending          — Top 3 trending posts
+    GET    /api/events            — Upcoming events
+    POST   /api/chat              — Chat assistant message
 
 ==============================================================================

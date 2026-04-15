@@ -1,272 +1,417 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import ChatWidget from '../components/ChatWidget'
+
+const TEAM_DATA = {
+  kyndal: { name: 'Kyndal Maclin', role: 'Product Owner', initials: 'KM', color: '#5B3A8C', tc: '#fff',
+    tasks: [
+      { id: 'PO-01', desc: 'Define and prioritize the product backlog for all 4 sprints', p: 'h' },
+      { id: 'PO-02', desc: 'Accept or reject completed sprint deliverables', p: 'h' },
+      { id: 'PO-03', desc: 'Communicate product vision and requirements to the team', p: 'm' },
+      { id: 'PO-04', desc: 'Gather user feedback and validate feature decisions', p: 'm' },
+    ],
+  },
+  olu: { name: 'Oluwajomiloju King', role: 'Scrum Master', initials: 'OK', color: '#0B1D34', tc: '#fff',
+    tasks: [
+      { id: 'S1-04', desc: 'Set up Git repo, branch strategy, CI linting, and README', p: 'h' },
+      { id: 'S1-14', desc: 'Set up Trello board with Sprint 1 cards, coordinate standups, track blockers', p: 'h' },
+      { id: 'S1-15', desc: 'Write Sprint 1 review/retrospective document and demo prep', p: 'l' },
+    ],
+  },
+  aayush: { name: 'Aayush Shrestha', role: 'API, AI Agent & Backend', initials: 'AS', color: '#1A8A7D', tc: '#fff',
+    tasks: [
+      { id: 'S1-01', desc: 'Initialize FastAPI backend: project structure, Pydantic schemas, CORS, Swagger docs', p: 'h' },
+      { id: 'S1-08', desc: 'Build CRUD API endpoints for posts (create, list, get single, delete)', p: 'm' },
+      { id: 'S1-09', desc: 'Implement upvote/downvote API (one vote per user per post)', p: 'm' },
+      { id: 'S1-16', desc: 'Set up AI agent scaffolding: LLM client, agents/ folder, content moderation placeholder', p: 'l' },
+    ],
+  },
+  rohan: { name: 'Rohan Sainju', role: 'UI/UX', initials: 'RS', color: '#2E7D32', tc: '#fff',
+    tasks: [
+      { id: 'S1-12', desc: 'Design BearBoard design system: color palette, Tailwind theme, fonts, reusable UI components', p: 'h' },
+      { id: 'S1-17', desc: 'Design event calendar view UI and create post modal with category selection', p: 'm' },
+      { id: 'S1-18', desc: 'Design and build post detail page with comments section', p: 'm' },
+      { id: 'S1-19', desc: 'UX polish: responsive testing, hover states, transitions, user flow review', p: 'l' },
+    ],
+  },
+  sameer: { name: 'Sameer Shiwakoti', role: 'Frontend', initials: 'SS', color: '#C0392B', tc: '#fff',
+    tasks: [
+      { id: 'S1-03', desc: 'Initialize React + Vite project, configure Tailwind CSS, set up routing and folder structure', p: 'h' },
+      { id: 'S1-10', desc: 'Build Register and Login pages in React with form validation', p: 'h' },
+      { id: 'S1-11', desc: 'Build campus feed page UI with post cards, category tags, sort tabs', p: 'm' },
+      { id: 'S1-13', desc: 'Build top navbar component with search bar, navigation, responsive menu', p: 'l' },
+    ],
+  },
+  johnson: { name: 'Johnson KC', role: 'Full Stack', initials: 'JK', color: '#D4962A', tc: '#0B1D34',
+    tasks: [
+      { id: 'S1-02', desc: 'Set up MySQL on AWS RDS, configure SQLAlchemy ORM, Alembic migrations, create all tables', p: 'h' },
+      { id: 'S1-05', desc: 'Build registration API endpoint (email + password), hash passwords with bcrypt', p: 'h' },
+      { id: 'S1-06', desc: 'Build login API endpoint, JWT token generation and validation middleware', p: 'h' },
+      { id: 'S1-07', desc: 'Build user profile API + frontend profile page (full stack)', p: 'm' },
+    ],
+  },
+}
+
+const SAMPLE_POSTS = [
+  {
+    id: 1, initials: 'KM', color: '#5B3A8C', name: 'Kyndal Maclin', dept: 'Computer Science', time: '2h ago',
+    category: 'events', title: 'Spring Career Fair — April 22nd at the Student Center',
+    body: 'Google, Amazon, and Lockheed Martin confirmed. Bring resumes and dress business casual. Doors open at 10 AM. Last year was packed so get there early if you want face time with recruiters.',
+    votes: 47, comments: 12,
+  },
+  {
+    id: 2, initials: 'AS', color: '#0B1D34', name: 'Aayush Shrestha', dept: 'Computer Science', time: '4h ago',
+    category: 'academic', title: 'COSC 350 Midterm Study Group — Need 2 More People',
+    body: "We meet Tuesdays and Thursdays at the library 3rd floor. Currently going over networking layers and socket programming. If you're struggling with subnetting, we've got you covered.",
+    votes: 31, comments: 8,
+  },
+  {
+    id: 3, initials: 'RS', color: '#1A8A7D', name: 'Rohan Sainju', dept: 'Computer Science', time: '6h ago',
+    category: 'recruiters', title: 'JPMorgan Software Engineering Internship — Summer 2026 Still Open',
+    body: "Just got off a call with the campus recruiter. Applications close April 25th. They're specifically looking for Morgan State students this cycle. Link in comments.",
+    votes: 64, comments: 23,
+  },
+  {
+    id: 4, initials: 'SS', color: '#C0392B', name: 'Sameer Shiwakoti', dept: 'Information Systems', time: '8h ago',
+    category: 'social', title: "Who's going to Yard Fest this weekend?",
+    body: "Heard the lineup is crazy this year. Trying to see who else is going from the CS department so we can link up. Drop a comment if you're pulling up.",
+    votes: 89, comments: 34,
+  },
+  {
+    id: 5, initials: 'JK', color: '#D4962A', tc: '#0B1D34', name: 'Johnson KC', dept: 'Computer Science', time: '1d ago',
+    category: 'general', title: 'Best quiet spots to code on campus?',
+    body: "I need somewhere with good WiFi and outlets where I can work for a few hours without getting distracted. The library gets too packed after 2 PM. Any hidden gems?",
+    votes: 22, comments: 15,
+  },
+]
+
+const TRENDING = [
+  { rank: 1, title: 'Yard Fest Weekend Plans', upvotes: 89, comments: 34 },
+  { rank: 2, title: 'JPMorgan Internship Apps', upvotes: 64, comments: 23 },
+  { rank: 3, title: 'Spring Career Fair Details', upvotes: 47, comments: 12 },
+]
+
+const EVENTS = [
+  { month: 'Apr', day: '18', title: 'Yard Fest 2026', detail: 'Main Yard \u00B7 12-8 PM' },
+  { month: 'Apr', day: '22', title: 'Spring Career Fair', detail: 'Student Center \u00B7 10 AM-3 PM' },
+  { month: 'Apr', day: '25', title: 'Hackathon Kickoff', detail: 'SCMNS 201 \u00B7 6 PM' },
+]
+
+const GROUPS = [
+  { name: 'Networking Gang', code: 'COSC 350', count: 12 },
+  { name: 'SWE Study Group', code: 'COSC 458', count: 6 },
+  { name: 'Bio 201 Crew', code: 'BIOL 201', count: 18 },
+]
+
+const CAT_STYLES = {
+  events: 'bg-gold-pale text-[#8B6914]',
+  academic: 'bg-[#D1E3F5] text-navy',
+  recruiters: 'bg-[#E6D8F0] text-purple',
+  social: 'bg-[#D0EDE9] text-[#0F5E54]',
+  general: 'bg-[#E5E3DE] text-[#5A5A5A]',
+}
+
+const PRI_STYLES = {
+  h: 'bg-[#F5D5D0] text-[#8B1A1A]',
+  m: 'bg-gold-pale text-[#8B6914]',
+  l: 'bg-[#D0EDE9] text-[#0F5E54]',
+}
+const PRI_LABELS = { h: 'High', m: 'Medium', l: 'Low' }
 
 function Home() {
-  return (
-    <div className="overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-msu-blue via-[#00426e] to-[#001a33] text-white">
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-msu-gold/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 -left-32 w-80 h-80 bg-msu-gold/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-white/5 rounded-full blur-2xl" />
-          {/* Grid pattern overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-              backgroundSize: '32px 32px',
-            }}
-          />
-        </div>
+  const [activeSort, setActiveSort] = useState('new')
+  const [activeFilter, setActiveFilter] = useState('events')
+  const [showIdea, setShowIdea] = useState(true)
+  const [taskPanel, setTaskPanel] = useState(null)
+  const [checkedTasks, setCheckedTasks] = useState({})
 
-        <div className="relative max-w-6xl mx-auto px-6 py-24 md:py-32">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm mb-8 border border-white/10">
-              <span className="w-2 h-2 bg-msu-gold rounded-full animate-pulse" />
-              Morgan State University
-            </div>
+  const toggleTask = (id) => {
+    setCheckedTasks((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
 
-            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-6">
-              Your Campus,{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-msu-gold to-yellow-300">
-                Connected.
-              </span>
-            </h1>
+  const teamMember = taskPanel ? TEAM_DATA[taskPanel] : null
 
-            <p className="text-lg md:text-xl text-blue-100 leading-relaxed mb-10 max-w-2xl">
-              BearBoard is the hub where Bears find study groups, discover events,
-              trade textbooks, and stay plugged into everything happening at Morgan State.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/register"
-                className="inline-flex items-center justify-center gap-2 bg-msu-gold text-msu-blue font-bold px-8 py-3.5 rounded-lg text-lg hover:bg-yellow-400 transition-all hover:shadow-lg hover:shadow-msu-gold/25 hover:-translate-y-0.5"
-              >
-                Join BearBoard
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-              <Link
-                to="/feed"
-                className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-sm text-white font-semibold px-8 py-3.5 rounded-lg text-lg border border-white/20 hover:bg-white/20 transition-all hover:-translate-y-0.5"
-              >
-                Browse Feed
-              </Link>
-            </div>
-          </div>
-
-          {/* Floating preview cards */}
-          <div className="hidden lg:block absolute right-8 top-1/2 -translate-y-1/2 w-80 space-y-4">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 transform rotate-2 hover:rotate-0 transition-transform">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-msu-gold/20 flex items-center justify-center text-sm">
-                  <svg className="w-4 h-4 text-msu-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-blue-100">Academic</span>
-              </div>
-              <p className="text-sm font-semibold">Study group for COSC 458</p>
-              <p className="text-xs text-blue-200 mt-1">Looking for partners for the midterm...</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 transform -rotate-1 hover:rotate-0 transition-transform">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-green-400/20 flex items-center justify-center text-sm">
-                  <svg className="w-4 h-4 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-blue-100">Events</span>
-              </div>
-              <p className="text-sm font-semibold">Career Fair this Friday</p>
-              <p className="text-xs text-blue-200 mt-1">Student Center, 10am - 4pm</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 transform rotate-1 hover:rotate-0 transition-transform">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-purple-400/20 flex items-center justify-center text-sm">
-                  <svg className="w-4 h-4 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-blue-100">General</span>
-              </div>
-              <p className="text-sm font-semibold">Welcome to BearBoard!</p>
-              <p className="text-xs text-blue-200 mt-1">Your new campus community hub</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom wave divider */}
-        <div className="relative">
-          <svg className="w-full h-16 md:h-24" viewBox="0 0 1440 96" fill="none" preserveAspectRatio="none">
-            <path d="M0 96L60 85.3C120 75 240 53 360 48C480 43 600 53 720 58.7C840 64 960 64 1080 56C1200 48 1320 32 1380 24L1440 16V96H1380C1320 96 1200 96 1080 96C960 96 840 96 720 96C600 96 480 96 360 96C240 96 120 96 60 96H0Z" fill="#f5f5f5" />
-          </svg>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="bg-[#f5f5f5] py-16 md:py-24">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-msu-blue mb-4">
-              Everything you need on campus
-            </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              One place for academics, events, and campus life at Morgan State.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              }
-              color="blue"
-              title="Study Groups"
-              description="Find classmates, form study groups, and share notes for any course."
-            />
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              }
-              color="gold"
-              title="Campus Events"
-              description="Stay up to date on parties, workshops, org meetings, and more."
-            />
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-              }
-              color="green"
-              title="Marketplace"
-              description="Buy, sell, or trade textbooks, furniture, and gear with fellow Bears."
-            />
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              }
-              color="purple"
-              title="Discussions"
-              description="Ask questions, get advice, and connect with your campus community."
-            />
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              }
-              color="orange"
-              title="Housing"
-              description="Find roommates, subleases, and off-campus housing near Morgan."
-            />
-            <FeatureCard
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              }
-              color="red"
-              title="Lost & Found"
-              description="Lost your ID? Found someone's AirPods? Help each other out."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof / Stats */}
-      <section className="bg-white py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <StatItem number="Morgan" label="State Bears" />
-            <StatItem number="24/7" label="Campus Feed" />
-            <StatItem number="100%" label="Student-Run" />
-            <StatItem number="Free" label="Always" />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-msu-blue py-16 md:py-24">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to join the Bear community?
-          </h2>
-          <p className="text-blue-200 text-lg mb-10 max-w-2xl mx-auto">
-            Sign up with your Morgan State email and start connecting with
-            thousands of Bears on campus.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-msu-gold text-msu-blue font-bold px-8 py-3.5 rounded-lg text-lg hover:bg-yellow-400 transition-all hover:shadow-lg hover:shadow-msu-gold/25 hover:-translate-y-0.5"
-            >
-              Create Your Account
-            </Link>
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center gap-2 text-white font-semibold px-8 py-3.5 rounded-lg text-lg border border-white/30 hover:bg-white/10 transition-all hover:-translate-y-0.5"
-            >
-              Already a member? Log in
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-[#001a33] text-blue-300 py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm">
-            <span className="font-bold text-white">BearBoard</span> — Morgan State University
-          </div>
-          <div className="flex gap-6 text-sm">
-            <Link to="/feed" className="hover:text-white transition-colors">Feed</Link>
-            <Link to="/register" className="hover:text-white transition-colors">Register</Link>
-            <Link to="/login" className="hover:text-white transition-colors">Login</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-const colorMap = {
-  blue: { bg: 'bg-blue-50', icon: 'text-msu-blue', border: 'border-blue-100' },
-  gold: { bg: 'bg-amber-50', icon: 'text-msu-gold', border: 'border-amber-100' },
-  green: { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-100' },
-  purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
-  orange: { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-100' },
-  red: { bg: 'bg-red-50', icon: 'text-red-500', border: 'border-red-100' },
-}
-
-function FeatureCard({ icon, color, title, description }) {
-  const c = colorMap[color]
-  return (
-    <div className={`bg-white rounded-xl p-6 border ${c.border} hover:shadow-lg transition-all hover:-translate-y-1 group`}>
-      <div className={`w-12 h-12 ${c.bg} rounded-lg flex items-center justify-center ${c.icon} mb-4 group-hover:scale-110 transition-transform`}>
-        {icon}
-      </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
-    </div>
-  )
-}
-
-function StatItem({ number, label }) {
   return (
     <div>
-      <div className="text-3xl md:text-4xl font-extrabold text-msu-blue">{number}</div>
-      <div className="text-gray-500 text-sm mt-1">{label}</div>
+      {/* Header */}
+      <div className="bg-navy px-6 pt-10 pb-11">
+        <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
+          <div className="max-w-[560px]">
+            <h1 className="font-archivo font-black text-[2.8rem] md:text-[2.8rem] text-white leading-[1.05] tracking-tight uppercase">
+              What's happening <span className="text-gold block">at Morgan State</span>
+            </h1>
+            <p className="text-white/50 text-[0.92rem] mt-3 leading-relaxed max-w-[420px]">
+              Posts, study groups, events, and opportunities. All in one place, by students, for students.
+            </p>
+          </div>
+          <div className="flex gap-8">
+            <HeaderNum value="1,247" label="Students" />
+            <HeaderNum value="86" label="Groups" />
+            <HeaderNum value="324" label="Posts Today" />
+          </div>
+        </div>
+      </div>
+      <hr className="h-[3px] bg-gold border-none m-0" />
+
+      {/* Feed + Sidebar */}
+      <div className="max-w-[1080px] mx-auto px-6 py-7 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-7" id="feed">
+        {/* Main Feed */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-archivo font-extrabold text-[0.85rem] uppercase tracking-widest text-gray">Campus Feed</h2>
+            <div className="flex">
+              {['new', 'popular', 'trending'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveSort(tab)}
+                  className={`font-archivo text-[0.72rem] font-bold uppercase tracking-wide py-[5px] px-2.5 border border-lightgray cursor-pointer first:rounded-l last:rounded-r ${
+                    activeSort === tab ? 'bg-navy text-white border-navy' : 'bg-card text-gray'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 mb-[18px]">
+            {['events', 'academic', 'recruiters', 'social', 'general'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`text-[0.7rem] font-semibold py-1 px-2.5 border rounded-[3px] cursor-pointer uppercase tracking-wide transition-colors ${
+                  activeFilter === f
+                    ? 'bg-gold-pale border-gold text-[#8B6914]'
+                    : 'bg-card border-lightgray text-gray hover:border-ink hover:text-ink'
+                }`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Posts */}
+          {SAMPLE_POSTS.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+
+        {/* Sidebar */}
+        <aside>
+          {/* Trending */}
+          <SideBox title="Trending" id="trending-box">
+            {TRENDING.map((t) => (
+              <div key={t.rank} className="px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
+                <div className="font-archivo font-extrabold text-[0.62rem] text-gold tracking-wide">#{t.rank}</div>
+                <div className="text-[0.82rem] font-semibold my-[1px]">{t.title}</div>
+                <div className="text-[0.68rem] text-gray">{t.upvotes} upvotes &middot; {t.comments} comments</div>
+              </div>
+            ))}
+          </SideBox>
+
+          {/* Events */}
+          <SideBox title="Events" id="events">
+            {EVENTS.map((ev, i) => (
+              <div key={i} className="flex gap-3 px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0 items-center">
+                <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0">
+                  <span className="text-[0.55rem] uppercase tracking-wide opacity-60">{ev.month}</span>
+                  <span className="font-archivo font-black text-[1.05rem] leading-none">{ev.day}</span>
+                </div>
+                <div>
+                  <div className="text-[0.82rem] font-semibold">{ev.title}</div>
+                  <div className="text-[0.68rem] text-gray">{ev.detail}</div>
+                </div>
+              </div>
+            ))}
+          </SideBox>
+
+          {/* Groups */}
+          <SideBox title="Your Groups" id="groups">
+            {GROUPS.map((g, i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-[9px] border-b border-[#EAE7E0] last:border-b-0">
+                <div>
+                  <div className="text-[0.82rem] font-semibold">{g.name}</div>
+                  <div className="text-[0.68rem] text-gray">{g.code}</div>
+                </div>
+                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[7px] rounded-sm">{g.count}</span>
+              </div>
+            ))}
+          </SideBox>
+        </aside>
+      </div>
+
+      {/* Idea Banner */}
+      {showIdea && (
+        <div className="max-w-[1080px] mx-auto px-6">
+          <div className="bg-navy px-5 py-4 flex items-center gap-3.5">
+            <div className="text-[1.3rem]">&#128161;</div>
+            <div className="flex-1 text-white/70 text-[0.85rem]">
+              <b className="text-gold">Got a new idea?</b> Add it to the Trello board and sprint backlog so the team can review it.
+            </div>
+            <a
+              href="https://trello.com/b/ZVVEpSeC/my-trello-board"
+              target="_blank"
+              rel="noreferrer"
+              className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-wide bg-gold text-navy px-[18px] py-[9px] no-underline hover:bg-[#E5A92E] transition-colors shrink-0"
+            >
+              + Add Idea
+            </a>
+            <button
+              onClick={() => setShowIdea(false)}
+              className="bg-transparent border-none text-white/30 text-[1.1rem] cursor-pointer hover:text-white/70"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Team Section */}
+      <div className="max-w-[1080px] mx-auto px-6 pt-8" id="team">
+        <h2 className="font-archivo font-black text-[0.85rem] uppercase tracking-widest text-navy">The Team</h2>
+        <p className="text-[0.78rem] text-gray mt-1">COSC 458 — Software Engineering &middot; Spring 2026 &middot; Click a name to see their tasks</p>
+      </div>
+      <div className="max-w-[1080px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-3 md:grid-cols-6 gap-2">
+        {Object.entries(TEAM_DATA).map(([key, m]) => (
+          <div
+            key={key}
+            onClick={() => setTaskPanel(key)}
+            className="bg-card border border-lightgray p-4 text-center cursor-pointer hover:border-gold transition-colors"
+          >
+            <div
+              className="w-10 h-10 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
+              style={{ background: m.color, color: m.tc }}
+            >
+              {m.initials}
+            </div>
+            <div className="font-archivo font-bold text-[0.78rem]">{m.name}</div>
+            <div className="text-[0.65rem] text-gray mt-[2px]">{m.role}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Task Overlay */}
+      {taskPanel && teamMember && (
+        <div
+          className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setTaskPanel(null) }}
+        >
+          <div className="bg-card w-[90%] max-w-[600px] max-h-[75vh] overflow-y-auto border border-lightgray">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
+              <div
+                className="w-[38px] h-[38px] rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.75rem] shrink-0"
+                style={{ background: teamMember.color, color: teamMember.tc }}
+              >
+                {teamMember.initials}
+              </div>
+              <div>
+                <h3 className="font-archivo font-extrabold text-[1rem]">{teamMember.name}</h3>
+                <div className="text-[0.72rem] text-gray">{teamMember.role} &bull; Sprint 1</div>
+              </div>
+              <button
+                onClick={() => setTaskPanel(null)}
+                className="ml-auto bg-transparent border-none text-[1.3rem] cursor-pointer text-gray hover:text-ink p-1"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-5 py-3">
+              {teamMember.tasks.map((t) => (
+                <div key={t.id} className="flex items-start gap-2.5 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
+                  <div
+                    onClick={() => toggleTask(t.id)}
+                    className={`w-[18px] h-[18px] border-2 rounded-sm shrink-0 mt-[1px] cursor-pointer flex items-center justify-center text-[0.65rem] transition-colors ${
+                      checkedTasks[t.id]
+                        ? 'bg-navy border-navy text-white'
+                        : 'border-lightgray text-transparent hover:border-navy'
+                    }`}
+                  >
+                    {checkedTasks[t.id] ? '\u2713' : ''}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-archivo text-[0.62rem] font-extrabold text-gold tracking-wide">{t.id}</div>
+                    <div className="text-[0.85rem] font-medium my-[1px] leading-snug">{t.desc}</div>
+                    <span className={`font-archivo text-[0.6rem] font-bold uppercase tracking-wide py-[2px] px-[7px] rounded-sm ${PRI_STYLES[t.p]}`}>
+                      {PRI_LABELS[t.p]}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="bg-navy py-5 text-center text-white/30 text-[0.72rem]">
+        BearBoard &copy; 2026 &middot; COSC 458 Software Engineering &middot; Morgan State University &middot;{' '}
+        <a href="https://trello.com/b/ZVVEpSeC/my-trello-board" target="_blank" rel="noreferrer" className="text-gold no-underline">
+          Trello
+        </a>
+      </footer>
+
+      {/* New Post FAB */}
+      <button className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors">
+        + New Post
+      </button>
+
+      {/* Chat Widget */}
+      <ChatWidget />
+    </div>
+  )
+}
+
+function HeaderNum({ value, label }) {
+  return (
+    <div className="text-right">
+      <div className="font-archivo font-black text-[2rem] text-gold leading-none tracking-tight">{value}</div>
+      <div className="text-white/35 text-[0.68rem] uppercase tracking-widest font-semibold mt-1">{label}</div>
+    </div>
+  )
+}
+
+function SideBox({ title, children, id }) {
+  return (
+    <div className="border border-lightgray bg-card mb-3.5 overflow-hidden" id={id}>
+      <div className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest px-4 py-3 bg-navy text-gold">
+        {title}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function PostCard({ post }) {
+  const catClass = CAT_STYLES[post.category] || CAT_STYLES.general
+
+  return (
+    <div className="bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold mb-2.5 px-[18px] py-4 transition-colors">
+      <div className="flex items-center gap-2.5 mb-2">
+        <div
+          className="w-8 h-8 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.65rem] text-white shrink-0"
+          style={{ background: post.color, color: post.tc || '#fff' }}
+        >
+          {post.initials}
+        </div>
+        <div className="flex-1">
+          <strong className="text-[0.85rem] font-semibold block leading-tight">{post.name}</strong>
+          <small className="text-[0.7rem] text-gray">{post.dept} &middot; {post.time}</small>
+        </div>
+        <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm ${catClass}`}>
+          {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
+        </span>
+      </div>
+      <h3 className="font-archivo font-bold text-[1rem] leading-snug mb-1.5 tracking-tight">{post.title}</h3>
+      <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5">{post.body}</div>
+      <div className="flex items-center gap-3.5 pt-2 border-t border-[#EAE7E0]">
+        <div className="flex items-center gap-1 font-archivo">
+          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9650;</button>
+          <span className="font-extrabold text-[0.82rem] text-ink min-w-[22px] text-center">{post.votes}</span>
+          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9660;</button>
+        </div>
+        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comments} comments</button>
+        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
+        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
+      </div>
     </div>
   )
 }

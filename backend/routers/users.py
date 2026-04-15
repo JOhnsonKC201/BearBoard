@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from schemas.user import UserResponse
 from models.user import User
+from routers.auth import get_current_user_dep
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -15,5 +16,26 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user
 
 
-# TODO: PUT /api/users/{id} — update own profile (name, major, year)
-# TODO: Return user's posts and karma score in profile response
+@router.put("/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    name: str = None,
+    major: str = None,
+    graduation_year: int = None,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if name is not None:
+        user.name = name
+    if major is not None:
+        user.major = major
+    if graduation_year is not None:
+        user.graduation_year = graduation_year
+    db.commit()
+    db.refresh(user)
+    return user
