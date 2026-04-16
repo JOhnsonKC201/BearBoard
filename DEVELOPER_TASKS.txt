@@ -41,15 +41,16 @@
   [DONE] 10. POST /api/chat - canned responses for Sprint 1.
 
   [DONE] 11. Set up the agents/ folder with LLM scaffolding.
-      - agents/client.py wraps Anthropic (preferred) and OpenAI with
-        provider failover and an LLMUnavailable exception.
+      - agents/client.py wraps Gemini (default), Anthropic, and OpenAI
+        with provider failover and an LLMUnavailable exception.
+        Default model: gemini-2.5-flash. Set GEMINI_API_KEY in env.
       - agents/moderation.py runs the moderation prompt, parses JSON,
         and falls back to a keyword heuristic when no API key is
         configured so the app still boots in dev.
       - POST /api/ai/moderate returns { verdict, categories, reason,
         confidence, provider }. GET /api/ai/health reports whether an
         LLM provider is configured.
-      - anthropic==0.39.0 added to requirements.txt.
+      - google-genai==0.3.0 added to requirements.txt.
 
   [DONE] 12. POST /api/posts/{post_id}/comments - create a comment.
       - Auth required via get_current_user_dep.
