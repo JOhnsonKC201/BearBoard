@@ -40,17 +40,21 @@
   [DONE] 9. GET /api/events - upcoming events sorted by date.
   [DONE] 10. POST /api/chat - canned responses for Sprint 1.
 
-  REMAINING WORK:
-  11. Set up the agents/ folder with actual LLM scaffolding:
-      - Add an LLM API client config (OpenAI or Anthropic key + wrapper).
-      - Build a basic content moderation prompt.
-      - Create POST /api/ai/moderate placeholder endpoint.
-      - The agents/ folder currently only has an empty __init__.py.
+  [DONE] 11. Set up the agents/ folder with LLM scaffolding.
+      - agents/client.py wraps Anthropic (preferred) and OpenAI with
+        provider failover and an LLMUnavailable exception.
+      - agents/moderation.py runs the moderation prompt, parses JSON,
+        and falls back to a keyword heuristic when no API key is
+        configured so the app still boots in dev.
+      - POST /api/ai/moderate returns { verdict, categories, reason,
+        confidence, provider }. GET /api/ai/health reports whether an
+        LLM provider is configured.
+      - anthropic==0.39.0 added to requirements.txt.
 
-  12. POST /api/posts/{post_id}/comments - Add a comment to a post.
-      - Auth required. Accept { "body": "..." }.
-      - Return the new comment with author info.
-      - The Comment model exists but there is no endpoint to create comments.
+  [DONE] 12. POST /api/posts/{post_id}/comments - create a comment.
+      - Auth required via get_current_user_dep.
+      - 404 if post does not exist, 400 if body is blank.
+      - Returns CommentResponse with joinedloaded author info.
 
   DO NOT:
   - Do not change the database models without coordinating with Johnson.

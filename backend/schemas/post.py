@@ -15,10 +15,14 @@ class AuthorInfo(BaseModel):
     class Config:
         from_attributes = True
 
+class CommentCreate(BaseModel):
+    body: str
+
 class CommentResponse(BaseModel):
     id: int
     body: str
     author_id: int
+    post_id: int
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
 
