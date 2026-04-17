@@ -1,0 +1,208 @@
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../api/client'
+
+const CATEGORIES = ['General', 'Academic', 'Events', 'Anonymous']
+const TITLE_MAX = 200
+const BODY_MAX = 5000
+
+function NewPostModal({ open, onClose, onCreated }) {
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [category, setCategory] = useState('General')
+  const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setTitle('')
+      setBody('')
+      setCategory('General')
+      setErrors({})
+      setSubmitError(null)
+      setSubmitting(false)
+      setSuccess(false)
+    }
+  }, [open])
+
+  if (!open) return null
+
+  const validate = () => {
+    const next = {}
+    if (!title.trim()) next.title = 'Title is required'
+    else if (title.trim().length > TITLE_MAX) next.title = `Title must be ${TITLE_MAX} characters or less`
+    if (!body.trim()) next.body = 'Body is required'
+    else if (body.trim().length > BODY_MAX) next.body = `Body must be ${BODY_MAX} characters or less`
+    if (!CATEGORIES.includes(category)) next.category = 'Pick a valid category'
+    return next
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitError(null)
+    const next = validate()
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+
+    setSubmitting(true)
+    try {
+      const post = await apiFetch('/api/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          category: category.toLowerCase(),
+        }),
+      })
+      setSuccess(true)
+      if (onCreated) onCreated(post)
+    } catch (err) {
+      if (err.status === 401) {
+        setSubmitError('You must be logged in to post.')
+      } else {
+        setSubmitError(err.message || 'Failed to create post')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-card w-[90%] max-w-[600px] max-h-[85vh] overflow-y-auto border border-lightgray">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
+          <h3 className="font-archivo font-extrabold text-[1rem] uppercase tracking-tight">New Post</h3>
+          <button
+            onClick={onClose}
+            className="ml-auto bg-transparent border-none text-[1.3rem] cursor-pointer text-gray hover:text-ink p-1"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
+        {success ? (
+          <div className="px-5 py-8 text-center">
+            <div className="font-archivo font-black text-gold text-[2rem] mb-1">&#10003;</div>
+            <div className="font-archivo font-extrabold text-[0.95rem] mb-2">Post created</div>
+            <div className="text-[0.82rem] text-gray mb-5">Your post is now live in the feed.</div>
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={onClose}
+                className="bg-navy text-white border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#0a182b] transition-colors"
+              >
+                Done
+              </button>
+              <button
+                onClick={() => setSuccess(false)}
+                className="bg-gold text-navy border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
+              >
+                Post Another
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-5 py-4">
+            <Field label="Title" error={errors.title}>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={submitting}
+                maxLength={TITLE_MAX + 50}
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                placeholder="What's your post about?"
+              />
+              <CharCount value={title} max={TITLE_MAX} />
+            </Field>
+
+            <Field label="Category" error={errors.category}>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    type="button"
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    disabled={submitting}
+                    className={`font-archivo text-[0.7rem] font-extrabold uppercase tracking-wider py-[7px] px-3 border transition-colors ${
+                      category === cat
+                        ? 'bg-navy text-gold border-navy'
+                        : 'bg-white text-ink border-lightgray hover:border-navy'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Body" error={errors.body}>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                disabled={submitting}
+                rows={6}
+                maxLength={BODY_MAX + 200}
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin resize-y focus:border-navy focus:outline-none"
+                placeholder="Share the details…"
+              />
+              <CharCount value={body} max={BODY_MAX} />
+            </Field>
+
+            {submitError && (
+              <div className="bg-[#F5D5D0] text-[#8B1A1A] px-3 py-2 text-[0.8rem] mb-3 border border-[#E5B5B0]">
+                {submitError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EAE7E0]">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="bg-transparent text-gray border border-lightgray py-2.5 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:text-ink hover:border-gray transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-gold text-navy border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Posting…' : 'Post'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, error, children }) {
+  return (
+    <div className="mb-4">
+      <label className="font-archivo text-[0.62rem] font-extrabold uppercase tracking-wide text-gray block mb-1.5">
+        {label}
+      </label>
+      {children}
+      {error && <div className="text-[0.72rem] text-[#8B1A1A] mt-1 font-archivo font-bold">{error}</div>}
+    </div>
+  )
+}
+
+function CharCount({ value, max }) {
+  const len = value.length
+  const over = len > max
+  return (
+    <div className={`text-[0.65rem] mt-1 text-right font-franklin ${over ? 'text-[#8B1A1A]' : 'text-gray'}`}>
+      {len} / {max}
+    </div>
+  )
+}
+
+export default NewPostModal

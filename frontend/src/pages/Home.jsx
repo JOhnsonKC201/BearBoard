@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import ChatWidget from '../components/ChatWidget'
+import NewPostModal from '../components/NewPostModal'
+import { apiFetch } from '../api/client'
 
 const TEAM_DATA = {
   kyndal: { name: 'Kyndal Maclin', role: 'Product Owner', initials: 'KM', color: '#5B3A8C', tc: '#fff',
@@ -123,6 +125,7 @@ function Home() {
   const [showIdea, setShowIdea] = useState(true)
   const [taskPanel, setTaskPanel] = useState(null)
   const [checkedTasks, setCheckedTasks] = useState({})
+  const [showNewPost, setShowNewPost] = useState(false)
 
   const toggleTask = (id) => {
     setCheckedTasks((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -350,9 +353,14 @@ function Home() {
       </footer>
 
       {/* New Post FAB */}
-      <button className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors">
+      <button
+        onClick={() => setShowNewPost(true)}
+        className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
+      >
         + New Post
       </button>
+
+      <NewPostModal open={showNewPost} onClose={() => setShowNewPost(false)} />
 
       {/* Chat Widget */}
       <ChatWidget />
@@ -382,6 +390,50 @@ function SideBox({ title, children, id }) {
 
 function PostCard({ post }) {
   const catClass = CAT_STYLES[post.category] || CAT_STYLES.general
+  const [score, setScore] = useState(post.votes)
+  const [userVote, setUserVote] = useState(null)
+  const [pending, setPending] = useState(false)
+  const [voteError, setVoteError] = useState(null)
+
+  const applyVote = async (voteType) => {
+    if (pending) return
+    const prevScore = score
+    const prevVote = userVote
+
+    let nextScore = score
+    let nextVote = userVote
+    if (userVote === voteType) {
+      nextScore += voteType === 'up' ? -1 : 1
+      nextVote = null
+    } else if (userVote === null) {
+      nextScore += voteType === 'up' ? 1 : -1
+      nextVote = voteType
+    } else {
+      nextScore += voteType === 'up' ? 2 : -2
+      nextVote = voteType
+    }
+
+    setScore(nextScore)
+    setUserVote(nextVote)
+    setPending(true)
+    setVoteError(null)
+
+    try {
+      await apiFetch(`/api/posts/${post.id}/vote`, {
+        method: 'POST',
+        body: JSON.stringify({ vote_type: voteType }),
+      })
+    } catch (err) {
+      setScore(prevScore)
+      setUserVote(prevVote)
+      setVoteError(err.status === 401 ? 'Log in to vote' : 'Vote failed')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const upActive = userVote === 'up'
+  const downActive = userVote === 'down'
 
   return (
     <div className="bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold mb-2.5 px-[18px] py-4 transition-colors">
@@ -404,13 +456,32 @@ function PostCard({ post }) {
       <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5">{post.body}</div>
       <div className="flex items-center gap-3.5 pt-2 border-t border-[#EAE7E0]">
         <div className="flex items-center gap-1 font-archivo">
-          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9650;</button>
-          <span className="font-extrabold text-[0.82rem] text-ink min-w-[22px] text-center">{post.votes}</span>
-          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9660;</button>
+          <button
+            onClick={() => applyVote('up')}
+            aria-label="Upvote"
+            aria-pressed={upActive}
+            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${
+              upActive ? 'text-gold' : 'text-lightgray hover:text-ink'
+            }`}
+          >
+            &#9650;
+          </button>
+          <span className="font-extrabold text-[0.82rem] text-ink min-w-[22px] text-center">{score}</span>
+          <button
+            onClick={() => applyVote('down')}
+            aria-label="Downvote"
+            aria-pressed={downActive}
+            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${
+              downActive ? 'text-[#8B1A1A]' : 'text-lightgray hover:text-ink'
+            }`}
+          >
+            &#9660;
+          </button>
         </div>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comments} comments</button>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
+        {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
       </div>
     </div>
   )
