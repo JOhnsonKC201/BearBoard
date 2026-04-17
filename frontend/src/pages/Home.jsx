@@ -187,16 +187,18 @@ function Home() {
   const [postsError, setPostsError] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
+  const sortParam = activeSort === 'new' ? 'newest' : activeSort
+
   useEffect(() => {
     let cancelled = false
     setPostsLoading(true)
     setPostsError(null)
-    apiFetch('/api/posts?sort=newest&limit=50')
+    apiFetch(`/api/posts?sort=${encodeURIComponent(sortParam)}&limit=50`)
       .then((data) => { if (!cancelled) setPosts(data) })
       .catch((err) => { if (!cancelled) setPostsError(err.message || 'Failed to load posts') })
       .finally(() => { if (!cancelled) setPostsLoading(false) })
     return () => { cancelled = true }
-  }, [reloadKey])
+  }, [reloadKey, sortParam])
 
   const filteredPosts = useMemo(() => {
     if (activeFilter === 'All') return posts
