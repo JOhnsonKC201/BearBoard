@@ -141,23 +141,14 @@ const SAMPLE_POSTS = [
   },
 ]
 
-const TRENDING = [
-  { rank: 1, title: 'Yard Fest Weekend Plans', upvotes: 89, comments: 34 },
-  { rank: 2, title: 'JPMorgan Internship Apps', upvotes: 64, comments: 23 },
-  { rank: 3, title: 'Spring Career Fair Details', upvotes: 47, comments: 12 },
-]
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-const EVENTS = [
-  { month: 'Apr', day: '18', title: 'Yard Fest 2026', detail: 'Main Yard \u00B7 12-8 PM' },
-  { month: 'Apr', day: '22', title: 'Spring Career Fair', detail: 'Student Center \u00B7 10 AM-3 PM' },
-  { month: 'Apr', day: '25', title: 'Hackathon Kickoff', detail: 'SCMNS 201 \u00B7 6 PM' },
-]
-
-const GROUPS = [
-  { name: 'Networking Gang', code: 'COSC 350', count: 12 },
-  { name: 'SWE Study Group', code: 'COSC 458', count: 6 },
-  { name: 'Bio 201 Crew', code: 'BIOL 201', count: 18 },
-]
+function eventDateParts(iso) {
+  if (!iso) return { month: '', day: '' }
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return { month: '', day: '' }
+  return { month: MONTH_ABBR[m - 1] || '', day: String(d) }
+}
 
 const CAT_STYLES = {
   events: 'bg-gold-pale text-[#8B6914]',
@@ -186,6 +177,24 @@ function Home() {
   const [postsLoading, setPostsLoading] = useState(true)
   const [postsError, setPostsError] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [trending, setTrending] = useState([])
+  const [events, setEvents] = useState([])
+  const [groups, setGroups] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      apiFetch('/api/trending').catch(() => []),
+      apiFetch('/api/events').catch(() => []),
+      apiFetch('/api/groups').catch(() => []),
+    ]).then(([t, e, g]) => {
+      if (cancelled) return
+      setTrending(t || [])
+      setEvents(e || [])
+      setGroups(g || [])
+    })
+    return () => { cancelled = true }
+  }, [reloadKey])
 
   const sortParam = activeSort === 'new' ? 'newest' : activeSort
   const categoryParam = activeFilter === 'All' ? null : activeFilter.toLowerCase()
@@ -296,40 +305,52 @@ function Home() {
         <aside>
           {/* Trending */}
           <SideBox title="Trending" id="trending-box">
-            {TRENDING.map((t) => (
-              <div key={t.rank} className="px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
-                <div className="font-archivo font-extrabold text-[0.62rem] text-gold tracking-wide">#{t.rank}</div>
+            {trending.length === 0 ? (
+              <div className="px-4 py-3 text-[0.78rem] text-gray">No trending posts yet.</div>
+            ) : trending.map((t, i) => (
+              <div key={t.id} className="px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
+                <div className="font-archivo font-extrabold text-[0.62rem] text-gold tracking-wide">#{i + 1}</div>
                 <div className="text-[0.82rem] font-semibold my-[1px]">{t.title}</div>
-                <div className="text-[0.68rem] text-gray">{t.upvotes} upvotes &middot; {t.comments} comments</div>
+                <div className="text-[0.68rem] text-gray">
+                  {(t.upvotes ?? 0) - (t.downvotes ?? 0)} votes &middot; {t.comment_count ?? 0} comments
+                </div>
               </div>
             ))}
           </SideBox>
 
           {/* Events */}
           <SideBox title="Events" id="events">
-            {EVENTS.map((ev, i) => (
-              <div key={i} className="flex gap-3 px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0 items-center">
-                <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0">
-                  <span className="text-[0.55rem] uppercase tracking-wide opacity-60">{ev.month}</span>
-                  <span className="font-archivo font-black text-[1.05rem] leading-none">{ev.day}</span>
+            {events.length === 0 ? (
+              <div className="px-4 py-3 text-[0.78rem] text-gray">No upcoming events.</div>
+            ) : events.map((ev) => {
+              const { month, day } = eventDateParts(ev.event_date)
+              const detail = [ev.location, ev.start_time].filter(Boolean).join(' \u00B7 ')
+              return (
+                <div key={ev.id} className="flex gap-3 px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0 items-center">
+                  <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[0.55rem] uppercase tracking-wide opacity-60">{month}</span>
+                    <span className="font-archivo font-black text-[1.05rem] leading-none">{day}</span>
+                  </div>
+                  <div>
+                    <div className="text-[0.82rem] font-semibold">{ev.title}</div>
+                    <div className="text-[0.68rem] text-gray">{detail}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[0.82rem] font-semibold">{ev.title}</div>
-                  <div className="text-[0.68rem] text-gray">{ev.detail}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </SideBox>
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
-            {GROUPS.map((g, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-[9px] border-b border-[#EAE7E0] last:border-b-0">
+            {groups.length === 0 ? (
+              <div className="px-4 py-3 text-[0.78rem] text-gray">No groups yet.</div>
+            ) : groups.map((g) => (
+              <div key={g.id} className="flex items-center justify-between px-4 py-[9px] border-b border-[#EAE7E0] last:border-b-0">
                 <div>
                   <div className="text-[0.82rem] font-semibold">{g.name}</div>
-                  <div className="text-[0.68rem] text-gray">{g.code}</div>
+                  <div className="text-[0.68rem] text-gray">{g.course_code}</div>
                 </div>
-                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[7px] rounded-sm">{g.count}</span>
+                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[7px] rounded-sm">{g.member_count}</span>
               </div>
             ))}
           </SideBox>
