@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
@@ -7,15 +8,18 @@ import { apiFetch } from '../api/client'
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Anonymous']
 
 const AVATAR_PALETTE = [
-  { color: '#5B3A8C', tc: '#FFFFFF' },
-  { color: '#0B1D34', tc: '#FFFFFF' },
-  { color: '#1A8A7D', tc: '#FFFFFF' },
-  { color: '#C0392B', tc: '#FFFFFF' },
-  { color: '#D4962A', tc: '#0B1D34' },
-  { color: '#2C5F2D', tc: '#FFFFFF' },
+  { bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)', tc: '#FFFFFF' },
+  { bg: 'linear-gradient(135deg, #19314F 0%, #0B1D34 100%)', tc: '#FFFFFF' },
+  { bg: 'linear-gradient(135deg, #2BA89A 0%, #137267 100%)', tc: '#FFFFFF' },
+  { bg: 'linear-gradient(135deg, #D45347 0%, #962E22 100%)', tc: '#FFFFFF' },
+  { bg: 'linear-gradient(135deg, #EAA841 0%, #B47A14 100%)', tc: '#0B1D34' },
+  { bg: 'linear-gradient(135deg, #4A8A4D 0%, #234C25 100%)', tc: '#FFFFFF' },
 ]
 
+const ANON_AVATAR = { bg: 'linear-gradient(135deg, #2A2A2A 0%, #0B0B0B 100%)', tc: '#FFFFFF' }
+
 function paletteFor(seed) {
+  if (seed === -1) return ANON_AVATAR
   return AVATAR_PALETTE[Math.abs(seed ?? 0) % AVATAR_PALETTE.length]
 }
 
@@ -533,6 +537,7 @@ function PostCard({ post }) {
   const [userVote, setUserVote] = useState(null)
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
+  const [popKey, setPopKey] = useState(0)
 
   const applyVote = async (voteType) => {
     if (pending) return
@@ -554,6 +559,7 @@ function PostCard({ post }) {
 
     setScore(nextScore)
     setUserVote(nextVote)
+    setPopKey((k) => k + 1)
     setPending(true)
     setVoteError(null)
 
@@ -575,66 +581,86 @@ function PostCard({ post }) {
   const downActive = userVote === 'down'
 
   return (
-    <div className={`bg-card border border-lightgray border-l-[3px] mb-2.5 px-[18px] py-4 transition-colors ${
+    <div className={`group bg-card border border-lightgray border-l-[3px] mb-2.5 transition-all duration-150 hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)] hover:-translate-y-[1px] ${
       isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
     }`}>
-      <div className="flex items-center gap-2.5 mb-2">
-        <div
-          className="w-8 h-8 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.65rem] shrink-0"
-          style={{ background: avatar.color, color: avatar.tc }}
-        >
-          {initials}
-        </div>
-        <div className="flex-1">
-          <strong className="text-[0.85rem] font-semibold block leading-tight">{authorName}</strong>
-          <small className="text-[0.7rem] text-gray">
-            {authorMajor && <>{authorMajor} &middot; </>}{formatRelativeTime(post.created_at)}
-          </small>
-        </div>
-        {isEvent && (
-          <span className="font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-gold text-navy flex items-center gap-1">
-            <span aria-hidden="true">&#128197;</span> Event
+      <div className="px-[18px] py-4">
+        <div className="flex items-center gap-2.5 mb-2.5">
+          <div
+            className="w-9 h-9 rounded-[4px] flex items-center justify-center font-archivo font-black text-[0.7rem] shrink-0 ring-1 ring-black/5"
+            style={{ background: avatar.bg, color: avatar.tc }}
+          >
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <strong className="text-[0.85rem] font-semibold block leading-tight truncate">{authorName}</strong>
+            <small className="text-[0.7rem] text-gray block truncate">
+              {authorMajor && <>{authorMajor} &middot; </>}{formatRelativeTime(post.created_at)}
+            </small>
+          </div>
+          {isEvent && (
+            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-gold text-navy flex items-center gap-1 shrink-0">
+              <span aria-hidden="true">&#128197;</span> Event
+            </span>
+          )}
+          <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm shrink-0 ${catClass}`}>
+            {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
           </span>
+        </div>
+        <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
+          <h3 className="font-archivo font-bold text-[1.02rem] leading-snug mb-1.5 tracking-tight group-hover/title:text-navy transition-colors">
+            {post.title}
+          </h3>
+        </Link>
+        {isEvent && eventLabel && (
+          <div className="bg-gold-pale border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-[#8B6914] flex items-center gap-2">
+            <span aria-hidden="true">&#9200;</span> {eventLabel}
+          </div>
         )}
-        <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm ${catClass}`}>
-          {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
-        </span>
-      </div>
-      <h3 className="font-archivo font-bold text-[1rem] leading-snug mb-1.5 tracking-tight">{post.title}</h3>
-      {isEvent && eventLabel && (
-        <div className="bg-gold-pale border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-[#8B6914] flex items-center gap-2">
-          <span aria-hidden="true">&#9200;</span> {eventLabel}
-        </div>
-      )}
-      <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5 whitespace-pre-wrap">{post.body}</div>
-      <div className="flex items-center gap-3.5 pt-2 border-t border-[#EAE7E0]">
-        <div className="flex items-center gap-1 font-archivo">
-          <button
-            onClick={() => applyVote('up')}
-            aria-label="Upvote"
-            aria-pressed={upActive}
-            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${
-              upActive ? 'text-gold' : 'text-lightgray hover:text-ink'
-            }`}
+        <div className="text-[0.85rem] text-gray leading-relaxed mb-3 whitespace-pre-wrap line-clamp-3">{post.body}</div>
+        <div className="flex items-center gap-3 pt-2.5 border-t border-[#EAE7E0]">
+          <div className="flex items-center gap-0.5 font-archivo bg-offwhite border border-lightgray rounded-sm">
+            <button
+              onClick={() => applyVote('up')}
+              aria-label="Upvote"
+              aria-pressed={upActive}
+              disabled={pending}
+              className={`bg-transparent border-none cursor-pointer text-[0.85rem] px-2 py-[5px] transition-colors disabled:cursor-wait ${
+                upActive ? 'text-gold' : 'text-lightgray hover:text-navy'
+              }`}
+            >
+              &#9650;
+            </button>
+            <span
+              key={popKey}
+              className={`font-extrabold text-[0.78rem] min-w-[22px] text-center vote-pop ${
+                upActive ? 'text-gold' : downActive ? 'text-[#8B1A1A]' : 'text-ink'
+              }`}
+            >
+              {score}
+            </span>
+            <button
+              onClick={() => applyVote('down')}
+              aria-label="Downvote"
+              aria-pressed={downActive}
+              disabled={pending}
+              className={`bg-transparent border-none cursor-pointer text-[0.85rem] px-2 py-[5px] transition-colors disabled:cursor-wait ${
+                downActive ? 'text-[#8B1A1A]' : 'text-lightgray hover:text-navy'
+              }`}
+            >
+              &#9660;
+            </button>
+          </div>
+          <Link
+            to={`/post/${post.id}`}
+            className="text-[0.75rem] text-gray no-underline font-franklin hover:text-ink flex items-center gap-1"
           >
-            &#9650;
-          </button>
-          <span className="font-extrabold text-[0.82rem] text-ink min-w-[22px] text-center">{score}</span>
-          <button
-            onClick={() => applyVote('down')}
-            aria-label="Downvote"
-            aria-pressed={downActive}
-            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${
-              downActive ? 'text-[#8B1A1A]' : 'text-lightgray hover:text-ink'
-            }`}
-          >
-            &#9660;
-          </button>
+            <span aria-hidden="true">&#128488;</span> {post.comment_count ?? 0}
+          </Link>
+          <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
+          <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
+          {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
         </div>
-        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comment_count ?? 0} comments</button>
-        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
-        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
-        {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
       </div>
     </div>
   )
