@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { apiFetch } from '../api/client'
@@ -188,23 +188,20 @@ function Home() {
   const [reloadKey, setReloadKey] = useState(0)
 
   const sortParam = activeSort === 'new' ? 'newest' : activeSort
+  const categoryParam = activeFilter === 'All' ? null : activeFilter.toLowerCase()
 
   useEffect(() => {
     let cancelled = false
     setPostsLoading(true)
     setPostsError(null)
-    apiFetch(`/api/posts?sort=${encodeURIComponent(sortParam)}&limit=50`)
+    const params = new URLSearchParams({ sort: sortParam, limit: '50' })
+    if (categoryParam) params.set('category', categoryParam)
+    apiFetch(`/api/posts?${params.toString()}`)
       .then((data) => { if (!cancelled) setPosts(data) })
       .catch((err) => { if (!cancelled) setPostsError(err.message || 'Failed to load posts') })
       .finally(() => { if (!cancelled) setPostsLoading(false) })
     return () => { cancelled = true }
-  }, [reloadKey, sortParam])
-
-  const filteredPosts = useMemo(() => {
-    if (activeFilter === 'All') return posts
-    const want = activeFilter.toLowerCase()
-    return posts.filter((p) => (p.category || '').toLowerCase() === want)
-  }, [posts, activeFilter])
+  }, [reloadKey, sortParam, categoryParam])
 
   const toggleTask = (id) => {
     setCheckedTasks((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -284,12 +281,12 @@ function Home() {
                 Retry
               </button>
             </div>
-          ) : filteredPosts.length === 0 ? (
+          ) : posts.length === 0 ? (
             <div className="bg-card border border-lightgray px-[18px] py-6 text-center text-gray text-[0.85rem]">
-              {posts.length === 0 ? 'No posts yet — be the first to post.' : `No posts in ${activeFilter}.`}
+              {activeFilter === 'All' ? 'No posts yet — be the first to post.' : `No posts in ${activeFilter}.`}
             </div>
           ) : (
-            filteredPosts.map((post) => (
+            posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))
           )}
