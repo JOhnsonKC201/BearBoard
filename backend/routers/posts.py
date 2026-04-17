@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func
 from core.database import get_db
-from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse
+from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse, CommentCreate, CommentResponse
 from models.post import Post
 from models.vote import Vote
 from models.comment import Comment
@@ -130,3 +130,32 @@ def vote_post(
     db.commit()
     db.refresh(post)
     return {"upvotes": post.upvotes, "downvotes": post.downvotes}
+
+
+@router.post("/{post_id}/comments", response_model=CommentResponse)
+def create_comment(
+    post_id: int,
+    comment: CommentCreate,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    body = comment.body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Comment body cannot be empty")
+
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    new_comment = (
+        db.query(Comment)
+        .options(joinedload(Comment.author))
+        .filter(Comment.id == new_comment.id)
+        .first()
+    )
+    return new_comment
