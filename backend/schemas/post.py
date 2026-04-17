@@ -1,11 +1,20 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 class PostCreate(BaseModel):
     title: str
     body: str
     category: str
+    event_date: Optional[date] = None
+    event_time: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _require_event_fields(self):
+        if self.category and self.category.lower() in {"event", "events"}:
+            if self.event_date is None:
+                raise ValueError("event_date is required for Event posts")
+        return self
 
 class AuthorInfo(BaseModel):
     id: int
@@ -38,6 +47,9 @@ class PostResponse(BaseModel):
     author: Optional[AuthorInfo] = None
     upvotes: int
     downvotes: int
+    event_date: Optional[date] = None
+    event_time: Optional[str] = None
+    comment_count: int = 0
     created_at: Optional[datetime] = None
 
     class Config:

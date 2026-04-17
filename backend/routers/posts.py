@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, case
 from core.database import get_db
 from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse, CommentCreate, CommentResponse
 from models.post import Post
@@ -41,6 +41,18 @@ def get_posts(
         query = query.order_by(desc(Post.created_at))
 
     posts = query.offset(offset).limit(limit).all()
+
+    if posts:
+        post_ids = [p.id for p in posts]
+        counts = dict(
+            db.query(Comment.post_id, func.count(Comment.id))
+            .filter(Comment.post_id.in_(post_ids))
+            .group_by(Comment.post_id)
+            .all()
+        )
+        for p in posts:
+            p.comment_count = counts.get(p.id, 0)
+
     return posts
 
 
@@ -50,11 +62,14 @@ def create_post(
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    is_event = post.category.lower() in {"event", "events"}
     db_post = Post(
         title=post.title,
         body=post.body,
         category=post.category,
         author_id=current_user.id,
+        event_date=post.event_date if is_event else None,
+        event_time=post.event_time if is_event else None,
     )
     db.add(db_post)
     db.commit()

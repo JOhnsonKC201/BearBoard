@@ -1,7 +1,62 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { apiFetch } from '../api/client'
+
+const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Anonymous']
+
+const AVATAR_PALETTE = [
+  { color: '#5B3A8C', tc: '#FFFFFF' },
+  { color: '#0B1D34', tc: '#FFFFFF' },
+  { color: '#1A8A7D', tc: '#FFFFFF' },
+  { color: '#C0392B', tc: '#FFFFFF' },
+  { color: '#D4962A', tc: '#0B1D34' },
+  { color: '#2C5F2D', tc: '#FFFFFF' },
+]
+
+function paletteFor(seed) {
+  return AVATAR_PALETTE[Math.abs(seed ?? 0) % AVATAR_PALETTE.length]
+}
+
+function initialsFor(name) {
+  if (!name) return '?'
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
+}
+
+function formatRelativeTime(iso) {
+  if (!iso) return ''
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+  const seconds = Math.max(1, Math.floor((Date.now() - then) / 1000))
+  if (seconds < 60) return `${seconds}s ago`
+  const m = Math.floor(seconds / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d ago`
+  const mo = Math.floor(d / 30)
+  if (mo < 12) return `${mo}mo ago`
+  return `${Math.floor(mo / 12)}y ago`
+}
+
+function formatEventDateTime(dateStr, timeStr) {
+  if (!dateStr) return ''
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  let hour = null
+  let minute = 0
+  if (timeStr) {
+    const [hh, mm] = timeStr.split(':').map(Number)
+    hour = hh
+    minute = mm || 0
+  }
+  const dt = new Date(y, (mo || 1) - 1, d || 1, hour ?? 0, minute)
+  if (Number.isNaN(dt.getTime())) return ''
+  const dateLabel = dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  if (hour === null) return dateLabel
+  const timeLabel = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${dateLabel} at ${timeLabel}`
+}
 
 const TEAM_DATA = {
   kyndal: { name: 'Kyndal Maclin', role: 'Product Owner', initials: 'KM', color: '#5B3A8C', tc: '#fff',
@@ -110,6 +165,7 @@ const CAT_STYLES = {
   recruiters: 'bg-[#E6D8F0] text-purple',
   social: 'bg-[#D0EDE9] text-[#0F5E54]',
   general: 'bg-[#E5E3DE] text-[#5A5A5A]',
+  anonymous: 'bg-[#1A1A1A] text-white',
 }
 
 const PRI_STYLES = {
@@ -121,11 +177,32 @@ const PRI_LABELS = { h: 'High', m: 'Medium', l: 'Low' }
 
 function Home() {
   const [activeSort, setActiveSort] = useState('new')
-  const [activeFilter, setActiveFilter] = useState('events')
+  const [activeFilter, setActiveFilter] = useState('All')
   const [showIdea, setShowIdea] = useState(true)
   const [taskPanel, setTaskPanel] = useState(null)
   const [checkedTasks, setCheckedTasks] = useState({})
   const [showNewPost, setShowNewPost] = useState(false)
+  const [posts, setPosts] = useState([])
+  const [postsLoading, setPostsLoading] = useState(true)
+  const [postsError, setPostsError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setPostsLoading(true)
+    setPostsError(null)
+    apiFetch('/api/posts?sort=newest&limit=50')
+      .then((data) => { if (!cancelled) setPosts(data) })
+      .catch((err) => { if (!cancelled) setPostsError(err.message || 'Failed to load posts') })
+      .finally(() => { if (!cancelled) setPostsLoading(false) })
+    return () => { cancelled = true }
+  }, [reloadKey])
+
+  const filteredPosts = useMemo(() => {
+    if (activeFilter === 'All') return posts
+    const want = activeFilter.toLowerCase()
+    return posts.filter((p) => (p.category || '').toLowerCase() === want)
+  }, [posts, activeFilter])
 
   const toggleTask = (id) => {
     setCheckedTasks((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -177,7 +254,7 @@ function Home() {
           </div>
 
           <div className="flex gap-1.5 mb-[18px]">
-            {['events', 'academic', 'recruiters', 'social', 'general'].map((f) => (
+            {FEED_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
@@ -187,15 +264,33 @@ function Home() {
                     : 'bg-card border-lightgray text-gray hover:border-ink hover:text-ink'
                 }`}
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {f}
               </button>
             ))}
           </div>
 
           {/* Posts */}
-          {SAMPLE_POSTS.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
+          {postsLoading ? (
+            <div className="bg-card border border-lightgray px-[18px] py-6 text-center text-gray text-[0.85rem]">Loading posts…</div>
+          ) : postsError ? (
+            <div className="bg-card border border-lightgray px-[18px] py-6 text-center">
+              <div className="text-[#8B1A1A] text-[0.85rem] font-archivo font-bold mb-2">{postsError}</div>
+              <button
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="bg-navy text-white border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#0a182b] transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="bg-card border border-lightgray px-[18px] py-6 text-center text-gray text-[0.85rem]">
+              {posts.length === 0 ? 'No posts yet — be the first to post.' : `No posts in ${activeFilter}.`}
+            </div>
+          ) : (
+            filteredPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))
+          )}
         </div>
 
         {/* Sidebar */}
@@ -360,7 +455,11 @@ function Home() {
         + New Post
       </button>
 
-      <NewPostModal open={showNewPost} onClose={() => setShowNewPost(false)} />
+      <NewPostModal
+        open={showNewPost}
+        onClose={() => setShowNewPost(false)}
+        onCreated={() => setReloadKey((k) => k + 1)}
+      />
 
       {/* Chat Widget */}
       <ChatWidget />
@@ -389,8 +488,19 @@ function SideBox({ title, children, id }) {
 }
 
 function PostCard({ post }) {
-  const catClass = CAT_STYLES[post.category] || CAT_STYLES.general
-  const [score, setScore] = useState(post.votes)
+  const categoryKey = (post.category || 'general').toLowerCase()
+  const catClass = CAT_STYLES[categoryKey] || CAT_STYLES.general
+  const isAnonymous = categoryKey === 'anonymous'
+  const isEvent = categoryKey === 'events' || categoryKey === 'event'
+
+  const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
+  const authorMajor = isAnonymous ? '' : (post.author?.major || '')
+  const avatar = paletteFor(isAnonymous ? -1 : post.author?.id ?? post.id)
+  const initials = isAnonymous ? '?' : initialsFor(authorName)
+  const eventLabel = isEvent ? formatEventDateTime(post.event_date, post.event_time) : ''
+
+  const initialScore = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+  const [score, setScore] = useState(initialScore)
   const [userVote, setUserVote] = useState(null)
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
@@ -436,24 +546,38 @@ function PostCard({ post }) {
   const downActive = userVote === 'down'
 
   return (
-    <div className="bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold mb-2.5 px-[18px] py-4 transition-colors">
+    <div className={`bg-card border border-lightgray border-l-[3px] mb-2.5 px-[18px] py-4 transition-colors ${
+      isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
+    }`}>
       <div className="flex items-center gap-2.5 mb-2">
         <div
-          className="w-8 h-8 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.65rem] text-white shrink-0"
-          style={{ background: post.color, color: post.tc || '#fff' }}
+          className="w-8 h-8 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.65rem] shrink-0"
+          style={{ background: avatar.color, color: avatar.tc }}
         >
-          {post.initials}
+          {initials}
         </div>
         <div className="flex-1">
-          <strong className="text-[0.85rem] font-semibold block leading-tight">{post.name}</strong>
-          <small className="text-[0.7rem] text-gray">{post.dept} &middot; {post.time}</small>
+          <strong className="text-[0.85rem] font-semibold block leading-tight">{authorName}</strong>
+          <small className="text-[0.7rem] text-gray">
+            {authorMajor && <>{authorMajor} &middot; </>}{formatRelativeTime(post.created_at)}
+          </small>
         </div>
+        {isEvent && (
+          <span className="font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-gold text-navy flex items-center gap-1">
+            <span aria-hidden="true">&#128197;</span> Event
+          </span>
+        )}
         <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm ${catClass}`}>
           {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
         </span>
       </div>
       <h3 className="font-archivo font-bold text-[1rem] leading-snug mb-1.5 tracking-tight">{post.title}</h3>
-      <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5">{post.body}</div>
+      {isEvent && eventLabel && (
+        <div className="bg-gold-pale border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-[#8B6914] flex items-center gap-2">
+          <span aria-hidden="true">&#9200;</span> {eventLabel}
+        </div>
+      )}
+      <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5 whitespace-pre-wrap">{post.body}</div>
       <div className="flex items-center gap-3.5 pt-2 border-t border-[#EAE7E0]">
         <div className="flex items-center gap-1 font-archivo">
           <button
@@ -478,7 +602,7 @@ function PostCard({ post }) {
             &#9660;
           </button>
         </div>
-        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comments} comments</button>
+        <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comment_count ?? 0} comments</button>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
         {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}

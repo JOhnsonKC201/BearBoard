@@ -9,6 +9,8 @@ function NewPostModal({ open, onClose, onCreated }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState('General')
+  const [eventDate, setEventDate] = useState('')
+  const [eventTime, setEventTime] = useState('')
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -19,12 +21,16 @@ function NewPostModal({ open, onClose, onCreated }) {
       setTitle('')
       setBody('')
       setCategory('General')
+      setEventDate('')
+      setEventTime('')
       setErrors({})
       setSubmitError(null)
       setSubmitting(false)
       setSuccess(false)
     }
   }, [open])
+
+  const isEvent = category === 'Events'
 
   if (!open) return null
 
@@ -35,6 +41,10 @@ function NewPostModal({ open, onClose, onCreated }) {
     if (!body.trim()) next.body = 'Body is required'
     else if (body.trim().length > BODY_MAX) next.body = `Body must be ${BODY_MAX} characters or less`
     if (!CATEGORIES.includes(category)) next.category = 'Pick a valid category'
+    if (isEvent) {
+      if (!eventDate) next.eventDate = 'Event date is required'
+      if (!eventTime) next.eventTime = 'Event time is required'
+    }
     return next
   }
 
@@ -47,13 +57,18 @@ function NewPostModal({ open, onClose, onCreated }) {
 
     setSubmitting(true)
     try {
+      const payload = {
+        title: title.trim(),
+        body: body.trim(),
+        category: category.toLowerCase(),
+      }
+      if (isEvent) {
+        payload.event_date = eventDate
+        payload.event_time = eventTime
+      }
       const post = await apiFetch('/api/posts', {
         method: 'POST',
-        body: JSON.stringify({
-          title: title.trim(),
-          body: body.trim(),
-          category: category.toLowerCase(),
-        }),
+        body: JSON.stringify(payload),
       })
       setSuccess(true)
       if (onCreated) onCreated(post)
@@ -139,6 +154,29 @@ function NewPostModal({ open, onClose, onCreated }) {
                 ))}
               </div>
             </Field>
+
+            {isEvent && (
+              <div className="grid grid-cols-2 gap-3 mb-1">
+                <Field label="Event Date" error={errors.eventDate}>
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    disabled={submitting}
+                    className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                  />
+                </Field>
+                <Field label="Event Time" error={errors.eventTime}>
+                  <input
+                    type="time"
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                    disabled={submitting}
+                    className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                  />
+                </Field>
+              </div>
+            )}
 
             <Field label="Body" error={errors.body}>
               <textarea
