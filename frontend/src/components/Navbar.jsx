@@ -1,10 +1,19 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
+import { useAuth } from '../context/AuthContext'
+
+function initialsFor(name) {
+  if (!name) return '?'
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
+}
 
 function Navbar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, isAuthed, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   const navLinks = [
     { to: '/', label: 'Feed', hash: '#feed' },
@@ -16,6 +25,12 @@ function Navbar() {
   const isActive = (label) => {
     if (label === 'Feed' && location.pathname === '/') return true
     return false
+  }
+
+  const handleLogout = () => {
+    logout()
+    setProfileMenuOpen(false)
+    navigate('/login')
   }
 
   return (
@@ -47,10 +62,55 @@ function Navbar() {
           className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
           placeholder="Search posts, groups..."
         />
-        <NotificationBell />
-        <Link to="/profile/1" className="w-[30px] h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.65rem]">
-          JK
-        </Link>
+
+        {isAuthed ? (
+          <>
+            <NotificationBell />
+            <div className="relative">
+              <button
+                onClick={() => setProfileMenuOpen((v) => !v)}
+                className="w-[30px] h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.65rem] cursor-pointer"
+                aria-label="Account menu"
+              >
+                {initialsFor(user?.name)}
+              </button>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-[40px] w-[180px] bg-card border border-lightgray shadow-lg z-[300]">
+                  {user && (
+                    <Link
+                      to={`/profile/${user.id}`}
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="block px-4 py-2.5 text-[0.82rem] font-archivo font-semibold text-ink no-underline hover:bg-offwhite border-b border-[#EAE7E0]"
+                    >
+                      My Profile
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left bg-transparent border-none px-4 py-2.5 text-[0.82rem] font-archivo font-semibold text-ink hover:bg-offwhite cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <Link
+              to="/login"
+              className="text-white/70 hover:text-white text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-[7px] no-underline"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/register"
+              className="bg-gold text-navy text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-[7px] no-underline hover:bg-[#E5A92E] transition-colors"
+            >
+              Join
+            </Link>
+          </div>
+        )}
 
         {/* Mobile hamburger */}
         <button

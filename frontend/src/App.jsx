@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -17,16 +18,18 @@ function WithNav({ children }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/" element={<WithNav><Home /></WithNav>} />
-        <Route path="/feed" element={<WithNav><Home /></WithNav>} />
-        <Route path="/profile/:id" element={<WithNav><Profile /></WithNav>} />
-        <Route path="/post/:id" element={<WithNav><PostDetail /></WithNav>} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<WithNav><Home /></WithNav>} />
+          <Route path="/feed" element={<WithNav><Home /></WithNav>} />
+          <Route path="/profile/:id" element={<WithNav><Profile /></WithNav>} />
+          <Route path="/post/:id" element={<WithNav><PostDetail /></WithNav>} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   )
 }
 
