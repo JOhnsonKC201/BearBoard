@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { PostDetailSkeleton } from '../components/Skeletons'
 
 const CAT_STYLES = {
   events: 'bg-gold-pale text-[#8B6914]',
@@ -67,11 +68,7 @@ function PostDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-offwhite flex items-center justify-center">
-        <p className="text-gray font-archivo">Loading post…</p>
-      </div>
-    )
+    return <PostDetailSkeleton />
   }
 
   if (error || !post) {

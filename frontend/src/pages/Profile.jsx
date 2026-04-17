@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { ProfileSkeleton } from '../components/Skeletons'
 
 const AVATAR_PALETTE = [
   { color: '#5B3A8C', tc: '#FFFFFF' },
@@ -78,11 +79,7 @@ function Profile() {
   }, [id])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-offwhite flex items-center justify-center">
-        <p className="text-gray font-archivo">Loading profile…</p>
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
   if (error || !user) {

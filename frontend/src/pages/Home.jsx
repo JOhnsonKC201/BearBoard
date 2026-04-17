@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
+import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import { apiFetch } from '../api/client'
 
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Anonymous']
@@ -180,9 +181,11 @@ function Home() {
   const [trending, setTrending] = useState([])
   const [events, setEvents] = useState([])
   const [groups, setGroups] = useState([])
+  const [sidebarLoading, setSidebarLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    setSidebarLoading(true)
     Promise.all([
       apiFetch('/api/trending').catch(() => []),
       apiFetch('/api/events').catch(() => []),
@@ -192,7 +195,7 @@ function Home() {
       setTrending(t || [])
       setEvents(e || [])
       setGroups(g || [])
-    })
+    }).finally(() => { if (!cancelled) setSidebarLoading(false) })
     return () => { cancelled = true }
   }, [reloadKey])
 
@@ -279,7 +282,7 @@ function Home() {
 
           {/* Posts */}
           {postsLoading ? (
-            <div className="bg-card border border-lightgray px-[18px] py-6 text-center text-gray text-[0.85rem]">Loading posts…</div>
+            <FeedSkeleton count={4} />
           ) : postsError ? (
             <div className="bg-card border border-lightgray px-[18px] py-6 text-center">
               <div className="text-[#8B1A1A] text-[0.85rem] font-archivo font-bold mb-2">{postsError}</div>
@@ -305,7 +308,9 @@ function Home() {
         <aside>
           {/* Trending */}
           <SideBox title="Trending" id="trending-box">
-            {trending.length === 0 ? (
+            {sidebarLoading ? (
+              <SidebarSkeleton count={3} />
+            ) : trending.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No trending posts yet.</div>
             ) : trending.map((t, i) => (
               <div key={t.id} className="px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
@@ -320,7 +325,9 @@ function Home() {
 
           {/* Events */}
           <SideBox title="Events" id="events">
-            {events.length === 0 ? (
+            {sidebarLoading ? (
+              <SidebarSkeleton count={3} />
+            ) : events.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No upcoming events.</div>
             ) : events.map((ev) => {
               const { month, day } = eventDateParts(ev.event_date)
@@ -342,7 +349,9 @@ function Home() {
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
-            {groups.length === 0 ? (
+            {sidebarLoading ? (
+              <SidebarSkeleton count={3} />
+            ) : groups.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No groups yet.</div>
             ) : groups.map((g) => (
               <div key={g.id} className="flex items-center justify-between px-4 py-[9px] border-b border-[#EAE7E0] last:border-b-0">
