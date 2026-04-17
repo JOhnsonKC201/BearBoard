@@ -1,15 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-
-const CANNED = {
-  'What events are coming up?':
-    'This week:<br/><br/>\u2022 <b>Yard Fest 2026</b> \u2014 Apr 18, Main Yard, 12-8 PM<br/>\u2022 <b>Spring Career Fair</b> \u2014 Apr 22, Student Center, 10 AM-3 PM<br/>\u2022 <b>Hackathon Kickoff</b> \u2014 Apr 25, SCMNS 201, 6 PM',
-  'Find me a study group for COSC 350':
-    'Found one! <b>"Networking Gang"</b> for COSC 350 \u2014 12 members, meets Tue/Thu on library 3rd floor. They\'re doing networking layers and socket programming. Want me to add you?',
-  "What's trending today?":
-    'Top posts today:<br/><br/>1. <b>Yard Fest Weekend Plans</b> \u2014 89 upvotes<br/>2. <b>JPMorgan Internship</b> \u2014 64 upvotes<br/>3. <b>Spring Career Fair</b> \u2014 47 upvotes',
-  'How do I create a post?':
-    'Hit the <b>"+ New Post"</b> button on the right side. Pick a category, write your title and body, and post. For events, add a date/time so it shows on the calendar.',
-}
+import { apiFetch } from '../api/client'
 
 const SUGGESTIONS = [
   'What events are coming up?',
@@ -17,6 +7,21 @@ const SUGGESTIONS = [
   "What's trending today?",
   'How do I create a post?',
 ]
+
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+// Render the server's lightweight markdown (**bold**, newlines, list bullets) as safe HTML.
+function renderReply(raw) {
+  const escaped = escapeHtml(raw || '')
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\n/g, '<br/>')
+}
 
 function ChatWidget() {
   const [open, setOpen] = useState(false)
@@ -38,24 +43,26 @@ function ChatWidget() {
     }
   }, [messages, typing])
 
-  const addBotReply = (text) => {
-    setTyping(true)
-    setTimeout(() => {
-      setTyping(false)
-      setMessages((prev) => [...prev, { from: 'bot', text }])
-    }, 1000)
-  }
-
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
     if (!text.trim()) return
     setMessages((prev) => [...prev, { from: 'user', text }])
     setShowSuggestions(false)
     setInput('')
-
-    const reply =
-      CANNED[text] ||
-      'Thanks for your message! Try asking about <b>events</b>, <b>study groups</b>, <b>trending posts</b>, or <b>how to use features</b>. The full AI version will be able to answer anything about campus life.'
-    addBotReply(reply)
+    setTyping(true)
+    try {
+      const data = await apiFetch('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: text }),
+      })
+      setMessages((prev) => [...prev, { from: 'bot', text: renderReply(data.reply || '') }])
+    } catch (err) {
+      setMessages((prev) => [...prev, {
+        from: 'bot',
+        text: escapeHtml(err.message || "I'm having trouble reaching the server right now. Try again in a moment."),
+      }])
+    } finally {
+      setTyping(false)
+    }
   }
 
   const toggle = () => {
