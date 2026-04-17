@@ -1,7 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 function Register() {
+  const navigate = useNavigate()
+  const { register } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -11,6 +14,8 @@ function Register() {
     graduation_year: '',
   })
   const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -31,12 +36,26 @@ function Register() {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError(null)
     if (!validate()) return
-    // TODO: Connect to POST /api/auth/register
-    // TODO: Auto-login and redirect to feed after registration
-    console.log('Register attempt:', formData)
+    setSubmitting(true)
+    try {
+      const payload = {
+        email: formData.email.trim(),
+        password: formData.password,
+        name: formData.name.trim(),
+        major: formData.major.trim() || null,
+        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year, 10) : null,
+      }
+      await register(payload)
+      navigate('/')
+    } catch (err) {
+      setSubmitError(err.message || 'Registration failed')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const inputClass =
@@ -84,11 +103,17 @@ function Register() {
                 {errors.graduation_year && <p className="text-red text-[0.7rem] mt-1">{errors.graduation_year}</p>}
               </div>
             </div>
+            {submitError && (
+              <div className="bg-[#F5D5D0] border border-[#E5B5B0] text-[#8B1A1A] px-3 py-2 text-[0.78rem] font-archivo font-bold">
+                {submitError}
+              </div>
+            )}
             <button
               type="submit"
-              className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#E5A92E] transition-colors"
+              disabled={submitting}
+              className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Create Account
+              {submitting ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
           <div className="text-center mt-5 pt-4 border-t border-[#EAE7E0]">
