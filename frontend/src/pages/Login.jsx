@@ -32,7 +32,7 @@ function Login() {
           </Link>
           <p className="text-gray text-[0.85rem] mt-2">Sign in to your account</p>
         </div>
-        <div className="bg-card border border-lightgray p-6">
+        <div className="bg-card border border-lightgray p-6 rounded-2xl shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block font-archivo text-[0.7rem] font-bold uppercase tracking-wide text-gray mb-1.5">Email</label>
@@ -40,7 +40,7 @@ function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-lightgray py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray"
+                className="w-full border border-lightgray rounded-lg py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray transition-colors"
                 placeholder="you@morgan.edu"
               />
               {errors.email && <p className="text-red text-[0.7rem] mt-1">{errors.email}</p>}
@@ -51,13 +51,13 @@ function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-lightgray py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white"
+                className="w-full border border-lightgray rounded-lg py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white transition-colors"
               />
               {errors.password && <p className="text-red text-[0.7rem] mt-1">{errors.password}</p>}
             </div>
             <button
               type="submit"
-              className="w-full bg-navy text-white font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#132d4a] transition-colors"
+              className="w-full bg-navy text-white font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#132d4a] transition-colors rounded-lg"
             >
               Sign In
             </button>

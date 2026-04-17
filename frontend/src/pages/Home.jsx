@@ -158,13 +158,14 @@ function Home() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-archivo font-extrabold text-[0.85rem] uppercase tracking-widest text-gray">Campus Feed</h2>
-            <div className="flex">
+            {/* Sort tabs — pill segmented control */}
+            <div className="flex bg-offwhite border border-lightgray rounded-full p-[3px] gap-[2px]">
               {['new', 'popular', 'trending'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveSort(tab)}
-                  className={`font-archivo text-[0.72rem] font-bold uppercase tracking-wide py-[5px] px-2.5 border border-lightgray cursor-pointer first:rounded-l last:rounded-r ${
-                    activeSort === tab ? 'bg-navy text-white border-navy' : 'bg-card text-gray'
+                  className={`font-archivo text-[0.72rem] font-bold uppercase tracking-wide py-[5px] px-3 rounded-full cursor-pointer transition-all ${
+                    activeSort === tab ? 'bg-navy text-white shadow-sm' : 'text-gray hover:text-ink'
                   }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -173,15 +174,16 @@ function Home() {
             </div>
           </div>
 
-          <div className="flex gap-1.5 mb-[18px]">
+          {/* Category filter — pill chips */}
+          <div className="flex gap-2 mb-5 flex-wrap">
             {['events', 'academic', 'recruiters', 'social', 'general'].map((f) => (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
-                className={`text-[0.7rem] font-semibold py-1 px-2.5 border rounded-[3px] cursor-pointer uppercase tracking-wide transition-colors ${
+                className={`text-[0.7rem] font-semibold py-1.5 px-3.5 rounded-full cursor-pointer uppercase tracking-wide transition-all ${
                   activeFilter === f
-                    ? 'bg-gold-pale border-gold text-[#8B6914]'
-                    : 'bg-card border-lightgray text-gray hover:border-ink hover:text-ink'
+                    ? 'bg-gold-pale border border-gold text-[#8B6914]'
+                    : 'bg-card border border-lightgray text-gray hover:border-ink hover:text-ink'
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -212,7 +214,7 @@ function Home() {
           <SideBox title="Events" id="events">
             {EVENTS.map((ev, i) => (
               <div key={i} className="flex gap-3 px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0 items-center">
-                <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0">
+                <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0 rounded-lg">
                   <span className="text-[0.55rem] uppercase tracking-wide opacity-60">{ev.month}</span>
                   <span className="font-archivo font-black text-[1.05rem] leading-none">{ev.day}</span>
                 </div>
@@ -232,7 +234,7 @@ function Home() {
                   <div className="text-[0.82rem] font-semibold">{g.name}</div>
                   <div className="text-[0.68rem] text-gray">{g.code}</div>
                 </div>
-                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[7px] rounded-sm">{g.count}</span>
+                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[9px] rounded-full">{g.count}</span>
               </div>
             ))}
           </SideBox>
@@ -242,7 +244,7 @@ function Home() {
       {/* Idea Banner */}
       {showIdea && (
         <div className="max-w-[1080px] mx-auto px-6">
-          <div className="bg-navy px-5 py-4 flex items-center gap-3.5">
+          <div className="bg-navy px-5 py-4 flex items-center gap-3.5 rounded-xl">
             <div className="text-[1.3rem]">&#128161;</div>
             <div className="flex-1 text-white/70 text-[0.85rem]">
               <b className="text-gold">Got a new idea?</b> Add it to the Trello board and sprint backlog so the team can review it.
@@ -251,7 +253,7 @@ function Home() {
               href="https://trello.com/b/ZVVEpSeC/my-trello-board"
               target="_blank"
               rel="noreferrer"
-              className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-wide bg-gold text-navy px-[18px] py-[9px] no-underline hover:bg-[#E5A92E] transition-colors shrink-0"
+              className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-wide bg-gold text-navy px-[18px] py-[9px] no-underline hover:bg-[#E5A92E] transition-colors shrink-0 rounded-full"
             >
               + Add Idea
             </a>
@@ -275,10 +277,10 @@ function Home() {
           <div
             key={key}
             onClick={() => setTaskPanel(key)}
-            className="bg-card border border-lightgray p-4 text-center cursor-pointer hover:border-gold transition-colors"
+            className="bg-card border border-lightgray rounded-xl p-4 text-center cursor-pointer hover:border-gold hover:shadow-md transition-all"
           >
             <div
-              className="w-10 h-10 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
+              className="w-10 h-10 rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
               style={{ background: m.color, color: m.tc }}
             >
               {m.initials}
@@ -295,10 +297,10 @@ function Home() {
           className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
           onClick={(e) => { if (e.target === e.currentTarget) setTaskPanel(null) }}
         >
-          <div className="bg-card w-[90%] max-w-[600px] max-h-[75vh] overflow-y-auto border border-lightgray">
+          <div className="bg-card w-[90%] max-w-[600px] max-h-[75vh] overflow-y-auto border border-lightgray rounded-2xl overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
               <div
-                className="w-[38px] h-[38px] rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.75rem] shrink-0"
+                className="w-[38px] h-[38px] rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.75rem] shrink-0"
                 style={{ background: teamMember.color, color: teamMember.tc }}
               >
                 {teamMember.initials}
@@ -319,7 +321,7 @@ function Home() {
                 <div key={t.id} className="flex items-start gap-2.5 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
                   <div
                     onClick={() => toggleTask(t.id)}
-                    className={`w-[18px] h-[18px] border-2 rounded-sm shrink-0 mt-[1px] cursor-pointer flex items-center justify-center text-[0.65rem] transition-colors ${
+                    className={`w-[18px] h-[18px] border-2 rounded-full shrink-0 mt-[1px] cursor-pointer flex items-center justify-center text-[0.65rem] transition-colors ${
                       checkedTasks[t.id]
                         ? 'bg-navy border-navy text-white'
                         : 'border-lightgray text-transparent hover:border-navy'
@@ -330,7 +332,7 @@ function Home() {
                   <div className="flex-1">
                     <div className="font-archivo text-[0.62rem] font-extrabold text-gold tracking-wide">{t.id}</div>
                     <div className="text-[0.85rem] font-medium my-[1px] leading-snug">{t.desc}</div>
-                    <span className={`font-archivo text-[0.6rem] font-bold uppercase tracking-wide py-[2px] px-[7px] rounded-sm ${PRI_STYLES[t.p]}`}>
+                    <span className={`font-archivo text-[0.6rem] font-bold uppercase tracking-wide py-[2px] px-[9px] rounded-full ${PRI_STYLES[t.p]}`}>
                       {PRI_LABELS[t.p]}
                     </span>
                   </div>
@@ -350,7 +352,7 @@ function Home() {
       </footer>
 
       {/* New Post FAB */}
-      <button className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors">
+      <button className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-all rounded-full shadow-lg hover:-translate-y-0.5">
         + New Post
       </button>
 
@@ -371,7 +373,7 @@ function HeaderNum({ value, label }) {
 
 function SideBox({ title, children, id }) {
   return (
-    <div className="border border-lightgray bg-card mb-3.5 overflow-hidden" id={id}>
+    <div className="border border-lightgray bg-card mb-3.5 overflow-hidden rounded-xl shadow-sm" id={id}>
       <div className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest px-4 py-3 bg-navy text-gold">
         {title}
       </div>
@@ -381,13 +383,25 @@ function SideBox({ title, children, id }) {
 }
 
 function PostCard({ post }) {
+  const [votes, setVotes] = useState(post.votes)
+  const [userVote, setUserVote] = useState(null)
   const catClass = CAT_STYLES[post.category] || CAT_STYLES.general
 
+  const vote = (dir) => {
+    if (userVote === dir) {
+      setVotes(votes + (dir === 'up' ? -1 : 1))
+      setUserVote(null)
+    } else {
+      setVotes(votes + (dir === 'up' ? (userVote === 'down' ? 2 : 1) : (userVote === 'up' ? -2 : -1)))
+      setUserVote(dir)
+    }
+  }
+
   return (
-    <div className="bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold mb-2.5 px-[18px] py-4 transition-colors">
+    <div className="bg-card border border-lightgray rounded-xl border-l-[3px] border-l-lightgray hover:border-l-gold mb-3 px-[18px] py-4 transition-all shadow-sm hover:shadow-md">
       <div className="flex items-center gap-2.5 mb-2">
         <div
-          className="w-8 h-8 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.65rem] text-white shrink-0"
+          className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.65rem] text-white shrink-0"
           style={{ background: post.color, color: post.tc || '#fff' }}
         >
           {post.initials}
@@ -396,7 +410,7 @@ function PostCard({ post }) {
           <strong className="text-[0.85rem] font-semibold block leading-tight">{post.name}</strong>
           <small className="text-[0.7rem] text-gray">{post.dept} &middot; {post.time}</small>
         </div>
-        <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm ${catClass}`}>
+        <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-3 rounded-full ${catClass}`}>
           {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
         </span>
       </div>
@@ -404,9 +418,21 @@ function PostCard({ post }) {
       <div className="text-[0.85rem] text-gray leading-relaxed mb-2.5">{post.body}</div>
       <div className="flex items-center gap-3.5 pt-2 border-t border-[#EAE7E0]">
         <div className="flex items-center gap-1 font-archivo">
-          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9650;</button>
-          <span className="font-extrabold text-[0.82rem] text-ink min-w-[22px] text-center">{post.votes}</span>
-          <button className="bg-transparent border-none cursor-pointer text-[0.75rem] text-lightgray hover:text-ink p-[2px]">&#9660;</button>
+          <button
+            onClick={() => vote('up')}
+            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${userVote === 'up' ? 'text-gold' : 'text-lightgray hover:text-ink'}`}
+          >
+            &#9650;
+          </button>
+          <span className={`font-extrabold text-[0.82rem] min-w-[22px] text-center transition-colors ${userVote === 'up' ? 'text-gold' : userVote === 'down' ? 'text-red' : 'text-ink'}`}>
+            {votes}
+          </span>
+          <button
+            onClick={() => vote('down')}
+            className={`bg-transparent border-none cursor-pointer text-[0.75rem] p-[2px] transition-colors ${userVote === 'down' ? 'text-red' : 'text-lightgray hover:text-ink'}`}
+          >
+            &#9660;
+          </button>
         </div>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">{post.comments} comments</button>
         <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>

@@ -40,7 +40,7 @@ function Register() {
   }
 
   const inputClass =
-    'w-full border border-lightgray py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray'
+    'w-full border border-lightgray rounded-lg py-[9px] px-3.5 text-[0.85rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray transition-colors'
 
   return (
     <div className="min-h-screen bg-offwhite flex items-center justify-center px-4 py-8">
@@ -51,7 +51,7 @@ function Register() {
           </Link>
           <p className="text-gray text-[0.85rem] mt-2">Create your account</p>
         </div>
-        <div className="bg-card border border-lightgray p-6">
+        <div className="bg-card border border-lightgray p-6 rounded-2xl shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block font-archivo text-[0.7rem] font-bold uppercase tracking-wide text-gray mb-1.5">Full Name</label>
@@ -86,7 +86,7 @@ function Register() {
             </div>
             <button
               type="submit"
-              className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#E5A92E] transition-colors"
+              className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#E5A92E] transition-colors rounded-lg"
             >
               Create Account
             </button>

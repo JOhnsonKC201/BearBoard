@@ -29,10 +29,10 @@ function Navbar() {
           <a
             key={link.label}
             href={link.hash}
-            className={`text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors ${
+            className={`text-[0.78rem] font-semibold px-3 py-1.5 rounded-full no-underline uppercase tracking-wide transition-colors ${
               isActive(link.label)
                 ? 'text-gold bg-white/[0.06]'
-                : 'text-white/55 hover:text-white'
+                : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
             }`}
           >
             {link.label}
@@ -43,10 +43,10 @@ function Navbar() {
       <div className="flex items-center gap-2.5">
         <input
           type="text"
-          className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
+          className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded-full outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
           placeholder="Search posts, groups..."
         />
-        <Link to="/profile/1" className="w-[30px] h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.65rem]">
+        <Link to="/profile/1" className="w-[30px] h-[30px] bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.65rem]">
           JK
         </Link>
 
