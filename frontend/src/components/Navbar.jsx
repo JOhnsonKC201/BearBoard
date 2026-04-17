@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import NotificationBell from './NotificationBell'
 
 function Navbar() {
   const location = useLocation()
@@ -46,6 +47,7 @@ function Navbar() {
           className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
           placeholder="Search posts, groups..."
         />
+        <NotificationBell />
         <Link to="/profile/1" className="w-[30px] h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.65rem]">
           JK
         </Link>
