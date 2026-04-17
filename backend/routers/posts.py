@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 def get_posts(
     sort: str = Query("newest", regex="^(newest|popular|trending)$"),
     category: str = Query(None),
+    author_id: int = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -27,6 +28,9 @@ def get_posts(
 
     if category:
         query = query.filter(Post.category == category)
+
+    if author_id is not None:
+        query = query.filter(Post.author_id == author_id)
 
     if sort == "popular":
         query = query.order_by(desc(Post.upvotes - Post.downvotes))
