@@ -1,10 +1,15 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 function Login() {
+  const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const validate = () => {
     const e = {}
@@ -14,13 +19,19 @@ function Login() {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError(null)
     if (!validate()) return
-    // TODO: Connect to POST /api/auth/login
-    // TODO: Store JWT token after successful login
-    // TODO: Redirect to feed after login
-    console.log('Login attempt:', email)
+    setSubmitting(true)
+    try {
+      await login(email.trim(), password)
+      navigate('/')
+    } catch (err) {
+      setSubmitError(err.status === 401 ? 'Invalid email or password' : (err.message || 'Login failed'))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -55,11 +66,17 @@ function Login() {
               />
               {errors.password && <p className="text-red text-[0.7rem] mt-1">{errors.password}</p>}
             </div>
+            {submitError && (
+              <div className="bg-[#F5D5D0] border border-[#E5B5B0] text-[#8B1A1A] px-3 py-2 text-[0.78rem] font-archivo font-bold">
+                {submitError}
+              </div>
+            )}
             <button
               type="submit"
-              className="w-full bg-navy text-white font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#132d4a] transition-colors"
+              disabled={submitting}
+              className="w-full bg-navy text-white font-archivo font-extrabold text-[0.78rem] uppercase tracking-wide py-3 border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Sign In
+              {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
           <div className="text-center mt-5 pt-4 border-t border-[#EAE7E0]">
