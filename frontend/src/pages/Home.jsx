@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
@@ -342,9 +343,20 @@ function Home() {
               }
             />
           ) : (
-            posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))
+            <AnimatePresence initial={true}>
+              {posts.map((post, i) => (
+                <motion.div
+                  key={post.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
+                  transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
+                >
+                  <PostCard post={post} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           )}
         </div>
 
