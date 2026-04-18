@@ -8,19 +8,35 @@ const SUGGESTIONS = [
   'How do I create a post?',
 ]
 
-function escapeHtml(s) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-// Render the server's lightweight markdown (**bold**, newlines, list bullets) as safe HTML.
+// Render the server's lightweight markdown (**bold**, newlines) as React
+// nodes. Uses pure JSX so content is always escaped by React; never call
+// dangerouslySetInnerHTML here.
 function renderReply(raw) {
-  const escaped = escapeHtml(raw || '')
-  return escaped
-    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/\n/g, '<br/>')
+  const text = String(raw ?? '')
+  const lines = text.split('\n')
+  return lines.map((line, lineIdx) => {
+    const parts = []
+    const boldRe = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match
+    let partIdx = 0
+    while ((match = boldRe.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(<span key={`t-${lineIdx}-${partIdx++}`}>{line.slice(lastIndex, match.index)}</span>)
+      }
+      parts.push(<b key={`b-${lineIdx}-${partIdx++}`}>{match[1]}</b>)
+      lastIndex = match.index + match[0].length
+    }
+    if (lastIndex < line.length) {
+      parts.push(<span key={`t-${lineIdx}-${partIdx++}`}>{line.slice(lastIndex)}</span>)
+    }
+    return (
+      <span key={`line-${lineIdx}`}>
+        {parts}
+        {lineIdx < lines.length - 1 && <br />}
+      </span>
+    )
+  })
 }
 
 function ChatWidget() {
@@ -54,11 +70,11 @@ function ChatWidget() {
         method: 'POST',
         body: JSON.stringify({ message: text }),
       })
-      setMessages((prev) => [...prev, { from: 'bot', text: renderReply(data.reply || '') }])
+      setMessages((prev) => [...prev, { from: 'bot', text: data.reply || '' }])
     } catch (err) {
       setMessages((prev) => [...prev, {
         from: 'bot',
-        text: escapeHtml(err.message || "I'm having trouble reaching the server right now. Try again in a moment."),
+        text: err.message || "I'm having trouble reaching the server right now. Try again in a moment.",
       }])
     } finally {
       setTyping(false)
@@ -130,8 +146,9 @@ function ChatWidget() {
                         ? 'bg-card border border-lightgray text-ink'
                         : 'bg-navy text-white'
                     }`}
-                    dangerouslySetInnerHTML={{ __html: msg.text }}
-                  />
+                  >
+                    {msg.from === 'bot' ? renderReply(msg.text) : msg.text}
+                  </div>
                   <div className={`text-[0.6rem] text-gray px-1 ${msg.from === 'user' ? 'text-right' : ''}`}>
                     Just now
                   </div>
