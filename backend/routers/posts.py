@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 from core.database import get_db
+from core.rate_limit import limiter
 from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse, CommentCreate, CommentResponse
 from models.post import Post
 from models.vote import Vote
@@ -64,14 +65,39 @@ def get_posts(
     return posts
 
 
+SOS_RECENT_LIMIT = 1
+SOS_RECENT_WINDOW_HOURS = 6
+
+
 @router.post("/", response_model=PostResponse)
+@limiter.limit("20/hour")
 def create_post(
+    request: Request,
     post: PostCreate,
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
     is_event = post.category.lower() in {"event", "events"}
     is_listing = post.category.lower() in {"housing", "swap"}
+
+    if post.is_sos:
+        # Per-user SOS throttle so a single student cannot mass-notify major-mates.
+        window = datetime.now(timezone.utc) - timedelta(hours=SOS_RECENT_WINDOW_HOURS)
+        recent_sos = (
+            db.query(func.count(Post.id))
+            .filter(
+                Post.author_id == current_user.id,
+                Post.is_sos.is_(True),
+                Post.created_at >= window,
+            )
+            .scalar()
+            or 0
+        )
+        if recent_sos >= SOS_RECENT_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"SOS limit reached: {SOS_RECENT_LIMIT} per {SOS_RECENT_WINDOW_HOURS}h.",
+            )
     db_post = Post(
         title=post.title,
         body=post.body,

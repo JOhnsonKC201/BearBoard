@@ -1,8 +1,9 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from core.database import get_db
+from core.rate_limit import limiter
 from schemas.user import UserCreate, UserLogin, UserResponse
 from models.user import User
 from passlib.context import CryptContext
@@ -62,7 +63,8 @@ def get_current_user_dep(
 
 
 @router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("10/hour")
+def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     email = _require_edu_email(user.email)
 
     existing = db.query(User).filter(User.email == email).first()
@@ -94,7 +96,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from core.database import get_db
+from core.rate_limit import limiter
 from schemas.post import PostResponse, EventResponse, GroupResponse, ChatRequest, ChatResponse
 from models.post import Post
 from models.event import Event
@@ -111,7 +112,8 @@ CANNED_RESPONSES = {
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
+@limiter.limit("30/minute")
+def chat(request: Request, req: ChatRequest):
     msg = req.message.lower()
     for key, response in CANNED_RESPONSES.items():
         if key in msg:
