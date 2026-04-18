@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
+import AdminDashboard from '../components/AdminDashboard'
+import { useAuth } from '../context/AuthContext'
 
 const AVATAR_PALETTE = [
   { color: '#5B3A8C', tc: '#FFFFFF' },
@@ -47,6 +49,7 @@ function formatTimeAgo(iso) {
 
 function Profile() {
   const { id } = useParams()
+  const { user: currentUser } = useAuth()
   const [user, setUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -117,6 +120,8 @@ function Profile() {
       <hr className="h-[3px] bg-gold border-none m-0" />
 
       <div className="max-w-[700px] mx-auto px-6 py-6">
+        {currentUser?.role === 'admin' && currentUser?.id === user.id && <AdminDashboard />}
+
         {/* Info card */}
         <div className="bg-card border border-lightgray p-5 mb-5">
           <h2 className="font-archivo font-extrabold text-[0.75rem] uppercase tracking-widest text-gray mb-4">Profile Info</h2>
