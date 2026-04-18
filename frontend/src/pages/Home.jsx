@@ -4,6 +4,7 @@ import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
+import SafetyBox from '../components/SafetyBox'
 import { apiFetch } from '../api/client'
 
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
@@ -417,6 +418,8 @@ function Home() {
               )
             })}
           </SideBox>
+
+          <SafetyBox />
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
