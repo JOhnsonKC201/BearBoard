@@ -19,6 +19,7 @@ function formatRelative(iso) {
 
 function bodyForKind(kind) {
   if (kind === 'resurface') return 'A post from someone in your major needs answers'
+  if (kind === 'sos') return '🚨 Someone in your major needs help right now'
   return 'New activity'
 }
 

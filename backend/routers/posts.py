@@ -11,7 +11,11 @@ from models.group import Group
 from models.user import User
 from routers.auth import get_current_user_dep
 from services.streak import bump_streak
+from services.resurface import find_relevant_recipients
+from models.notification import Notification
 from datetime import datetime, timedelta, timezone
+
+SOS_NOTIFICATION_KIND = "sos"
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -78,6 +82,18 @@ def create_post(
     )
     db.add(db_post)
     bump_streak(db, current_user)
+    db.flush()  # need db_post.id for SOS notifications
+
+    if db_post.is_sos:
+        recipient_ids = find_relevant_recipients(db, current_user)
+        for rid in recipient_ids:
+            db.add(Notification(
+                recipient_id=rid,
+                post_id=db_post.id,
+                kind=SOS_NOTIFICATION_KIND,
+                read=False,
+            ))
+
     db.commit()
     db.refresh(db_post)
     return db_post
