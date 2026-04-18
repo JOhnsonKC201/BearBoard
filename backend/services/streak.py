@@ -4,7 +4,7 @@ A streak counts consecutive UTC days the user did something meaningful
 (currently: posted, commented, or hit /api/users/me/checkin). Same-day
 calls are no-ops; missing a day resets to 1 on the next bump.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,9 @@ def bump_streak(db: Session, user: User, today: date | None = None) -> dict:
 
     Returns the new streak state. Caller must commit the session.
     """
-    today = today or date.today()
+    # Explicit UTC so deployments in other timezones can't drift midnight
+    # boundaries relative to created_at (which is stored in UTC via func.now()).
+    today = today or datetime.now(timezone.utc).date()
     last = user.last_activity_date
 
     if last == today:
