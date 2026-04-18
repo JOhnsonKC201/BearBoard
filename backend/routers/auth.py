@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
@@ -9,6 +11,21 @@ from core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# Only allow signups from verified school addresses. Case-insensitive; accepts
+# any .edu TLD (morgan.edu, umd.edu, etc.) so partner schools can use the same
+# deployment later without a code change.
+_EDU_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.edu$", re.IGNORECASE)
+
+
+def _require_edu_email(email: str) -> str:
+    normalized = (email or "").strip().lower()
+    if not _EDU_EMAIL_RE.match(normalized):
+        raise HTTPException(
+            status_code=400,
+            detail="BearBoard is for students only. Sign up with your .edu email.",
+        )
+    return normalized
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -46,13 +63,25 @@ def get_current_user_dep(
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user.email).first()
+    email = _require_edu_email(user.email)
+
+    existing = db.query(User).filter(User.email == email).first()
     if existing:
+        # Password "!pending" means the row was pre-provisioned by an admin
+        # via grant_role.py; let the student claim it by setting a real password.
+        if existing.password_hash == "!pending":
+            existing.password_hash = pwd_context.hash(user.password)
+            existing.name = user.name or existing.name
+            existing.major = user.major or existing.major
+            existing.graduation_year = user.graduation_year or existing.graduation_year
+            db.commit()
+            db.refresh(existing)
+            return existing
         raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed_pw = pwd_context.hash(user.password)
     db_user = User(
-        email=user.email,
+        email=email,
         password_hash=hashed_pw,
         name=user.name,
         major=user.major,
