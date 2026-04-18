@@ -7,6 +7,7 @@ from models.notification import Notification
 from models.user import User
 from routers.auth import get_current_user_dep
 from schemas.notification import NotificationResponse, UnreadCountResponse
+from services.permissions import require_admin
 from services.resurface import run_resurface
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
@@ -80,9 +81,10 @@ def mark_all_read(
 
 @router.post("/run-resurface")
 def trigger_resurface(
-    current_user: User = Depends(get_current_user_dep),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Manual trigger for the resurface job. Auth-gated only — any logged-in user
-    can fire it. Tighten with an admin check before exposing publicly."""
+    """Manual trigger for the resurface job. Admin-only: it fans out
+    notifications to every user sharing a major with each stale post's author,
+    which is a spam/DoS vector if left open."""
     return run_resurface(db)
