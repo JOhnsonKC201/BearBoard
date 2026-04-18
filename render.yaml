@@ -1,21 +1,31 @@
-# Render Blueprint for the BearBoard backend.
+# Render Blueprint for the whole BearBoard stack (backend API + frontend SPA).
 # https://render.com/docs/infrastructure-as-code
 #
 # Usage:
 #   1. Commit this file to the repo root (already done).
 #   2. In Render: New → Blueprint → pick the BearBoard repo.
-#   3. Render reads this file, provisions the service, and asks you to fill in
-#      the secret env vars listed below (marked `sync: false`).
-#   4. First deploy auto-runs `alembic upgrade head` against DATABASE_URL
-#      before starting uvicorn, so Supabase picks up any new migrations.
+#   3. Render reads this file, provisions both services, and prompts you to
+#      paste the one secret env var (DATABASE_URL) on first deploy. Cross-
+#      service URLs (VITE_API_URL, ALLOWED_ORIGINS) are auto-wired via
+#      `fromService` interpolation, so you don't paste them twice.
+#   4. First backend deploy auto-runs `alembic upgrade head` against your
+#      DATABASE_URL before booting uvicorn.
 #
 # Notes:
-#   - Free plan spins down after ~15 min idle. APScheduler jobs only run while
-#     the process is awake. For 24/7 cron, upgrade to `plan: starter` ($7/mo)
-#     or move schedules into Supabase pg_cron.
-#   - Python 3.11 is pinned because some of our bcrypt/passlib versions don't
-#     ship wheels for 3.13 yet.
+#   - Free plan web service sleeps after ~15 min idle. APScheduler jobs only
+#     fire while the process is awake. For reliable 24/7 cron upgrade the
+#     API service to `plan: starter` ($7/mo) or move schedules into Supabase
+#     pg_cron.
+#   - Python 3.11 is pinned because some of our bcrypt/passlib versions
+#     don't ship wheels for 3.13 yet.
+#   - Service names (`bearboard-api`, `bearboard-web`) must be globally
+#     unique on Render. If they're taken, rename them here before first deploy;
+#     the `fromService` references auto-resolve the new names.
+
 services:
+  # -------------------------------------------------------------------------
+  # Backend: FastAPI + APScheduler + SQLAlchemy, talking to Supabase.
+  # -------------------------------------------------------------------------
   - type: web
     name: bearboard-api
     runtime: python
@@ -27,18 +37,35 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # The Supabase Transaction-pooler connection string. Paste it yourself
-      # in the Render dashboard; `sync: false` keeps it out of git.
       - key: DATABASE_URL
-        sync: false
-
-      # JWT signing key. Render generates and pins a long random value on
-      # first deploy so we don't need to manage it.
+        sync: false          # Paste your Supabase pooler string in the dashboard.
       - key: SECRET_KEY
-        generateValue: true
-
-      # Comma-separated CORS allow-list. Point at your Vercel frontend URL
-      # (e.g. https://bearboard.vercel.app). Update whenever the frontend
-      # gets a new domain.
+        generateValue: true  # Render generates and pins a 64-char random value.
       - key: ALLOWED_ORIGINS
-        sync: false
+        fromService:
+          type: web
+          name: bearboard-web
+          property: host     # -> "bearboard-web.onrender.com"; config.py adds https://
+
+  # -------------------------------------------------------------------------
+  # Frontend: Vite-built React SPA served as a static site from the CDN.
+  # -------------------------------------------------------------------------
+  - type: web
+    name: bearboard-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+    # Catch-all rewrite so React Router owns every path; without this,
+    # hard-reloading /profile/1 would 404 on the static host.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: bearboard-api
+          property: host     # -> "bearboard-api.onrender.com"; client.js adds https://

@@ -25,10 +25,21 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
 # Explicit CORS allow-list. Override in prod via ALLOWED_ORIGINS env var
-# (comma-separated). Defaulting to local dev only prevents accidental open CORS.
+# (comma-separated). Accepts bare hostnames ("bearboard.onrender.com") too;
+# we prepend https:// automatically since Render Blueprint `fromService`
+# interpolation emits just the host.
 _default_origins = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+
+
+def _normalize_origin(raw: str) -> str:
+    value = raw.strip().rstrip("/")
+    if not value:
+        return value
+    if "://" in value:
+        return value
+    return f"https://{value}"
+
+
 ALLOWED_ORIGINS = [
-    o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", _default_origins).split(",")
-    if o.strip()
+    o for o in (_normalize_origin(x) for x in os.getenv("ALLOWED_ORIGINS", _default_origins).split(",")) if o
 ]
