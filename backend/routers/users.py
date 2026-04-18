@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
-from schemas.user import UserResponse
+from schemas.user import UserResponse, UserPublicResponse
 from models.user import User
 from routers.auth import get_current_user_dep
 from services.streak import bump_streak
@@ -21,8 +21,14 @@ def daily_checkin(
     return result
 
 
-@router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+@router.get("/{user_id}", response_model=UserPublicResponse)
+def get_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Public profile lookup. Requires auth so anonymous callers cannot
+    enumerate users, and uses UserPublicResponse to withhold email/PII."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
