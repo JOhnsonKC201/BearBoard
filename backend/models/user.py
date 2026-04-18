@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -14,6 +14,8 @@ class User(Base):
     graduation_year = Column(Integer)
     avatar_url = Column(String(500), default="")
     karma = Column(Integer, default=0)
+    streak_count = Column(Integer, default=0, nullable=False)
+    last_activity_date = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
