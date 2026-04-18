@@ -21,6 +21,7 @@ class PostCreate(BaseModel):
     is_sos: bool = False
     price: Optional[str] = Field(default=None, max_length=40)
     contact_info: Optional[str] = Field(default=None, max_length=200)
+    image_url: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("category")
     @classmethod
@@ -77,6 +78,7 @@ class PostResponse(BaseModel):
     sos_resolved: bool = False
     price: Optional[str] = None
     contact_info: Optional[str] = None
+    image_url: Optional[str] = None
     comment_count: int = 0
     created_at: Optional[datetime] = None
 

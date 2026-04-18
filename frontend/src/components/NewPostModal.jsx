@@ -15,6 +15,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [eventTime, setEventTime] = useState('')
   const [price, setPrice] = useState('')
   const [contactInfo, setContactInfo] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [isSos, setIsSos] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
@@ -30,6 +31,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
       setEventTime('')
       setPrice('')
       setContactInfo('')
+      setImageUrl('')
       setIsSos(false)
       setErrors({})
       setSubmitError(null)
@@ -86,6 +88,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
         if (price.trim()) payload.price = price.trim()
         payload.contact_info = contactInfo.trim()
       }
+      if (imageUrl.trim()) payload.image_url = imageUrl.trim()
       const post = await apiFetch('/api/posts', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -210,6 +213,27 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
               </div>
             )}
 
+            <Field label="Image URL (optional)" error={null}>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                disabled={submitting}
+                placeholder="https://... (paste a direct image link)"
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+              />
+              {imageUrl.trim() && (
+                <div className="mt-2 border border-lightgray bg-offwhite overflow-hidden max-h-[180px]">
+                  <img
+                    src={imageUrl.trim()}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
+                </div>
+              )}
+            </Field>
+
             {isListing && (
               <div className="grid grid-cols-2 gap-3 mb-1">
                 <Field label={category === 'Swap' ? 'Price / Offer' : 'Rent / Budget'} error={null}>
@@ -245,7 +269,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
               />
               <span>
                 <span className="font-archivo font-extrabold text-[0.78rem] text-[#8B1A1A] flex items-center gap-1.5">
-                  <span aria-hidden="true">&#128680;</span> SOS &mdash; I need help fast
+                  <span aria-hidden="true">&#128680;</span> SOS: I need help fast
                 </span>
                 <span className="block text-[0.7rem] text-gray mt-[2px] leading-snug">
                   Pins your post to the top and notifies students in your major.

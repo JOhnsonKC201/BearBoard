@@ -294,7 +294,7 @@ function Home() {
               Upcoming at <span className="text-gold">Morgan</span>
             </h2>
             <p className="text-[0.75rem] text-gray mt-1.5">
-              Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` — ${events.length} upcoming`}
+              Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` · ${events.length} upcoming`}
             </p>
           </div>
           <a
@@ -385,29 +385,31 @@ function Home() {
               </button>
             </div>
           ) : visiblePosts.length === 0 ? (
-            <EmptyState
-              icon={searchQuery ? '🔎' : activeFilter === 'All' ? '✍️' : '🔍'}
-              title={
-                searchQuery
-                  ? `No matches for "${searchQuery}"`
-                  : activeFilter === 'All' ? 'The feed is empty' : `No ${activeFilter} posts yet`
-              }
-              body={
-                searchQuery
-                  ? 'Try a different keyword, or clear the search in the nav.'
-                  : activeFilter === 'All'
-                    ? 'Be the first to post. Pick a category, share what\u2019s on your mind, hit send.'
+            !searchQuery && activeFilter === 'All' ? (
+              <WelcomeDemo onCreatePost={() => { setPostPreset(null); setShowNewPost(true) }} />
+            ) : (
+              <EmptyState
+                icon={searchQuery ? '🔎' : '🔍'}
+                title={
+                  searchQuery
+                    ? `No matches for "${searchQuery}"`
+                    : `No ${activeFilter} posts yet`
+                }
+                body={
+                  searchQuery
+                    ? 'Try a different keyword, or clear the search in the nav.'
                     : `Switch the filter or be the first to post in ${activeFilter}.`
-              }
-              action={!searchQuery && (
-                <button
-                  onClick={() => { setPostPreset(null); setShowNewPost(true) }}
-                  className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
-                >
-                  + Create a post
-                </button>
-              )}
-            />
+                }
+                action={!searchQuery && (
+                  <button
+                    onClick={() => { setPostPreset(null); setShowNewPost(true) }}
+                    className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
+                  >
+                    + Create a post
+                  </button>
+                )}
+              />
+            )
           ) : (
             <AnimatePresence initial={true}>
               {visiblePosts.map((post, i) => (
@@ -491,7 +493,7 @@ function Home() {
                           </span>
                         )}
                       </div>
-                      <div className="text-[0.68rem] text-gray truncate">{detail || '\u2014'}</div>
+                      <div className="text-[0.68rem] text-gray truncate">{detail || '-'}</div>
                     </div>
                   </div>
                 </Wrapper>
@@ -739,12 +741,16 @@ function PostCard({ post }) {
 
   const upActive = userVote === 'up'
   const downActive = userVote === 'down'
+  const isHot = score >= 20
+  const [imgBroken, setImgBroken] = useState(false)
+  const hasImage = Boolean(post.image_url) && !imgBroken
 
   return (
-    <div className={`group bg-card border border-lightgray border-l-[3px] mb-2.5 transition-all duration-150 hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)] hover:-translate-y-[1px] ${
+    <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_6px_24px_-10px_rgba(11,29,52,0.22)] hover:-translate-y-[1px] ${
       post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
     }`}>
-      <div className="px-[18px] py-4">
+      {/* Header + title */}
+      <div className="px-[18px] pt-4 pb-2">
         {post.is_sos && (
           <div className={`mb-2.5 flex items-center gap-2 text-[0.65rem] font-archivo font-extrabold uppercase tracking-wider ${
             post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'
@@ -753,40 +759,70 @@ function PostCard({ post }) {
               post.sos_resolved ? 'bg-[#D0EDE9]' : 'bg-[#8B1A1A] text-white status-dot'
             }`}>
               <span aria-hidden="true">&#128680;</span>
-              {post.sos_resolved ? 'SOS resolved' : 'SOS — needs help'}
+              {post.sos_resolved ? 'SOS resolved' : 'SOS needs help'}
             </span>
           </div>
         )}
         <div className="flex items-center gap-2.5 mb-2.5">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center font-archivo font-black text-[0.7rem] shrink-0 ring-1 ring-black/5"
+            className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-black text-[0.65rem] shrink-0 ring-1 ring-black/5"
             style={{ background: avatar.bg, color: avatar.tc }}
           >
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <strong className="text-[0.85rem] font-semibold leading-tight truncate">{authorName}</strong>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>
               {!isAnonymous && <RoleBadge role={post.author?.role} />}
+              <span className="text-gray/60 text-[0.72rem]">&middot;</span>
+              <span className="text-[0.72rem] text-gray font-archivo">{formatRelativeTime(post.created_at)}</span>
+              {authorMajor && (
+                <>
+                  <span className="text-gray/60 text-[0.72rem] hidden sm:inline">&middot;</span>
+                  <span className="text-[0.7rem] text-gray truncate hidden sm:inline">{authorMajor}</span>
+                </>
+              )}
             </div>
-            <small className="text-[0.7rem] text-gray block truncate">
-              {authorMajor && <>{authorMajor} &middot; </>}{formatRelativeTime(post.created_at)}
-            </small>
           </div>
+          {isHot && (
+            <span
+              className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#D4962A] text-white flex items-center gap-1 shrink-0"
+              title="High engagement"
+            >
+              <span aria-hidden="true">&#128293;</span> Hot
+            </span>
+          )}
           {isEvent && (
-            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-gold text-navy flex items-center gap-1 shrink-0">
+            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gold text-navy flex items-center gap-1 shrink-0">
               <span aria-hidden="true">&#128197;</span> Event
             </span>
           )}
-          <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm shrink-0 ${catClass}`}>
+          <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
             {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
           </span>
         </div>
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
-          <h3 className="font-archivo font-bold text-[1.02rem] leading-snug mb-1.5 tracking-tight group-hover/title:text-navy transition-colors">
+          <h3 className="font-archivo font-bold text-[1.15rem] leading-[1.25] mb-1 tracking-tight group-hover/title:text-navy transition-colors">
             {post.title}
           </h3>
         </Link>
+      </div>
+
+      {/* Edge-to-edge image */}
+      {hasImage && (
+        <Link to={`/post/${post.id}`} className="block bg-black/80 overflow-hidden">
+          <img
+            src={post.image_url}
+            alt=""
+            loading="lazy"
+            onError={() => setImgBroken(true)}
+            className="w-full max-h-[520px] object-contain mx-auto"
+          />
+        </Link>
+      )}
+
+      {/* Meta row (price / contact / event) */}
+      <div className="px-[18px] pt-3">
         {(post.price || post.contact_info) && (
           <div className="flex flex-wrap items-center gap-2 mb-2 text-[0.76rem]">
             {post.price && (
@@ -806,7 +842,13 @@ function PostCard({ post }) {
             <span aria-hidden="true">&#9200;</span> {eventLabel}
           </div>
         )}
-        <div className="text-[0.85rem] text-gray leading-relaxed mb-3 whitespace-pre-wrap line-clamp-3">{post.body}</div>
+        {post.body && (
+          <div className="text-[0.88rem] text-ink/80 leading-relaxed mb-3 whitespace-pre-wrap line-clamp-3">{post.body}</div>
+        )}
+      </div>
+
+      {/* Action bar */}
+      <div className="px-[18px] pb-3.5 pt-1">
         <div className="flex items-center gap-1.5 pt-2.5 border-t border-[#EAE7E0]">
           <div
             className={`flex items-center font-archivo rounded-full transition-colors ${
@@ -861,6 +903,127 @@ function PostCard({ post }) {
           </button>
           {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
         </div>
+      </div>
+    </div>
+  )
+}
+
+const DEMO_FEATURES = [
+  { icon: '✍️', title: 'Start a conversation', body: 'Ask a question, share a link, vent about finals. Feed lives here.' },
+  { icon: '📚', title: 'Find study partners', body: 'Post a course code, find others in the same class, meet at the library.' },
+  { icon: '📅', title: 'Never miss an event', body: 'Morgan State events auto-sync from events.morgan.edu with photos and locations.' },
+  { icon: '🏠', title: 'Housing & Swap', body: 'Find a subletter, sell your old textbook, grab a free couch.' },
+  { icon: '🎓', title: 'Rate a professor', body: 'Overall, difficulty, would-take-again. Help your classmates pick well.' },
+  { icon: '🚨', title: 'Anonymous SOS', body: 'Pinned to the top, notifies your major. Help arrives fast, your name stays out.' },
+]
+
+const DEMO_TESTIMONIALS = [
+  {
+    id: 't1',
+    quote: 'Found my study group for COSC 350 in one day. Midterm went from "panic" to "I got this."',
+    name: 'Sameer S.',
+    role: 'CS Sophomore',
+    initials: 'SS',
+    bg: 'linear-gradient(135deg, #D45347 0%, #962E22 100%)',
+  },
+  {
+    id: 't2',
+    quote: 'Sold my old laptop through Swap in under an hour. Way less sketchy than Facebook Marketplace.',
+    name: 'Kyndal M.',
+    role: 'Comm Senior',
+    initials: 'KM',
+    bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)',
+  },
+  {
+    id: 't3',
+    quote: "Events page keeps me from missing free pizza. Also some actually useful career stuff.",
+    name: 'Aayush S.',
+    role: 'CS Junior',
+    initials: 'AS',
+    bg: 'linear-gradient(135deg, #2BA89A 0%, #137267 100%)',
+  },
+]
+
+function WelcomeDemo({ onCreatePost }) {
+  return (
+    <div className="bg-card border border-lightgray overflow-hidden">
+      {/* Hero strip */}
+      <div className="bg-navy px-6 py-7 text-center relative">
+        <div className="inline-flex items-center gap-1.5 bg-gold/20 text-gold font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.2em] px-3 py-1 rounded-full mb-3">
+          <span aria-hidden="true">🐻</span> Welcome
+        </div>
+        <h2 className="font-archivo font-black text-[1.6rem] text-white uppercase tracking-tight leading-none">
+          This is <span className="text-gold">BearBoard</span>
+        </h2>
+        <p className="text-white/60 text-[0.88rem] max-w-[440px] mx-auto mt-2.5 leading-relaxed">
+          The feed is quiet right now. Here's what Morgan students actually use it for.
+        </p>
+      </div>
+
+      {/* Feature grid */}
+      <div className="px-5 py-6">
+        <div className="font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.2em] text-gray text-center mb-4">
+          What you can do here
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          {DEMO_FEATURES.map((f) => (
+            <div
+              key={f.title}
+              className="bg-offwhite border border-lightgray px-3.5 py-3 hover:border-navy hover:bg-card transition-colors"
+            >
+              <div className="text-[1.4rem] leading-none mb-2" aria-hidden="true">{f.icon}</div>
+              <div className="font-archivo font-extrabold text-[0.82rem] text-navy leading-tight mb-1">
+                {f.title}
+              </div>
+              <div className="text-[0.72rem] text-gray leading-snug">{f.body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Testimonials */}
+      <div className="bg-offwhite border-t border-[#EAE7E0] px-5 py-6">
+        <div className="font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.2em] text-gray text-center mb-4">
+          What students are saying
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {DEMO_TESTIMONIALS.map((t) => (
+            <div key={t.id} className="bg-card border border-lightgray px-4 py-4 relative">
+              <div className="text-gold font-archivo font-black text-[1.4rem] leading-none mb-1" aria-hidden="true">
+                &ldquo;
+              </div>
+              <div className="text-[0.82rem] text-ink leading-relaxed mb-3">{t.quote}</div>
+              <div className="flex items-center gap-2 pt-2 border-t border-[#EAE7E0]">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center font-archivo font-black text-[0.62rem] text-white shrink-0 ring-1 ring-black/5"
+                  style={{ background: t.bg }}
+                >
+                  {t.initials}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-archivo font-extrabold text-[0.78rem] text-navy leading-tight truncate">{t.name}</div>
+                  <div className="text-[0.65rem] text-gray uppercase tracking-wide font-archivo font-bold truncate">{t.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="px-5 py-6 text-center border-t border-[#EAE7E0]">
+        <div className="font-archivo font-extrabold text-[0.78rem] text-navy mb-2">
+          Your turn.
+        </div>
+        <div className="text-[0.78rem] text-gray mb-4 max-w-[380px] mx-auto">
+          Pick a category, share what's on your mind, hit post. The first post sets the tone.
+        </div>
+        <button
+          onClick={onCreatePost}
+          className="bg-gold text-navy border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
+        >
+          + Create the first post
+        </button>
       </div>
     </div>
   )

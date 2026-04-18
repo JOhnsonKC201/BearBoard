@@ -108,6 +108,7 @@ def create_post(
         is_sos=bool(post.is_sos),
         price=(post.price or None) if is_listing else None,
         contact_info=(post.contact_info or None) if is_listing else None,
+        image_url=(post.image_url or None),
     )
     db.add(db_post)
     bump_streak(db, current_user)

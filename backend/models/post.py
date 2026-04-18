@@ -23,6 +23,7 @@ class Post(Base):
     # "OBO") rather than a number so we don't lose nuance.
     price = Column(String(40), nullable=True)
     contact_info = Column(String(200), nullable=True)
+    image_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
