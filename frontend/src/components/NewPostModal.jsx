@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 
-const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Anonymous']
+const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
 const LISTING_CATEGORIES = new Set(['Housing', 'Swap'])
 const TITLE_MAX = 200
 const BODY_MAX = 5000
