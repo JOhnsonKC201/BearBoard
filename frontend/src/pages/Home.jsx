@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
+import EmptyState from '../components/EmptyState'
 import { apiFetch } from '../api/client'
 
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Anonymous']
@@ -319,9 +320,21 @@ function Home() {
               </button>
             </div>
           ) : posts.length === 0 ? (
-            <div className="bg-card border border-lightgray px-[18px] py-6 text-center text-gray text-[0.85rem]">
-              {activeFilter === 'All' ? 'No posts yet — be the first to post.' : `No posts in ${activeFilter}.`}
-            </div>
+            <EmptyState
+              icon={activeFilter === 'All' ? '✍️' : '🔍'}
+              title={activeFilter === 'All' ? 'The feed is empty' : `No ${activeFilter} posts yet`}
+              body={activeFilter === 'All'
+                ? 'Be the first to post. Pick a category, share what\u2019s on your mind, hit send.'
+                : `Switch the filter or be the first to post in ${activeFilter}.`}
+              action={
+                <button
+                  onClick={() => setShowNewPost(true)}
+                  className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
+                >
+                  + Create a post
+                </button>
+              }
+            />
           ) : (
             posts.map((post) => (
               <PostCard key={post.id} post={post} />

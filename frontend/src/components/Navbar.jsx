@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
+import HealthDot from './HealthDot'
 import { useAuth } from '../context/AuthContext'
 
 function initialsFor(name) {
@@ -57,6 +58,7 @@ function Navbar() {
       </div>
 
       <div className="flex items-center gap-2.5">
+        <HealthDot />
         <input
           type="text"
           className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
