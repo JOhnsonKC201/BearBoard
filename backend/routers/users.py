@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
-from schemas.user import UserResponse, UserPublicResponse
+from schemas.user import UserResponse, UserPublicResponse, UserUpdate
 from models.user import User
 from routers.auth import get_current_user_dep
 from services.streak import bump_streak
@@ -38,23 +38,23 @@ def get_user(
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(
     user_id: int,
-    name: str = None,
-    major: str = None,
-    graduation_year: int = None,
+    patch: UserUpdate,
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    """Self-only profile update. Takes a JSON body; each field is size-bounded
+    via UserUpdate so an attacker cannot submit a 10 MB name."""
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if name is not None:
-        user.name = name
-    if major is not None:
-        user.major = major
-    if graduation_year is not None:
-        user.graduation_year = graduation_year
+    if patch.name is not None:
+        user.name = patch.name.strip()
+    if patch.major is not None:
+        user.major = patch.major.strip()
+    if patch.graduation_year is not None:
+        user.graduation_year = patch.graduation_year
     db.commit()
     db.refresh(user)
     return user
