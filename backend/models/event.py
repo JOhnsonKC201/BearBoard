@@ -20,5 +20,6 @@ class Event(Base):
     source = Column(String(40), nullable=True)
     external_id = Column(String(255), nullable=True, index=True)
     source_url = Column(String(500), nullable=True)
+    image_url = Column(String(500), nullable=True)
 
     creator = relationship("User")

@@ -1,47 +1,56 @@
-"""Sync events from the morgan.edu public iCal feed.
+"""Sync events from the morgan.edu Localist JSON API.
 
-Pulls https://events.morgan.edu/calendar/1.ics, parses each VEVENT, and
-upserts rows into the local `events` table keyed by the iCal UID. Re-running
-the job is idempotent: existing rows are updated in place rather than
-duplicated, and rows whose UID disappears upstream are left alone (so the
-manual /api/events/sync trigger can be safely cron'd).
+Localist (the CMS powering events.morgan.edu) exposes a paginated JSON API at
+`/api/2/events`. We prefer it over the iCal feed because iCal drops images —
+the JSON payload carries `photo_url`, `event_instances[].start/end`, category
+filters, and the canonical event page URL. Re-running the job is idempotent:
+existing rows are updated in place, keyed on the Localist event id stored in
+`external_id`. Rows whose id disappears upstream are left alone so manual
+`POST /api/events/sync` calls can be cron'd safely.
 """
 from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Iterable, Optional
 
 import requests
-from icalendar import Calendar
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
 from models.event import Event
 
-MORGAN_ICS_URL = "https://events.morgan.edu/calendar/1.ics"
+MORGAN_API_BASE = "https://events.morgan.edu/api/2/events"
 SOURCE_TAG = "morgan.edu"
-DEFAULT_HORIZON_DAYS = 30
+DEFAULT_HORIZON_DAYS = 365
+PAGE_SIZE = 100
+MAX_PAGES = 20  # hard stop: 20 * 100 = 2000 events is plenty for a year
 USER_AGENT = "BearBoard/0.1 (events sync; morgan.edu)"
-REQUEST_TIMEOUT_SECONDS = 15
+REQUEST_TIMEOUT_SECONDS = 30
 
 logger = logging.getLogger("bearboard.morgan_events")
 
 
-def _coerce_date(value) -> Optional[date]:
-    if value is None:
+def _parse_date(value: Optional[str]) -> Optional[date]:
+    if not value:
         return None
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    return None
+    try:
+        # Localist returns ISO-8601 timestamps with timezone, e.g.
+        # "2026-04-18T09:30:00-04:00". We only care about the calendar date
+        # in the event's local tz — strip the tz and parse the first 10 chars.
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
 
 
-def _coerce_time_str(value) -> Optional[str]:
-    if isinstance(value, datetime):
-        return value.strftime("%H:%M")
-    return None
+def _parse_time(value: Optional[str]) -> Optional[str]:
+    if not value or "T" not in value:
+        return None
+    try:
+        # "2026-04-18T09:30:00-04:00" -> "09:30"
+        return value.split("T", 1)[1][:5]
+    except (IndexError, ValueError):
+        return None
 
 
 def _truncate(value: Optional[str], limit: int) -> Optional[str]:
@@ -53,59 +62,138 @@ def _truncate(value: Optional[str], limit: int) -> Optional[str]:
     return text if len(text) <= limit else text[: limit - 1] + "\u2026"
 
 
-def fetch_morgan_ics(url: str = MORGAN_ICS_URL) -> bytes:
+def fetch_localist_page(page: int, days: int) -> dict:
+    """One paginated request to the Localist events API."""
+    params = {
+        "pp": PAGE_SIZE,
+        "page": page,
+        "days": days,
+    }
     response = requests.get(
-        url,
-        headers={"User-Agent": USER_AGENT, "Accept": "text/calendar"},
+        MORGAN_API_BASE,
+        params=params,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+        },
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
-    return response.content
+    return response.json()
+
+
+def iter_localist_events(horizon_days: int) -> Iterable[dict]:
+    """Yield `event` dicts across all pages. Stops once the server signals the
+    last page, or at MAX_PAGES as a safety bound."""
+    for page in range(1, MAX_PAGES + 1):
+        payload = fetch_localist_page(page, horizon_days)
+        items = payload.get("events") or []
+        if not items:
+            return
+        for wrapper in items:
+            ev = wrapper.get("event") if isinstance(wrapper, dict) else None
+            if ev:
+                yield ev
+        # Pagination meta lives at payload["page"]; if absent, fall back to len
+        meta = payload.get("page") or {}
+        current = meta.get("current") or page
+        total = meta.get("total")
+        if total is not None and current >= total:
+            return
+        if len(items) < PAGE_SIZE:
+            return
+
+
+def _pick_first_instance(ev: dict) -> tuple[Optional[date], Optional[str], Optional[str]]:
+    """Localist events can repeat. We store the next upcoming instance.
+
+    Returns (event_date, start_time, end_time) using the earliest instance
+    whose start date is today or later.
+    """
+    instances = ev.get("event_instances") or []
+    today = date.today()
+    best: Optional[tuple[date, Optional[str], Optional[str]]] = None
+    for wrapper in instances:
+        inst = wrapper.get("event_instance") if isinstance(wrapper, dict) else None
+        if not inst:
+            continue
+        start_raw = inst.get("start")
+        end_raw = inst.get("end")
+        d = _parse_date(start_raw)
+        if not d:
+            continue
+        if d < today:
+            continue
+        candidate = (d, _parse_time(start_raw), _parse_time(end_raw))
+        if best is None or candidate[0] < best[0]:
+            best = candidate
+    if best is None:
+        # Fall back to the first instance if nothing upcoming (caller will
+        # decide whether to skip)
+        for wrapper in instances:
+            inst = wrapper.get("event_instance") if isinstance(wrapper, dict) else None
+            if not inst:
+                continue
+            d = _parse_date(inst.get("start"))
+            if d:
+                return d, _parse_time(inst.get("start")), _parse_time(inst.get("end"))
+        return None, None, None
+    return best
+
+
+def _extract_location(ev: dict) -> Optional[str]:
+    room = (ev.get("room_number") or "").strip()
+    name = (ev.get("location_name") or ev.get("venue_name") or "").strip()
+    if name and room:
+        return f"{name}, {room}"
+    return name or room or None
+
+
+def _extract_image(ev: dict) -> Optional[str]:
+    # Localist usually returns `photo_url`. Some deployments also expose
+    # `photo_url_modified`. Fall back to any valid http URL we find.
+    for key in ("photo_url", "photo_url_modified"):
+        value = ev.get(key)
+        if isinstance(value, str) and value.startswith("http"):
+            return value
+    return None
 
 
 def sync_morgan_events(
     db: Optional[Session] = None,
     horizon_days: int = DEFAULT_HORIZON_DAYS,
-    ics_bytes: Optional[bytes] = None,
+    events_iter: Optional[Iterable[dict]] = None,
 ) -> dict:
     """Fetch + upsert. Returns counts for monitoring.
 
-    `ics_bytes` lets tests inject a fixture without hitting the network.
-    `horizon_days` skips events more than that far in the future to keep
-    the local table focused on the immediate calendar window.
+    `events_iter` lets tests inject fixture events without network.
     """
     own_session = db is None
     db = db or SessionLocal()
     try:
-        if ics_bytes is None:
-            ics_bytes = fetch_morgan_ics()
-        cal = Calendar.from_ical(ics_bytes)
+        source_iter = events_iter if events_iter is not None else iter_localist_events(horizon_days)
 
-        cutoff = date.today() + timedelta(days=horizon_days)
         today = date.today()
         created = 0
         updated = 0
         skipped = 0
 
-        for component in cal.walk("VEVENT"):
-            uid = str(component.get("UID") or "").strip()
-            title = _truncate(str(component.get("SUMMARY") or ""), 200)
-            event_date = _coerce_date(component.get("DTSTART").dt) if component.get("DTSTART") else None
+        for ev in source_iter:
+            ev_id = ev.get("id")
+            uid = str(ev_id).strip() if ev_id is not None else ""
+            title = _truncate(ev.get("title"), 200)
+            event_date, start_time, end_time = _pick_first_instance(ev)
             if not uid or not title or not event_date:
                 skipped += 1
                 continue
-
-            # Window: skip past events and far-future events.
-            if event_date < today or event_date > cutoff:
+            if event_date < today:
                 skipped += 1
                 continue
 
-            description = _truncate(str(component.get("DESCRIPTION") or "") or None, 2000)
-            location = _truncate(str(component.get("LOCATION") or "") or None, 200)
-            start_time = _coerce_time_str(component.get("DTSTART").dt) if component.get("DTSTART") else None
-            end_time = _coerce_time_str(component.get("DTEND").dt) if component.get("DTEND") else None
-            url_field = component.get("URL")
-            source_url = _truncate(str(url_field) if url_field else None, 500)
+            description = _truncate(ev.get("description_text") or ev.get("description"), 2000)
+            location = _truncate(_extract_location(ev), 200)
+            source_url = _truncate(ev.get("url"), 500)
+            image_url = _truncate(_extract_image(ev), 500)
 
             existing = db.query(Event).filter(Event.external_id == uid).first()
             if existing:
@@ -117,6 +205,7 @@ def sync_morgan_events(
                 existing.end_time = end_time
                 existing.source = SOURCE_TAG
                 existing.source_url = source_url
+                existing.image_url = image_url
                 updated += 1
             else:
                 db.add(Event(
@@ -129,6 +218,7 @@ def sync_morgan_events(
                     external_id=uid,
                     source=SOURCE_TAG,
                     source_url=source_url,
+                    image_url=image_url,
                 ))
                 created += 1
 

@@ -99,6 +99,7 @@ class EventResponse(BaseModel):
     end_time: Optional[str] = None
     source: Optional[str] = None
     source_url: Optional[str] = None
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True

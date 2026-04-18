@@ -40,13 +40,14 @@ def get_trending(db: Session = Depends(get_db)):
 
 
 @router.get("/events", response_model=list[EventResponse])
-def get_events(db: Session = Depends(get_db)):
+def get_events(limit: int = 8, db: Session = Depends(get_db)):
     today = datetime.now(timezone.utc).date()
+    limit = max(1, min(limit, 500))
     events = (
         db.query(Event)
         .filter(Event.event_date >= today)
         .order_by(Event.event_date)
-        .limit(8)
+        .limit(limit)
         .all()
     )
     return events

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import NewPostModal from '../components/NewPostModal'
@@ -215,13 +215,23 @@ function Home() {
   const [events, setEvents] = useState([])
   const [groups, setGroups] = useState([])
   const [sidebarLoading, setSidebarLoading] = useState(true)
+  const [searchParams] = useSearchParams()
+  const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
+
+  const visiblePosts = useMemo(() => {
+    if (!searchQuery) return posts
+    return posts.filter((p) => {
+      const hay = `${p.title || ''} ${p.body || ''}`.toLowerCase()
+      return hay.includes(searchQuery)
+    })
+  }, [posts, searchQuery])
 
   useEffect(() => {
     let cancelled = false
     setSidebarLoading(true)
     Promise.all([
       apiFetch('/api/trending').catch(() => []),
-      apiFetch('/api/events').catch(() => []),
+      apiFetch('/api/events?limit=24').catch(() => []),
       apiFetch('/api/groups').catch(() => []),
     ]).then(([t, e, g]) => {
       if (cancelled) return
@@ -276,19 +286,67 @@ function Home() {
       </div>
       <hr className="h-[3px] bg-gold border-none m-0" />
 
+      {/* Upcoming Events Showcase */}
+      <section className="max-w-[1080px] mx-auto px-6 pt-8 pb-2" id="events-showcase">
+        <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h2 className="font-archivo font-black text-[1.3rem] uppercase tracking-tight text-navy leading-none">
+              Upcoming at <span className="text-gold">Morgan</span>
+            </h2>
+            <p className="text-[0.75rem] text-gray mt-1.5">
+              Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` — ${events.length} upcoming`}
+            </p>
+          </div>
+          <a
+            href="https://events.morgan.edu/"
+            target="_blank"
+            rel="noreferrer"
+            className="font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline flex items-center gap-1"
+          >
+            View full calendar <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+
+        {sidebarLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card border border-lightgray overflow-hidden">
+                <div className="aspect-[16/9] bg-offwhite animate-pulse" />
+                <div className="p-4 space-y-2">
+                  <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="bg-card border border-lightgray px-4 py-6 text-center text-[0.82rem] text-gray">
+            No upcoming events synced yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {events.slice(0, 9).map((ev) => (
+              <EventShowcaseCard key={ev.id} ev={ev} />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Feed + Sidebar */}
       <div className="max-w-[1080px] mx-auto px-6 py-7 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-7" id="feed">
         {/* Main Feed */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-archivo font-extrabold text-[0.85rem] uppercase tracking-widest text-gray">Campus Feed</h2>
-            <div className="flex">
+            <div className="flex gap-1 bg-offwhite border border-lightgray rounded-full p-1">
               {['new', 'popular', 'trending'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveSort(tab)}
-                  className={`font-archivo text-[0.72rem] font-bold uppercase tracking-wide py-[5px] px-2.5 border border-lightgray cursor-pointer first:rounded-l last:rounded-r ${
-                    activeSort === tab ? 'bg-navy text-white border-navy' : 'bg-card text-gray'
+                  className={`font-archivo text-[0.68rem] font-extrabold uppercase tracking-wide py-[5px] px-3 rounded-full cursor-pointer transition-all ${
+                    activeSort === tab
+                      ? 'bg-navy text-white shadow-[0_1px_3px_rgba(11,29,52,0.25)]'
+                      : 'text-gray hover:text-ink'
                   }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -297,15 +355,15 @@ function Home() {
             </div>
           </div>
 
-          <div className="flex gap-1.5 mb-[18px]">
+          <div className="flex flex-wrap gap-1.5 mb-[18px]">
             {FEED_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
-                className={`text-[0.7rem] font-semibold py-1 px-2.5 border rounded-[3px] cursor-pointer uppercase tracking-wide transition-colors ${
+                className={`text-[0.7rem] font-semibold py-[5px] px-3 border rounded-full cursor-pointer uppercase tracking-wide transition-all ${
                   activeFilter === f
-                    ? 'bg-gold-pale border-gold text-[#8B6914]'
-                    : 'bg-card border-lightgray text-gray hover:border-ink hover:text-ink'
+                    ? 'bg-navy border-navy text-white shadow-[0_1px_3px_rgba(11,29,52,0.2)]'
+                    : 'bg-card border-lightgray text-gray hover:border-navy hover:text-navy hover:bg-offwhite'
                 }`}
               >
                 {f}
@@ -326,25 +384,33 @@ function Home() {
                 Retry
               </button>
             </div>
-          ) : posts.length === 0 ? (
+          ) : visiblePosts.length === 0 ? (
             <EmptyState
-              icon={activeFilter === 'All' ? '✍️' : '🔍'}
-              title={activeFilter === 'All' ? 'The feed is empty' : `No ${activeFilter} posts yet`}
-              body={activeFilter === 'All'
-                ? 'Be the first to post. Pick a category, share what\u2019s on your mind, hit send.'
-                : `Switch the filter or be the first to post in ${activeFilter}.`}
-              action={
+              icon={searchQuery ? '🔎' : activeFilter === 'All' ? '✍️' : '🔍'}
+              title={
+                searchQuery
+                  ? `No matches for "${searchQuery}"`
+                  : activeFilter === 'All' ? 'The feed is empty' : `No ${activeFilter} posts yet`
+              }
+              body={
+                searchQuery
+                  ? 'Try a different keyword, or clear the search in the nav.'
+                  : activeFilter === 'All'
+                    ? 'Be the first to post. Pick a category, share what\u2019s on your mind, hit send.'
+                    : `Switch the filter or be the first to post in ${activeFilter}.`
+              }
+              action={!searchQuery && (
                 <button
                   onClick={() => { setPostPreset(null); setShowNewPost(true) }}
                   className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
                 >
                   + Create a post
                 </button>
-              }
+              )}
             />
           ) : (
             <AnimatePresence initial={true}>
-              {posts.map((post, i) => (
+              {visiblePosts.map((post, i) => (
                 <motion.div
                   key={post.id}
                   layout
@@ -693,7 +759,7 @@ function PostCard({ post }) {
         )}
         <div className="flex items-center gap-2.5 mb-2.5">
           <div
-            className="w-9 h-9 rounded-[4px] flex items-center justify-center font-archivo font-black text-[0.7rem] shrink-0 ring-1 ring-black/5"
+            className="w-9 h-9 rounded-full flex items-center justify-center font-archivo font-black text-[0.7rem] shrink-0 ring-1 ring-black/5"
             style={{ background: avatar.bg, color: avatar.tc }}
           >
             {initials}
@@ -741,22 +807,26 @@ function PostCard({ post }) {
           </div>
         )}
         <div className="text-[0.85rem] text-gray leading-relaxed mb-3 whitespace-pre-wrap line-clamp-3">{post.body}</div>
-        <div className="flex items-center gap-3 pt-2.5 border-t border-[#EAE7E0]">
-          <div className="flex items-center gap-0.5 font-archivo bg-offwhite border border-lightgray rounded-sm">
+        <div className="flex items-center gap-1.5 pt-2.5 border-t border-[#EAE7E0]">
+          <div
+            className={`flex items-center font-archivo rounded-full transition-colors ${
+              upActive ? 'bg-gold/20' : downActive ? 'bg-[#8B1A1A]/10' : 'bg-offwhite hover:bg-[#EDE9DF]'
+            }`}
+          >
             <button
               onClick={() => applyVote('up')}
               aria-label="Upvote"
               aria-pressed={upActive}
               disabled={pending}
-              className={`bg-transparent border-none cursor-pointer text-[0.85rem] px-2 py-[5px] transition-colors disabled:cursor-wait ${
-                upActive ? 'text-gold' : 'text-lightgray hover:text-navy'
+              className={`bg-transparent border-none cursor-pointer text-[0.85rem] pl-3 pr-1.5 py-[6px] rounded-l-full transition-colors disabled:cursor-wait ${
+                upActive ? 'text-gold' : 'text-gray hover:text-navy'
               }`}
             >
               &#9650;
             </button>
             <span
               key={popKey}
-              className={`font-extrabold text-[0.78rem] min-w-[22px] text-center vote-pop ${
+              className={`font-extrabold text-[0.75rem] min-w-[22px] text-center vote-pop ${
                 upActive ? 'text-gold' : downActive ? 'text-[#8B1A1A]' : 'text-ink'
               }`}
             >
@@ -767,8 +837,8 @@ function PostCard({ post }) {
               aria-label="Downvote"
               aria-pressed={downActive}
               disabled={pending}
-              className={`bg-transparent border-none cursor-pointer text-[0.85rem] px-2 py-[5px] transition-colors disabled:cursor-wait ${
-                downActive ? 'text-[#8B1A1A]' : 'text-lightgray hover:text-navy'
+              className={`bg-transparent border-none cursor-pointer text-[0.85rem] pr-3 pl-1.5 py-[6px] rounded-r-full transition-colors disabled:cursor-wait ${
+                downActive ? 'text-[#8B1A1A]' : 'text-gray hover:text-navy'
               }`}
             >
               &#9660;
@@ -776,16 +846,102 @@ function PostCard({ post }) {
           </div>
           <Link
             to={`/post/${post.id}`}
-            className="text-[0.75rem] text-gray no-underline font-franklin hover:text-ink flex items-center gap-1"
+            className="text-[0.72rem] text-gray no-underline font-archivo font-bold hover:text-navy flex items-center gap-1.5 bg-offwhite hover:bg-[#EDE9DF] rounded-full px-3 py-[6px] transition-colors"
           >
-            <span aria-hidden="true">&#128488;</span> {post.comment_count ?? 0}
+            <span aria-hidden="true">&#128488;</span>
+            <span>{post.comment_count ?? 0}</span>
           </Link>
-          <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Bookmark</button>
-          <button className="text-[0.75rem] text-gray cursor-pointer bg-transparent border-none font-franklin hover:text-ink">Share</button>
+          <button className="text-[0.72rem] text-gray cursor-pointer bg-offwhite hover:bg-[#EDE9DF] hover:text-navy border-none font-archivo font-bold rounded-full px-3 py-[6px] flex items-center gap-1.5 transition-colors">
+            <span aria-hidden="true">&#128278;</span>
+            <span>Save</span>
+          </button>
+          <button className="text-[0.72rem] text-gray cursor-pointer bg-offwhite hover:bg-[#EDE9DF] hover:text-navy border-none font-archivo font-bold rounded-full px-3 py-[6px] flex items-center gap-1.5 transition-colors">
+            <span aria-hidden="true">&#8599;</span>
+            <span>Share</span>
+          </button>
           {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
         </div>
       </div>
     </div>
+  )
+}
+
+function EventShowcaseCard({ ev }) {
+  const { month, day, weekday } = eventDateParts(ev.event_date)
+  const [imgBroken, setImgBroken] = useState(false)
+  const hasImage = Boolean(ev.image_url) && !imgBroken
+  const dateLabel = formatEventDateTime(ev.event_date, ev.start_time)
+  const isExternal = Boolean(ev.source)
+
+  const Wrapper = ev.source_url ? 'a' : 'div'
+  const wrapperProps = ev.source_url
+    ? { href: ev.source_url, target: '_blank', rel: 'noreferrer' }
+    : {}
+
+  return (
+    <Wrapper
+      {...wrapperProps}
+      className="group bg-card border border-lightgray overflow-hidden block no-underline text-ink hover:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.3)] hover:-translate-y-[2px] hover:border-gold transition-all duration-200"
+    >
+      {hasImage ? (
+        <div className="aspect-[16/9] overflow-hidden bg-offwhite relative">
+          <img
+            src={ev.image_url}
+            onError={() => setImgBroken(true)}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+            alt=""
+          />
+          <div className="absolute top-3 left-3 bg-white w-[46px] rounded-sm overflow-hidden shadow-[0_2px_8px_rgba(11,29,52,0.35)]">
+            <div className="bg-navy text-gold text-[0.5rem] uppercase tracking-wider font-archivo font-extrabold text-center py-[2px]">
+              {weekday || month}
+            </div>
+            <div className="text-center py-[3px] bg-white">
+              <div className="font-archivo font-black text-navy text-[1.2rem] leading-none">{day}</div>
+              <div className="text-[0.48rem] uppercase tracking-wider text-gray font-archivo font-bold mt-[1px]">
+                {month}
+              </div>
+            </div>
+          </div>
+          {isExternal && (
+            <span className="absolute top-3 right-3 font-archivo text-[0.55rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-navy/90 text-gold backdrop-blur">
+              {ev.source}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="aspect-[16/9] bg-gradient-to-br from-navy to-[#0a182b] relative flex items-center justify-center">
+          <div className="text-center">
+            <div className="font-archivo font-black text-gold text-[3rem] leading-none tracking-tight">{day}</div>
+            <div className="text-gold/80 text-[0.65rem] uppercase tracking-widest font-archivo font-extrabold mt-1">
+              {weekday} &middot; {month}
+            </div>
+          </div>
+          {isExternal && (
+            <span className="absolute top-3 right-3 font-archivo text-[0.55rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-white/15 text-gold">
+              {ev.source}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="p-4">
+        <h3 className="font-archivo font-bold text-[0.95rem] leading-snug mb-2 tracking-tight group-hover:text-navy transition-colors line-clamp-2 min-h-[2.5em]">
+          {ev.title}
+        </h3>
+        {dateLabel && (
+          <div className="text-[0.72rem] text-gray flex items-center gap-1.5 font-archivo font-bold">
+            <span aria-hidden="true">&#9200;</span>
+            <span className="truncate">{dateLabel}</span>
+          </div>
+        )}
+        {ev.location && (
+          <div className="text-[0.72rem] text-gray flex items-center gap-1.5 mt-1">
+            <span aria-hidden="true">&#128205;</span>
+            <span className="truncate">{ev.location}</span>
+          </div>
+        )}
+      </div>
+    </Wrapper>
   )
 }
 
