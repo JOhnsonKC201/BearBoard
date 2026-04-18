@@ -6,7 +6,10 @@ from schemas.post import PostResponse, EventResponse, GroupResponse, ChatRequest
 from models.post import Post
 from models.event import Event
 from models.group import Group
+from models.user import User
+from models.comment import Comment
 from services.morgan_events import sync_morgan_events
+from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api", tags=["extras"])
@@ -52,6 +55,39 @@ def sync_events(db: Session = Depends(get_db)):
     """Manual trigger for the Morgan State iCal sync. Useful for testing
     without waiting for the scheduler."""
     return sync_morgan_events(db)
+
+
+@router.get("/stats")
+def public_stats(db: Session = Depends(get_db)):
+    """Public pitch metrics. No auth required. Shareable in demos/decks."""
+    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    total_posts = db.query(func.count(Post.id)).scalar() or 0
+    total_users = db.query(func.count(User.id)).filter(User.password_hash != "!pending").scalar() or 0
+    total_comments = db.query(func.count(Comment.id)).scalar() or 0
+    synced_events = db.query(func.count(Event.id)).filter(Event.source.isnot(None)).scalar() or 0
+    posts_24h = db.query(func.count(Post.id)).filter(Post.created_at >= day_ago).scalar() or 0
+    posts_7d = db.query(func.count(Post.id)).filter(Post.created_at >= week_ago).scalar() or 0
+    sos_total = db.query(func.count(Post.id)).filter(Post.is_sos.is_(True)).scalar() or 0
+    sos_resolved = (
+        db.query(func.count(Post.id))
+        .filter(Post.is_sos.is_(True), Post.sos_resolved.is_(True))
+        .scalar()
+        or 0
+    )
+    sos_resolved_pct = int(round(100 * sos_resolved / sos_total)) if sos_total else None
+
+    return {
+        "users": total_users,
+        "posts": total_posts,
+        "comments": total_comments,
+        "synced_campus_events": synced_events,
+        "posts_last_24h": posts_24h,
+        "posts_last_7d": posts_7d,
+        "sos_posts": sos_total,
+        "sos_resolved_pct": sos_resolved_pct,
+    }
 
 
 @router.get("/groups", response_model=list[GroupResponse])

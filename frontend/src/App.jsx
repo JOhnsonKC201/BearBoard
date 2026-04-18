@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
 import PostDetail from './pages/PostDetail'
+import Stats from './pages/Stats'
 
 function WithNav({ children }) {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/feed" element={<WithNav><Home /></WithNav>} />
           <Route path="/profile/:id" element={<WithNav><Profile /></WithNav>} />
           <Route path="/post/:id" element={<WithNav><PostDetail /></WithNav>} />
+          <Route path="/stats" element={<Stats />} />
         </Routes>
       </Router>
     </AuthProvider>
