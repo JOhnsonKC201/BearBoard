@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -38,7 +39,14 @@ def _morgan_events_job():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
-    scheduler.add_job(_morgan_events_job, "interval", hours=6, id="morgan_events", replace_existing=True, next_run_time=None)
+    scheduler.add_job(
+        _morgan_events_job,
+        "interval",
+        hours=6,
+        id="morgan_events",
+        replace_existing=True,
+        next_run_time=datetime.now(),
+    )
     scheduler.start()
     try:
         yield
