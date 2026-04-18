@@ -6,6 +6,7 @@ from schemas.post import PostResponse, EventResponse, GroupResponse, ChatRequest
 from models.post import Post
 from models.event import Event
 from models.group import Group
+from services.morgan_events import sync_morgan_events
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api", tags=["extras"])
@@ -35,13 +36,22 @@ def get_trending(db: Session = Depends(get_db)):
 
 @router.get("/events", response_model=list[EventResponse])
 def get_events(db: Session = Depends(get_db)):
+    today = datetime.now(timezone.utc).date()
     events = (
         db.query(Event)
+        .filter(Event.event_date >= today)
         .order_by(Event.event_date)
-        .limit(5)
+        .limit(8)
         .all()
     )
     return events
+
+
+@router.post("/events/sync")
+def sync_events(db: Session = Depends(get_db)):
+    """Manual trigger for the Morgan State iCal sync. Useful for testing
+    without waiting for the scheduler."""
+    return sync_morgan_events(db)
 
 
 @router.get("/groups", response_model=list[GroupResponse])

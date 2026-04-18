@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, posts, users, extras, ai, notifications
 from services.resurface import run_resurface
+from services.morgan_events import sync_morgan_events
 
 logger = logging.getLogger("bearboard.scheduler")
 
@@ -21,9 +22,18 @@ def _resurface_job():
         logger.exception("resurface job failed")
 
 
+def _morgan_events_job():
+    try:
+        result = sync_morgan_events()
+        logger.info("morgan_events sync completed: %s", result)
+    except Exception:
+        logger.exception("morgan_events sync failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
+    scheduler.add_job(_morgan_events_job, "interval", hours=6, id="morgan_events", replace_existing=True, next_run_time=None)
     scheduler.start()
     try:
         yield

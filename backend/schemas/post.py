@@ -69,6 +69,8 @@ class EventResponse(BaseModel):
     event_date: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
+    source: Optional[str] = None
+    source_url: Optional[str] = None
 
     class Config:
         from_attributes = True
