@@ -1,28 +1,38 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import { useAuth } from '../context/AuthContext'
 
+// Reddit-subreddit-style profile page. Each user gets: banner + overlapping
+// avatar + about sidebar + their post feed in the main column.
+
 const AVATAR_PALETTE = [
-  { color: '#5B3A8C', tc: '#FFFFFF' },
-  { color: '#0B1D34', tc: '#FFFFFF' },
-  { color: '#1A8A7D', tc: '#FFFFFF' },
-  { color: '#C0392B', tc: '#FFFFFF' },
-  { color: '#D4962A', tc: '#0B1D34' },
-  { color: '#2C5F2D', tc: '#FFFFFF' },
+  { color: '#5B3A8C', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #6B4AA0 0%, #2A1C4D 100%)' },
+  { color: '#0B1D34', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #19314F 0%, #050D1C 100%)' },
+  { color: '#1A8A7D', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #2BA89A 0%, #0A4A43 100%)' },
+  { color: '#C0392B', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #D45347 0%, #6B1F16 100%)' },
+  { color: '#D4962A', tc: '#0B1D34', banner: 'linear-gradient(135deg, #EAA841 0%, #8A5A0F 100%)' },
+  { color: '#2C5F2D', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #4A8A4D 0%, #1A3A1B 100%)' },
 ]
+
+const CAT_STYLES = {
+  events: 'bg-gold-pale text-[#8B6914]',
+  academic: 'bg-[#D1E3F5] text-navy',
+  recruiters: 'bg-[#E6D8F0] text-purple',
+  social: 'bg-[#D0EDE9] text-[#0F5E54]',
+  general: 'bg-[#E5E3DE] text-[#5A5A5A]',
+  anonymous: 'bg-[#1A1A1A] text-white',
+  housing: 'bg-[#FCE8D2] text-[#8A4B16]',
+  swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
+  safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
+}
 
 function getInitials(name) {
   if (!name) return '?'
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('')
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
 }
 
 function getAvatar(user) {
@@ -36,15 +46,22 @@ function formatTimeAgo(iso) {
   if (Number.isNaN(then)) return ''
   const seconds = Math.max(1, Math.floor((Date.now() - then) / 1000))
   if (seconds < 60) return `${seconds}s ago`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(months / 12)}y ago`
+  const m = Math.floor(seconds / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d ago`
+  const mo = Math.floor(d / 30)
+  if (mo < 12) return `${mo}mo ago`
+  return `${Math.floor(mo / 12)}y ago`
+}
+
+function formatJoinDate(iso) {
+  if (!iso) return ''
+  const dt = new Date(iso)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 function Profile() {
@@ -54,6 +71,7 @@ function Profile() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [tab, setTab] = useState('posts')
 
   useEffect(() => {
     let cancelled = false
@@ -77,14 +95,10 @@ function Profile() {
         if (!cancelled) setLoading(false)
       })
 
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [id])
 
-  if (loading) {
-    return <ProfileSkeleton />
-  }
+  if (loading) return <ProfileSkeleton />
 
   if (error || !user) {
     return (
@@ -96,81 +110,241 @@ function Profile() {
 
   const avatar = getAvatar(user)
   const initials = getInitials(user.name)
+  const isSelf = currentUser?.id === user.id
+  const totalVotes = posts.reduce((sum, p) => sum + ((p.upvotes ?? 0) - (p.downvotes ?? 0)), 0)
 
   return (
-    <div className="min-h-screen bg-offwhite">
-      {/* Profile header */}
-      <div className="bg-navy px-6 py-8">
-        <div className="max-w-[700px] mx-auto flex items-center gap-5">
-          <div
-            className="w-16 h-16 rounded-[3px] flex items-center justify-center font-archivo font-black text-[1.3rem] shrink-0"
-            style={{ background: avatar.color, color: avatar.tc }}
-          >
-            {initials}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-archivo font-black text-[1.5rem] text-white uppercase tracking-tight">{user.name}</h1>
-              <RoleBadge role={user.role} size="lg" />
+    <div className="min-h-screen bg-offwhite pb-10">
+      {/* Banner */}
+      <div
+        className="h-[160px] md:h-[180px] w-full relative"
+        style={{ background: avatar.banner }}
+      >
+        <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent 0 14px, rgba(255,255,255,0.35) 14px 16px)'
+        }} />
+      </div>
+
+      {/* Header strip with overlapping avatar */}
+      <div className="bg-card border-b border-lightgray">
+        <div className="max-w-[1040px] mx-auto px-6 relative">
+          <div className="flex flex-col md:flex-row md:items-end md:gap-5 -mt-[54px] md:-mt-[50px]">
+            <div
+              className="w-[108px] h-[108px] rounded-full flex items-center justify-center font-archivo font-black text-[2rem] shrink-0 ring-4 ring-card shadow-[0_4px_20px_-6px_rgba(11,29,52,0.35)]"
+              style={{ background: avatar.color, color: avatar.tc }}
+            >
+              {initials}
             </div>
-            <p className="text-white/50 text-[0.82rem]">{user.email}</p>
+            <div className="flex-1 min-w-0 mt-3 md:mt-0 md:pb-3 md:pl-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-archivo font-black text-[1.6rem] text-navy uppercase tracking-tight leading-none">
+                  {user.name}
+                </h1>
+                <RoleBadge role={user.role} size="lg" />
+              </div>
+              <div className="text-[0.78rem] text-gray mt-1 flex items-center gap-2 flex-wrap">
+                <span className="font-archivo font-bold">u/{(user.name || '').split(/\s+/)[0]?.toLowerCase() || 'student'}</span>
+                {user.major && <><span>&middot;</span><span>{user.major}</span></>}
+                {user.graduation_year && <><span>&middot;</span><span>Class of {user.graduation_year}</span></>}
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3 md:mt-0 md:pb-3">
+              {!isSelf && (
+                <>
+                  <button className="bg-navy text-white border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide rounded-full hover:bg-[#0a182b] transition-colors cursor-pointer">
+                    + Follow
+                  </button>
+                  <button className="bg-card border border-lightgray py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide rounded-full text-gray hover:text-ink hover:border-navy transition-colors cursor-pointer">
+                    Message
+                  </button>
+                </>
+              )}
+              {isSelf && (
+                <button className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide rounded-full hover:bg-[#E5A92E] transition-colors cursor-pointer">
+                  Edit profile
+                </button>
+              )}
+              <button className="bg-card border border-lightgray w-9 h-9 rounded-full text-gray hover:text-ink hover:border-navy transition-colors cursor-pointer flex items-center justify-center" title="Share">
+                <span aria-hidden="true">&#8599;</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 mt-5 border-t border-[#EAE7E0] pt-2">
+            {['posts', 'comments', 'about'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide py-2 px-4 rounded-full cursor-pointer transition-colors ${
+                  tab === t
+                    ? 'bg-navy text-white'
+                    : 'text-gray hover:text-ink hover:bg-offwhite'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-      <hr className="h-[3px] bg-gold border-none m-0" />
 
-      <div className="max-w-[700px] mx-auto px-6 py-6">
-        {currentUser?.role === 'admin' && currentUser?.id === user.id && <AdminDashboard />}
+      <div className="max-w-[1040px] mx-auto px-6 py-6 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-6">
+        {/* Main column */}
+        <div>
+          {isSelf && currentUser?.role === 'admin' && <AdminDashboard />}
 
-        {/* Info card */}
-        <div className="bg-card border border-lightgray p-5 mb-5">
-          <h2 className="font-archivo font-extrabold text-[0.75rem] uppercase tracking-widest text-gray mb-4">Profile Info</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoItem label="Major" value={user.major || '—'} />
-            <InfoItem label="Class of" value={user.graduation_year || '—'} />
-            <InfoItem label="Karma" value={user.karma ?? 0} />
-            <InfoItem
-              label="Streak"
-              value={
-                <span className="flex items-center gap-1.5">
-                  <span aria-hidden="true">{(user.streak_count ?? 0) > 0 ? '🔥' : '·'}</span>
-                  <span>{user.streak_count ?? 0} day{(user.streak_count ?? 0) === 1 ? '' : 's'}</span>
-                </span>
-              }
-            />
-          </div>
-        </div>
-
-        {/* User posts */}
-        <h2 className="font-archivo font-extrabold text-[0.75rem] uppercase tracking-widest text-gray mb-3">Posts</h2>
-        {posts.length === 0 ? (
-          <p className="text-gray text-[0.85rem]">No posts yet.</p>
-        ) : (
-          posts.map((post) => (
-            <div key={post.id} className="bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold px-[18px] py-4 mb-2 transition-colors">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-[#E5E3DE] text-[#5A5A5A]">
-                  {post.category}
-                </span>
-                <span className="text-[0.7rem] text-gray">{formatTimeAgo(post.created_at)}</span>
+          {tab === 'posts' && (
+            posts.length === 0 ? (
+              <div className="bg-card border border-lightgray p-8 text-center">
+                <div className="text-[2rem] mb-2">&#128221;</div>
+                <div className="font-archivo font-extrabold text-[1rem] text-navy mb-1">No posts yet</div>
+                <div className="text-[0.82rem] text-gray">
+                  {isSelf ? "You haven't posted anything. Head back to the feed and start the conversation." : `${user.name} hasn't posted anything yet.`}
+                </div>
               </div>
-              <h3 className="font-archivo font-bold text-[1rem] leading-snug mb-1">{post.title}</h3>
-              <div className="flex items-center gap-3 text-[0.75rem] text-gray">
-                <span>{(post.upvotes ?? 0) - (post.downvotes ?? 0)} votes</span>
+            ) : (
+              <div className="space-y-2.5">
+                {posts.map((post) => {
+                  const cat = (post.category || 'general').toLowerCase()
+                  const catCls = CAT_STYLES[cat] || CAT_STYLES.general
+                  const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+                  return (
+                    <Link
+                      key={post.id}
+                      to={`/post/${post.id}`}
+                      className="block bg-card border border-lightgray border-l-[3px] border-l-lightgray hover:border-l-gold hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)] hover:-translate-y-[1px] transition-all no-underline text-ink overflow-hidden"
+                    >
+                      <div className="px-[18px] pt-3.5 pb-3">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full ${catCls}`}>
+                            {post.category}
+                          </span>
+                          <span className="text-[0.7rem] text-gray font-archivo">{formatTimeAgo(post.created_at)}</span>
+                          {post.is_sos && !post.sos_resolved && (
+                            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-[#8B1A1A] text-white flex items-center gap-1">
+                              <span aria-hidden="true">&#128680;</span> SOS
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-archivo font-bold text-[1.05rem] leading-snug tracking-tight mb-1">
+                          {post.title}
+                        </h3>
+                        {post.body && (
+                          <p className="text-[0.82rem] text-gray leading-relaxed line-clamp-2">{post.body}</p>
+                        )}
+                      </div>
+                      {post.image_url && (
+                        <div className="bg-black/80 overflow-hidden">
+                          <img
+                            src={post.image_url}
+                            alt=""
+                            loading="lazy"
+                            className="w-full max-h-[320px] object-contain mx-auto"
+                          />
+                        </div>
+                      )}
+                      <div className="px-[18px] py-2.5 border-t border-[#EAE7E0] flex items-center gap-3 text-[0.72rem] text-gray font-archivo font-bold">
+                        <span className="flex items-center gap-1">
+                          <span className="text-gold">&#9650;</span>
+                          <span className="text-ink">{score}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span aria-hidden="true">&#128488;</span>
+                          <span>{post.comment_count ?? 0}</span>
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )
+          )}
+
+          {tab === 'comments' && (
+            <div className="bg-card border border-lightgray p-8 text-center">
+              <div className="text-[1.8rem] mb-2">&#128172;</div>
+              <div className="font-archivo font-extrabold text-[1rem] text-navy mb-1">Comment history</div>
+              <div className="text-[0.82rem] text-gray">Coming soon. We'll show every comment {isSelf ? 'you' : user.name} has left here.</div>
+            </div>
+          )}
+
+          {tab === 'about' && (
+            <div className="bg-card border border-lightgray p-6">
+              <h2 className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest text-gray mb-4">About</h2>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-[0.88rem]">
+                <InfoRow label="Full name" value={user.name} />
+                <InfoRow label="Email" value={user.email} />
+                <InfoRow label="Major" value={user.major || '-'} />
+                <InfoRow label="Class of" value={user.graduation_year || '-'} />
+                <InfoRow label="Role" value={(user.role || 'student').charAt(0).toUpperCase() + (user.role || 'student').slice(1)} />
+                <InfoRow label="Joined" value={formatJoinDate(user.created_at)} />
               </div>
             </div>
-          ))
-        )}
+          )}
+        </div>
+
+        {/* About sidebar */}
+        <aside className="space-y-4">
+          <div className="bg-card border border-lightgray overflow-hidden">
+            <div className="bg-navy text-gold px-4 py-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest">
+              About u/{(user.name || '').split(/\s+/)[0]?.toLowerCase() || 'student'}
+            </div>
+            <div className="px-4 py-4 text-[0.85rem] text-ink leading-relaxed">
+              {user.major
+                ? `Studying ${user.major}${user.graduation_year ? `, Class of ${user.graduation_year}` : ''} at Morgan State.`
+                : 'Morgan State student on BearBoard.'}
+            </div>
+            <div className="grid grid-cols-2 border-t border-[#EAE7E0]">
+              <SideStat label="Karma" value={user.karma ?? 0} />
+              <SideStat label="Posts" value={posts.length} />
+              <SideStat
+                label="Streak"
+                value={<span className="flex items-center gap-1 justify-center"><span aria-hidden="true">{(user.streak_count ?? 0) > 0 ? '🔥' : '·'}</span><span>{user.streak_count ?? 0}d</span></span>}
+                border="border-t"
+              />
+              <SideStat label="Upvotes" value={totalVotes} border="border-t border-l" />
+            </div>
+            <div className="px-4 py-3 border-t border-[#EAE7E0] text-[0.72rem] text-gray">
+              <div className="flex items-center gap-1.5">
+                <span aria-hidden="true">&#128197;</span>
+                <span>Joined {formatJoinDate(user.created_at) || 'recently'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-lightgray overflow-hidden">
+            <div className="bg-navy text-gold px-4 py-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest">
+              Community guidelines
+            </div>
+            <ol className="px-4 py-3 space-y-2.5 text-[0.78rem] text-ink/80 list-decimal pl-7">
+              <li>Be kind. Morgan students are your classmates first.</li>
+              <li>No spam, self-promo, or off-campus resale.</li>
+              <li>Use Anonymous category for sensitive topics.</li>
+              <li>SOS posts are for real help requests only.</li>
+              <li>No harassment, doxxing, or hate speech.</li>
+            </ol>
+          </div>
+        </aside>
       </div>
     </div>
   )
 }
 
-function InfoItem({ label, value }) {
+function SideStat({ label, value, border = '' }) {
+  return (
+    <div className={`px-4 py-3 text-center ${border}`}>
+      <div className="font-archivo font-black text-[1.2rem] text-navy leading-none">{value}</div>
+      <div className="text-[0.58rem] uppercase tracking-widest text-gray font-archivo font-extrabold mt-1">{label}</div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }) {
   return (
     <div>
       <div className="font-archivo text-[0.62rem] font-bold uppercase tracking-wide text-gray">{label}</div>
-      <div className="text-[0.92rem] font-semibold mt-[2px]">{value}</div>
+      <div className="text-[0.88rem] font-semibold mt-[2px] break-words">{value}</div>
     </div>
   )
 }
