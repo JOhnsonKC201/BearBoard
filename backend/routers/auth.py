@@ -98,11 +98,25 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login")
 @limiter.limit("10/minute")
 def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
+    email = (user.email or "").strip().lower()
+    db_user = db.query(User).filter(User.email == email).first()
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not pwd_context.verify(user.password, db_user.password_hash):
+    # Pre-provisioned admin rows store '!pending' as the password hash.
+    # passlib.bcrypt.verify on that raises UnknownHashError; treat it as
+    # "you must register first to claim this account" instead of crashing.
+    if not db_user.password_hash or db_user.password_hash.startswith("!"):
+        raise HTTPException(
+            status_code=401,
+            detail="This email is reserved by an admin. Use the Register form to claim it.",
+        )
+
+    try:
+        valid = pwd_context.verify(user.password, db_user.password_hash)
+    except Exception:  # malformed/unknown hash format → fail closed
+        valid = False
+    if not valid:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
