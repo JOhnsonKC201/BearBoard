@@ -8,6 +8,7 @@ import Profile from './pages/Profile'
 import PostDetail from './pages/PostDetail'
 import Stats from './pages/Stats'
 import CampusMap from './pages/Map'
+import Professors from './pages/Professors'
 
 function WithNav({ children }) {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/profile/:id" element={<WithNav><Profile /></WithNav>} />
           <Route path="/post/:id" element={<WithNav><PostDetail /></WithNav>} />
           <Route path="/map" element={<WithNav><CampusMap /></WithNav>} />
+          <Route path="/professors" element={<WithNav><Professors /></WithNav>} />
           <Route path="/stats" element={<Stats />} />
         </Routes>
       </Router>

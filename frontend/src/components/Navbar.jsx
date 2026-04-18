@@ -43,12 +43,14 @@ function Navbar() {
     { to: '/', label: 'Groups', hash: '#groups' },
     { to: '/', label: 'Events', hash: '#events' },
     { to: '/map', label: 'Map' },
+    { to: '/professors', label: 'Profs' },
     { to: '/', label: 'Team', hash: '#team' },
   ]
 
   const isActive = (label) => {
     if (label === 'Feed' && location.pathname === '/') return true
     if (label === 'Map' && location.pathname === '/map') return true
+    if (label === 'Profs' && location.pathname === '/professors') return true
     return false
   }
 

@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 
 from core.config import ALLOWED_ORIGINS
 from core.rate_limit import limiter
-from routers import auth, posts, users, extras, ai, notifications, admin
+from routers import auth, posts, users, extras, ai, notifications, admin, professors
 from services.resurface import run_resurface
 from services.morgan_events import sync_morgan_events
 
@@ -74,6 +74,7 @@ app.include_router(extras.router)
 app.include_router(ai.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
+app.include_router(professors.router)
 
 
 @app.get("/")
