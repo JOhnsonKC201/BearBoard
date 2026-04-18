@@ -5,7 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import auth, posts, users, extras, ai, notifications
+from routers import auth, posts, users, extras, ai, notifications, admin
 from services.resurface import run_resurface
 from services.morgan_events import sync_morgan_events
 
@@ -57,6 +57,7 @@ app.include_router(users.router)
 app.include_router(extras.router)
 app.include_router(ai.router)
 app.include_router(notifications.router)
+app.include_router(admin.router)
 
 
 @app.get("/")
