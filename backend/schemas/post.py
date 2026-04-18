@@ -87,7 +87,7 @@ class PostDetailResponse(PostResponse):
     comments: list[CommentResponse] = []
 
 class VoteRequest(BaseModel):
-    vote_type: str  # "up" or "down"
+    vote_type: Literal["up", "down"]
 
 class EventResponse(BaseModel):
     id: int
