@@ -1,0 +1,44 @@
+# Render Blueprint for the BearBoard backend.
+# https://render.com/docs/infrastructure-as-code
+#
+# Usage:
+#   1. Commit this file to the repo root (already done).
+#   2. In Render: New → Blueprint → pick the BearBoard repo.
+#   3. Render reads this file, provisions the service, and asks you to fill in
+#      the secret env vars listed below (marked `sync: false`).
+#   4. First deploy auto-runs `alembic upgrade head` against DATABASE_URL
+#      before starting uvicorn, so Supabase picks up any new migrations.
+#
+# Notes:
+#   - Free plan spins down after ~15 min idle. APScheduler jobs only run while
+#     the process is awake. For 24/7 cron, upgrade to `plan: starter` ($7/mo)
+#     or move schedules into Supabase pg_cron.
+#   - Python 3.11 is pinned because some of our bcrypt/passlib versions don't
+#     ship wheels for 3.13 yet.
+services:
+  - type: web
+    name: bearboard-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    pythonVersion: "3.11"
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # The Supabase Transaction-pooler connection string. Paste it yourself
+      # in the Render dashboard; `sync: false` keeps it out of git.
+      - key: DATABASE_URL
+        sync: false
+
+      # JWT signing key. Render generates and pins a long random value on
+      # first deploy so we don't need to manage it.
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Comma-separated CORS allow-list. Point at your Vercel frontend URL
+      # (e.g. https://bearboard.vercel.app). Update whenever the frontend
+      # gets a new domain.
+      - key: ALLOWED_ORIGINS
+        sync: false
