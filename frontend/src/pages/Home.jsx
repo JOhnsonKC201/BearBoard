@@ -6,7 +6,7 @@ import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import { apiFetch } from '../api/client'
 
-const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Anonymous']
+const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Anonymous']
 
 const AVATAR_PALETTE = [
   { bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)', tc: '#FFFFFF' },
@@ -184,6 +184,9 @@ const CAT_STYLES = {
   social: 'bg-[#D0EDE9] text-[#0F5E54]',
   general: 'bg-[#E5E3DE] text-[#5A5A5A]',
   anonymous: 'bg-[#1A1A1A] text-white',
+  housing: 'bg-[#FCE8D2] text-[#8A4B16]',
+  swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
+  safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
 }
 
 const PRI_STYLES = {
@@ -694,6 +697,20 @@ function PostCard({ post }) {
             {post.title}
           </h3>
         </Link>
+        {(post.price || post.contact_info) && (
+          <div className="flex flex-wrap items-center gap-2 mb-2 text-[0.76rem]">
+            {post.price && (
+              <span className="font-archivo font-extrabold text-navy bg-gold-pale border border-gold/40 px-2 py-[3px] rounded-sm">
+                {post.price}
+              </span>
+            )}
+            {post.contact_info && (
+              <span className="text-gray">
+                <span aria-hidden="true">&#9993;</span> {post.contact_info}
+              </span>
+            )}
+          </div>
+        )}
         {isEvent && eventLabel && (
           <div className="bg-gold-pale border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-[#8B6914] flex items-center gap-2">
             <span aria-hidden="true">&#9200;</span> {eventLabel}
