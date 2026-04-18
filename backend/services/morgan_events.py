@@ -177,6 +177,11 @@ def sync_morgan_events(
         created = 0
         updated = 0
         skipped = 0
+        # Localist pagination can surface the same event id across multiple pages
+        # when the date window spans several recurrences (e.g. a weekly support
+        # group shows up on every page it overlaps). Dedup within a single run
+        # so we don't trip the ux_events_external_id unique constraint mid-flush.
+        seen_uids: set[str] = set()
 
         for ev in source_iter:
             ev_id = ev.get("id")
@@ -189,6 +194,10 @@ def sync_morgan_events(
             if event_date < today:
                 skipped += 1
                 continue
+            if uid in seen_uids:
+                skipped += 1
+                continue
+            seen_uids.add(uid)
 
             description = _truncate(ev.get("description_text") or ev.get("description"), 2000)
             location = _truncate(_extract_location(ev), 200)
