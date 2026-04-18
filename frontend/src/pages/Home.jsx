@@ -147,12 +147,33 @@ const SAMPLE_POSTS = [
 ]
 
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function eventDateParts(iso) {
-  if (!iso) return { month: '', day: '' }
+  if (!iso) return { month: '', day: '', weekday: '' }
   const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return { month: '', day: '' }
-  return { month: MONTH_ABBR[m - 1] || '', day: String(d) }
+  if (!y || !m || !d) return { month: '', day: '', weekday: '' }
+  const dt = new Date(y, m - 1, d)
+  return {
+    month: MONTH_ABBR[m - 1] || '',
+    day: String(d),
+    weekday: Number.isNaN(dt.getTime()) ? '' : WEEKDAY_ABBR[dt.getDay()],
+  }
+}
+
+const COURSE_PILL_PALETTE = [
+  'bg-[#D1E3F5] text-navy',
+  'bg-[#E6D8F0] text-purple',
+  'bg-[#D0EDE9] text-[#0F5E54]',
+  'bg-gold-pale text-[#8B6914]',
+  'bg-[#F5D5D0] text-[#8B1A1A]',
+]
+
+function pillForCourse(code) {
+  if (!code) return COURSE_PILL_PALETTE[0]
+  let h = 0
+  for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) | 0
+  return COURSE_PILL_PALETTE[Math.abs(h) % COURSE_PILL_PALETTE.length]
 }
 
 const CAT_STYLES = {
@@ -317,13 +338,23 @@ function Home() {
             ) : trending.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No trending posts yet.</div>
             ) : trending.map((t, i) => (
-              <div key={t.id} className="px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
-                <div className="font-archivo font-extrabold text-[0.62rem] text-gold tracking-wide">#{i + 1}</div>
-                <div className="text-[0.82rem] font-semibold my-[1px]">{t.title}</div>
-                <div className="text-[0.68rem] text-gray">
-                  {(t.upvotes ?? 0) - (t.downvotes ?? 0)} votes &middot; {t.comment_count ?? 0} comments
+              <Link
+                key={t.id}
+                to={`/post/${t.id}`}
+                className="flex gap-3 items-start px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/trend"
+              >
+                <div className="font-archivo font-black text-[1.6rem] text-gold leading-none w-[26px] tracking-tighter shrink-0">
+                  {i + 1}
                 </div>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[0.82rem] font-semibold leading-tight mb-1 group-hover/trend:text-navy transition-colors line-clamp-2">{t.title}</div>
+                  <div className="text-[0.68rem] text-gray flex items-center gap-2">
+                    <span className="flex items-center gap-[3px]"><span className="text-gold">&#9650;</span>{(t.upvotes ?? 0) - (t.downvotes ?? 0)}</span>
+                    <span className="opacity-40">&middot;</span>
+                    <span>{t.comment_count ?? 0} comments</span>
+                  </div>
+                </div>
+              </Link>
             ))}
           </SideBox>
 
@@ -334,17 +365,20 @@ function Home() {
             ) : events.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No upcoming events.</div>
             ) : events.map((ev) => {
-              const { month, day } = eventDateParts(ev.event_date)
+              const { month, day, weekday } = eventDateParts(ev.event_date)
               const detail = [ev.location, ev.start_time].filter(Boolean).join(' \u00B7 ')
               return (
-                <div key={ev.id} className="flex gap-3 px-4 py-2.5 border-b border-[#EAE7E0] last:border-b-0 items-center">
-                  <div className="w-[42px] h-[42px] bg-navy text-white flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[0.55rem] uppercase tracking-wide opacity-60">{month}</span>
-                    <span className="font-archivo font-black text-[1.05rem] leading-none">{day}</span>
+                <div key={ev.id} className="flex gap-3 px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 items-center hover:bg-offwhite transition-colors">
+                  <div className="w-[44px] shrink-0 border border-lightgray bg-white overflow-hidden">
+                    <div className="bg-navy text-gold text-[0.52rem] uppercase tracking-wider font-archivo font-extrabold text-center py-[2px]">{weekday || month}</div>
+                    <div className="text-center py-[3px]">
+                      <div className="font-archivo font-black text-navy text-[1.15rem] leading-none">{day}</div>
+                      <div className="text-[0.5rem] uppercase tracking-wider text-gray font-archivo font-bold mt-[1px]">{month}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-[0.82rem] font-semibold">{ev.title}</div>
-                    <div className="text-[0.68rem] text-gray">{detail}</div>
+                  <div className="min-w-0">
+                    <div className="text-[0.82rem] font-semibold leading-tight truncate">{ev.title}</div>
+                    <div className="text-[0.68rem] text-gray truncate">{detail || '\u2014'}</div>
                   </div>
                 </div>
               )
@@ -358,12 +392,18 @@ function Home() {
             ) : groups.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No groups yet.</div>
             ) : groups.map((g) => (
-              <div key={g.id} className="flex items-center justify-between px-4 py-[9px] border-b border-[#EAE7E0] last:border-b-0">
-                <div>
-                  <div className="text-[0.82rem] font-semibold">{g.name}</div>
-                  <div className="text-[0.68rem] text-gray">{g.course_code}</div>
+              <div key={g.id} className="flex items-center justify-between px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 hover:bg-offwhite transition-colors">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {g.course_code && (
+                    <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-[7px] rounded-sm shrink-0 ${pillForCourse(g.course_code)}`}>
+                      {g.course_code}
+                    </span>
+                  )}
+                  <div className="text-[0.82rem] font-semibold truncate">{g.name}</div>
                 </div>
-                <span className="font-archivo text-[0.62rem] font-bold text-navy bg-[#D1E3F5] py-[2px] px-[7px] rounded-sm">{g.member_count}</span>
+                <span className="font-archivo text-[0.62rem] font-extrabold text-gray flex items-center gap-1 shrink-0">
+                  <span aria-hidden="true">&#128100;</span>{g.member_count}
+                </span>
               </div>
             ))}
           </SideBox>
