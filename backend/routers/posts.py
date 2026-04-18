@@ -71,6 +71,7 @@ def create_post(
         author_id=current_user.id,
         event_date=post.event_date if is_event else None,
         event_time=post.event_time if is_event else None,
+        is_sos=bool(post.is_sos),
     )
     db.add(db_post)
     bump_streak(db, current_user)
@@ -171,6 +172,8 @@ def create_comment(
     new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
     db.add(new_comment)
     bump_streak(db, current_user)
+    if post.is_sos and not post.sos_resolved:
+        post.sos_resolved = True
     db.commit()
     db.refresh(new_comment)
 

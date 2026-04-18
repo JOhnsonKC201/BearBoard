@@ -8,6 +8,7 @@ class PostCreate(BaseModel):
     category: str
     event_date: Optional[date] = None
     event_time: Optional[str] = None
+    is_sos: bool = False
 
     @model_validator(mode="after")
     def _require_event_fields(self):
@@ -49,6 +50,8 @@ class PostResponse(BaseModel):
     downvotes: int
     event_date: Optional[date] = None
     event_time: Optional[str] = None
+    is_sos: bool = False
+    sos_resolved: bool = False
     comment_count: int = 0
     created_at: Optional[datetime] = None
 
