@@ -94,7 +94,7 @@ class EventResponse(BaseModel):
     title: str
     description: Optional[str] = None
     location: Optional[str] = None
-    event_date: Optional[str] = None
+    event_date: Optional[date] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     source: Optional[str] = None
