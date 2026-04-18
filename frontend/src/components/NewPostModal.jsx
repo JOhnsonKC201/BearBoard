@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 
-const CATEGORIES = ['General', 'Academic', 'Events', 'Anonymous']
+const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Anonymous']
+const LISTING_CATEGORIES = new Set(['Housing', 'Swap'])
 const TITLE_MAX = 200
 const BODY_MAX = 5000
 
@@ -11,6 +12,8 @@ function NewPostModal({ open, onClose, onCreated }) {
   const [category, setCategory] = useState('General')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
+  const [price, setPrice] = useState('')
+  const [contactInfo, setContactInfo] = useState('')
   const [isSos, setIsSos] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
@@ -24,6 +27,8 @@ function NewPostModal({ open, onClose, onCreated }) {
       setCategory('General')
       setEventDate('')
       setEventTime('')
+      setPrice('')
+      setContactInfo('')
       setIsSos(false)
       setErrors({})
       setSubmitError(null)
@@ -33,6 +38,7 @@ function NewPostModal({ open, onClose, onCreated }) {
   }, [open])
 
   const isEvent = category === 'Events'
+  const isListing = LISTING_CATEGORIES.has(category)
 
   if (!open) return null
 
@@ -46,6 +52,9 @@ function NewPostModal({ open, onClose, onCreated }) {
     if (isEvent) {
       if (!eventDate) next.eventDate = 'Event date is required'
       if (!eventTime) next.eventTime = 'Event time is required'
+    }
+    if (isListing && !contactInfo.trim()) {
+      next.contactInfo = 'Add how people should reach you'
     }
     return next
   }
@@ -68,6 +77,10 @@ function NewPostModal({ open, onClose, onCreated }) {
       if (isEvent) {
         payload.event_date = eventDate
         payload.event_time = eventTime
+      }
+      if (isListing) {
+        if (price.trim()) payload.price = price.trim()
+        payload.contact_info = contactInfo.trim()
       }
       const post = await apiFetch('/api/posts', {
         method: 'POST',
@@ -175,6 +188,31 @@ function NewPostModal({ open, onClose, onCreated }) {
                     value={eventTime}
                     onChange={(e) => setEventTime(e.target.value)}
                     disabled={submitting}
+                    className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                  />
+                </Field>
+              </div>
+            )}
+
+            {isListing && (
+              <div className="grid grid-cols-2 gap-3 mb-1">
+                <Field label={category === 'Swap' ? 'Price / Offer' : 'Rent / Budget'} error={null}>
+                  <input
+                    type="text"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    disabled={submitting}
+                    placeholder={category === 'Swap' ? '$25, Free, OBO' : '$600/mo'}
+                    className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                  />
+                </Field>
+                <Field label="Contact" error={errors.contactInfo}>
+                  <input
+                    type="text"
+                    value={contactInfo}
+                    onChange={(e) => setContactInfo(e.target.value)}
+                    disabled={submitting}
+                    placeholder="@discord, email, GroupMe…"
                     className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
                   />
                 </Field>
