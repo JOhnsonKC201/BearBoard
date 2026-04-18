@@ -39,7 +39,7 @@ function Login() {
   }
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to your BearBoard account.">
+    <AuthLayout title="Welcome back" subtitle="Sign in with your .edu account.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Email</label>

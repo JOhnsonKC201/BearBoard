@@ -29,6 +29,9 @@ function Register() {
     const e = {}
     if (!formData.name.trim()) e.name = 'Name is required'
     if (!formData.email.trim()) e.email = 'Email is required'
+    else if (!/^[^@\s]+@[^@\s]+\.edu$/i.test(formData.email.trim())) {
+      e.email = 'Use your .edu email (e.g. you@morgan.edu)'
+    }
     if (!formData.password) e.password = 'Password is required'
     else if (formData.password.length < 6) e.password = 'Password must be at least 6 characters'
     if (formData.password !== formData.confirmPassword) e.confirmPassword = 'Passwords do not match'
@@ -63,7 +66,7 @@ function Register() {
   }
 
   return (
-    <AuthLayout title="Create your account" subtitle="Join the campus conversation.">
+    <AuthLayout title="Create your account" subtitle="BearBoard is for students only — sign up with your .edu email.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Full Name</label>
