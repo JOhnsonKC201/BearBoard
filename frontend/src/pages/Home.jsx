@@ -652,9 +652,21 @@ function PostCard({ post }) {
 
   return (
     <div className={`group bg-card border border-lightgray border-l-[3px] mb-2.5 transition-all duration-150 hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)] hover:-translate-y-[1px] ${
-      isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
+      post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
     }`}>
       <div className="px-[18px] py-4">
+        {post.is_sos && (
+          <div className={`mb-2.5 flex items-center gap-2 text-[0.65rem] font-archivo font-extrabold uppercase tracking-wider ${
+            post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'
+          }`}>
+            <span className={`px-2 py-[3px] rounded-sm flex items-center gap-1 ${
+              post.sos_resolved ? 'bg-[#D0EDE9]' : 'bg-[#8B1A1A] text-white status-dot'
+            }`}>
+              <span aria-hidden="true">&#128680;</span>
+              {post.sos_resolved ? 'SOS resolved' : 'SOS — needs help'}
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-2.5 mb-2.5">
           <div
             className="w-9 h-9 rounded-[4px] flex items-center justify-center font-archivo font-black text-[0.7rem] shrink-0 ring-1 ring-black/5"

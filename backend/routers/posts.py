@@ -33,13 +33,16 @@ def get_posts(
     if author_id is not None:
         query = query.filter(Post.author_id == author_id)
 
+    # Unresolved SOS posts always pin to the top of the feed regardless of sort.
+    sos_first = case((Post.is_sos.is_(True) & Post.sos_resolved.is_(False), 0), else_=1)
+
     if sort == "popular":
-        query = query.order_by(desc(Post.upvotes - Post.downvotes))
+        query = query.order_by(sos_first, desc(Post.upvotes - Post.downvotes))
     elif sort == "trending":
         day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-        query = query.filter(Post.created_at >= day_ago).order_by(desc(Post.upvotes - Post.downvotes))
+        query = query.filter(Post.created_at >= day_ago).order_by(sos_first, desc(Post.upvotes - Post.downvotes))
     else:
-        query = query.order_by(desc(Post.created_at))
+        query = query.order_by(sos_first, desc(Post.created_at))
 
     posts = query.offset(offset).limit(limit).all()
 

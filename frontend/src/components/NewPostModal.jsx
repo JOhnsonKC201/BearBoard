@@ -11,6 +11,7 @@ function NewPostModal({ open, onClose, onCreated }) {
   const [category, setCategory] = useState('General')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
+  const [isSos, setIsSos] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -23,6 +24,7 @@ function NewPostModal({ open, onClose, onCreated }) {
       setCategory('General')
       setEventDate('')
       setEventTime('')
+      setIsSos(false)
       setErrors({})
       setSubmitError(null)
       setSubmitting(false)
@@ -61,6 +63,7 @@ function NewPostModal({ open, onClose, onCreated }) {
         title: title.trim(),
         body: body.trim(),
         category: category.toLowerCase(),
+        is_sos: isSos,
       }
       if (isEvent) {
         payload.event_date = eventDate
@@ -177,6 +180,24 @@ function NewPostModal({ open, onClose, onCreated }) {
                 </Field>
               </div>
             )}
+
+            <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none p-3 border border-lightgray bg-offwhite hover:border-[#8B1A1A]/40 transition-colors">
+              <input
+                type="checkbox"
+                checked={isSos}
+                onChange={(e) => setIsSos(e.target.checked)}
+                disabled={submitting}
+                className="mt-[3px] accent-[#8B1A1A]"
+              />
+              <span>
+                <span className="font-archivo font-extrabold text-[0.78rem] text-[#8B1A1A] flex items-center gap-1.5">
+                  <span aria-hidden="true">&#128680;</span> SOS &mdash; I need help fast
+                </span>
+                <span className="block text-[0.7rem] text-gray mt-[2px] leading-snug">
+                  Pins your post to the top and notifies students in your major.
+                </span>
+              </span>
+            </label>
 
             <Field label="Body" error={errors.body}>
               <textarea
