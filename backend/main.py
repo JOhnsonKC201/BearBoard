@@ -5,6 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.config import ALLOWED_ORIGINS
 from routers import auth, posts, users, extras, ai, notifications, admin
 from services.resurface import run_resurface
 from services.morgan_events import sync_morgan_events
@@ -45,7 +46,7 @@ app = FastAPI(title="BearBoard API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
