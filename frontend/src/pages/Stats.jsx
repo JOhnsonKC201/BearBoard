@@ -44,7 +44,7 @@ function Stats() {
               Campus life, <span className="text-gold">measured.</span>
             </h1>
             <p className="text-white/55 text-[0.92rem] leading-relaxed mt-3">
-              Real-time metrics from BearBoard. Updated every request &mdash; not a mockup.
+              Real-time metrics from BearBoard. Updated every request. Not a mockup.
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ function Stats() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {CARDS.map((c) => {
               const raw = stats?.[c.key]
-              const value = raw === null || raw === undefined ? '\u2014' : `${raw}${c.suffix || ''}`
+              const value = raw === null || raw === undefined ? '-' : `${raw}${c.suffix || ''}`
               return (
                 <div key={c.key} className="bg-card border border-lightgray p-5 transition-all hover:border-navy hover:-translate-y-[1px] hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)]">
                   <div className="font-archivo font-black text-[2rem] text-navy leading-none tracking-tight">{value}</div>
@@ -96,10 +96,10 @@ function Stats() {
           <div className="bg-card border border-lightgray p-6">
             <div className="font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.2em] text-gray mb-2">Stack</div>
             <div className="text-[0.85rem] leading-relaxed">
-              <p className="mb-2"><b>Backend</b> &mdash; FastAPI, SQLAlchemy, Alembic, APScheduler.</p>
-              <p className="mb-2"><b>Frontend</b> &mdash; React, Vite, Tailwind.</p>
-              <p className="mb-2"><b>Auth</b> &mdash; JWT tokens, role-based permissions (admin / moderator / developer / student).</p>
-              <p><b>Integrations</b> &mdash; iCal feed parsing, in-app AI chat.</p>
+              <p className="mb-2"><b>Backend:</b> FastAPI, SQLAlchemy, Alembic, APScheduler.</p>
+              <p className="mb-2"><b>Frontend:</b> React, Vite, Tailwind.</p>
+              <p className="mb-2"><b>Auth:</b> JWT tokens, role-based permissions (admin / moderator / developer / student).</p>
+              <p><b>Integrations:</b> iCal feed parsing, in-app AI chat.</p>
             </div>
             <Link to="/" className="inline-block mt-4 bg-gold text-navy font-archivo font-extrabold text-[0.7rem] uppercase tracking-wide px-4 py-2 no-underline hover:bg-[#E5A92E] transition-colors">
               See the product &rarr;

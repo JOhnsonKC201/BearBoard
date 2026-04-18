@@ -1,5 +1,5 @@
 // Curated Morgan State building list. Coordinates are hand-placed approximations
-// against the public campus layout — good enough to open the map near the right
+// against the public campus layout, good enough to open the map near the right
 // building, but they should be refined with an official source before this ships
 // to production. When you move a pin, confirm by cross-referencing
 // https://www.morgan.edu/campus-map.

@@ -66,7 +66,7 @@ function Register() {
   }
 
   return (
-    <AuthLayout title="Create your account" subtitle="BearBoard is for students only — sign up with your .edu email.">
+    <AuthLayout title="Create your account" subtitle="BearBoard is for students only. Sign up with your .edu email.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Full Name</label>

@@ -31,7 +31,7 @@ function AuthLayout({ title, subtitle, children }) {
             <span className="text-gold block">at Morgan State</span>
           </h1>
           <p className="text-white/55 text-[0.92rem] leading-relaxed">
-            Posts, study groups, events, and opportunities. All in one place &mdash; by students, for students.
+            Posts, study groups, events, and opportunities. All in one place, by students, for students.
           </p>
         </div>
 
