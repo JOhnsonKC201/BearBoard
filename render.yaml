@@ -44,10 +44,10 @@ services:
       - key: SECRET_KEY
         generateValue: true  # Render generates and pins a 64-char random value.
       - key: ALLOWED_ORIGINS
-        fromService:
-          type: web
-          name: bearboard-web
-          property: host     # -> "bearboard-web.onrender.com"; config.py adds https://
+        # Hardcoded because Render's fromService interpolation returns only the
+        # bare service name for static-site references (bug observed during
+        # initial deploy). Update this string if the static site is renamed.
+        value: https://bearboard-web.onrender.com
 
   # -------------------------------------------------------------------------
   # Frontend: Vite-built React SPA served as a static site from the CDN.
@@ -67,7 +67,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: bearboard-api
-          property: host     # -> "bearboard-api.onrender.com"; client.js adds https://
+        # Hardcoded for the same reason as ALLOWED_ORIGINS above — Render's
+        # fromService returns just the service name in this direction too.
+        # Update if the API service is renamed.
+        value: https://bearboard-api.onrender.com
