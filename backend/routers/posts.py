@@ -124,11 +124,33 @@ def delete_post(
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.author_id != current_user.id:
+    is_mod = current_user.role in ("admin", "moderator")
+    if post.author_id != current_user.id and not is_mod:
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
     db.delete(post)
     db.commit()
-    return {"detail": "Post deleted"}
+    return {"detail": "Post deleted", "by_mod": is_mod and post.author_id != current_user.id}
+
+
+@router.post("/{post_id}/resolve-sos")
+def resolve_sos(
+    post_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Mark an SOS post as resolved. The author can resolve their own; mods/admins
+    can resolve anyone's."""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if not post.is_sos:
+        raise HTTPException(status_code=400, detail="Post is not an SOS")
+    is_mod = current_user.role in ("admin", "moderator")
+    if post.author_id != current_user.id and not is_mod:
+        raise HTTPException(status_code=403, detail="Not authorized to resolve this SOS")
+    post.sos_resolved = True
+    db.commit()
+    return {"detail": "resolved"}
 
 
 @router.post("/{post_id}/vote")
