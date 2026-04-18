@@ -19,7 +19,18 @@ export function AuthProvider({ children }) {
     let cancelled = false
     setLoading(true)
     apiFetch('/api/auth/me')
-      .then((data) => { if (!cancelled) setUser(data) })
+      .then(async (data) => {
+        if (cancelled) return
+        // Fire-and-forget daily checkin so streaks count even on a passive
+        // visit. Refetch /me afterward so the new streak shows immediately.
+        try {
+          await apiFetch('/api/users/me/checkin', { method: 'POST' })
+          const fresh = await apiFetch('/api/auth/me')
+          if (!cancelled) setUser(fresh)
+        } catch {
+          if (!cancelled) setUser(data)
+        }
+      })
       .catch((err) => {
         if (cancelled) return
         if (err.status === 401) {

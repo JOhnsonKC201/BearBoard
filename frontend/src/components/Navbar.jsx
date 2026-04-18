@@ -67,6 +67,15 @@ function Navbar() {
 
         {isAuthed ? (
           <>
+            {user?.streak_count > 0 && (
+              <div
+                className="hidden md:flex items-center gap-1 px-2 py-1 rounded bg-gold/15 text-gold text-[0.7rem] font-archivo font-extrabold"
+                title={`${user.streak_count}-day activity streak`}
+              >
+                <span aria-hidden="true">🔥</span>
+                <span>{user.streak_count}</span>
+              </div>
+            )}
             <NotificationBell />
             <div className="relative">
               <button

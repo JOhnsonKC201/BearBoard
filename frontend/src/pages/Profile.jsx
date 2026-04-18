@@ -120,7 +120,15 @@ function Profile() {
             <InfoItem label="Major" value={user.major || '—'} />
             <InfoItem label="Class of" value={user.graduation_year || '—'} />
             <InfoItem label="Karma" value={user.karma ?? 0} />
-            <InfoItem label="User ID" value={`#${user.id}`} />
+            <InfoItem
+              label="Streak"
+              value={
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden="true">{(user.streak_count ?? 0) > 0 ? '🔥' : '·'}</span>
+                  <span>{user.streak_count ?? 0} day{(user.streak_count ?? 0) === 1 ? '' : 's'}</span>
+                </span>
+              }
+            />
           </div>
         </div>
 
