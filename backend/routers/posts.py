@@ -71,6 +71,7 @@ def create_post(
     db: Session = Depends(get_db),
 ):
     is_event = post.category.lower() in {"event", "events"}
+    is_listing = post.category.lower() in {"housing", "swap"}
     db_post = Post(
         title=post.title,
         body=post.body,
@@ -79,6 +80,8 @@ def create_post(
         event_date=post.event_date if is_event else None,
         event_time=post.event_time if is_event else None,
         is_sos=bool(post.is_sos),
+        price=(post.price or None) if is_listing else None,
+        contact_info=(post.contact_info or None) if is_listing else None,
     )
     db.add(db_post)
     bump_streak(db, current_user)

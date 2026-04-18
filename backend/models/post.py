@@ -19,6 +19,10 @@ class Post(Base):
     # to users who share the author's major. Auto-resolved when a comment lands.
     is_sos = Column(Boolean, nullable=False, default=False)
     sos_resolved = Column(Boolean, nullable=False, default=False)
+    # Used by housing/swap posts. price is a free-form string ("$25", "Free",
+    # "OBO") rather than a number so we don't lose nuance.
+    price = Column(String(40), nullable=True)
+    contact_info = Column(String(200), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -9,6 +9,8 @@ class PostCreate(BaseModel):
     event_date: Optional[date] = None
     event_time: Optional[str] = None
     is_sos: bool = False
+    price: Optional[str] = None
+    contact_info: Optional[str] = None
 
     @model_validator(mode="after")
     def _require_event_fields(self):
@@ -52,6 +54,8 @@ class PostResponse(BaseModel):
     event_time: Optional[str] = None
     is_sos: bool = False
     sos_resolved: bool = False
+    price: Optional[str] = None
+    contact_info: Optional[str] = None
     comment_count: int = 0
     created_at: Optional[datetime] = None
 
