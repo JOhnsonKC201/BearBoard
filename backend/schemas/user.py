@@ -17,6 +17,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     karma: int
     streak_count: int = 0
+    role: str = "student"
 
     class Config:
         from_attributes = True
