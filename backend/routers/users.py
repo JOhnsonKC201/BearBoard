@@ -4,8 +4,21 @@ from core.database import get_db
 from schemas.user import UserResponse
 from models.user import User
 from routers.auth import get_current_user_dep
+from services.streak import bump_streak
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+@router.post("/me/checkin")
+def daily_checkin(
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Idempotent daily check-in. Bumps the user's streak if they haven't
+    already done something today."""
+    result = bump_streak(db, current_user)
+    db.commit()
+    return result
 
 
 @router.get("/{user_id}", response_model=UserResponse)

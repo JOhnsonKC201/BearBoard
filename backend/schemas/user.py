@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     graduation_year: Optional[int] = None
     avatar_url: Optional[str] = None
     karma: int
+    streak_count: int = 0
 
     class Config:
         from_attributes = True

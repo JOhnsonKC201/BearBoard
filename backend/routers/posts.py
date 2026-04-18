@@ -10,6 +10,7 @@ from models.event import Event
 from models.group import Group
 from models.user import User
 from routers.auth import get_current_user_dep
+from services.streak import bump_streak
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
@@ -72,6 +73,7 @@ def create_post(
         event_time=post.event_time if is_event else None,
     )
     db.add(db_post)
+    bump_streak(db, current_user)
     db.commit()
     db.refresh(db_post)
     return db_post
@@ -168,6 +170,7 @@ def create_comment(
 
     new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
     db.add(new_comment)
+    bump_streak(db, current_user)
     db.commit()
     db.refresh(new_comment)
 
