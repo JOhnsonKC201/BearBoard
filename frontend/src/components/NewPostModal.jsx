@@ -6,10 +6,10 @@ const LISTING_CATEGORIES = new Set(['Housing', 'Swap'])
 const TITLE_MAX = 200
 const BODY_MAX = 5000
 
-function NewPostModal({ open, onClose, onCreated }) {
+function NewPostModal({ open, onClose, onCreated, preset }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [category, setCategory] = useState('General')
+  const [category, setCategory] = useState(preset?.category || 'General')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
   const [price, setPrice] = useState('')
@@ -23,8 +23,8 @@ function NewPostModal({ open, onClose, onCreated }) {
   useEffect(() => {
     if (!open) {
       setTitle('')
-      setBody('')
-      setCategory('General')
+      setBody(preset?.body || '')
+      setCategory(preset?.category || 'General')
       setEventDate('')
       setEventTime('')
       setPrice('')
@@ -34,8 +34,13 @@ function NewPostModal({ open, onClose, onCreated }) {
       setSubmitError(null)
       setSubmitting(false)
       setSuccess(false)
+    } else {
+      // Apply preset every time the modal opens so a subsequent "Report
+      // incident" click from the SafetyBox re-fills the preset state.
+      if (preset?.category) setCategory(preset.category)
+      if (preset?.body) setBody(preset.body)
     }
-  }, [open])
+  }, [open, preset])
 
   const isEvent = category === 'Events'
   const isListing = LISTING_CATEGORIES.has(category)

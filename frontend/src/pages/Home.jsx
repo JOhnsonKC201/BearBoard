@@ -204,6 +204,7 @@ function Home() {
   const [taskPanel, setTaskPanel] = useState(null)
   const [checkedTasks, setCheckedTasks] = useState({})
   const [showNewPost, setShowNewPost] = useState(false)
+  const [postPreset, setPostPreset] = useState(null)
   const [posts, setPosts] = useState([])
   const [postsLoading, setPostsLoading] = useState(true)
   const [postsError, setPostsError] = useState(null)
@@ -332,7 +333,7 @@ function Home() {
                 : `Switch the filter or be the first to post in ${activeFilter}.`}
               action={
                 <button
-                  onClick={() => setShowNewPost(true)}
+                  onClick={() => { setPostPreset(null); setShowNewPost(true) }}
                   className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
                 >
                   + Create a post
@@ -419,7 +420,10 @@ function Home() {
             })}
           </SideBox>
 
-          <SafetyBox />
+          <SafetyBox onReportIncident={() => {
+            setPostPreset({ category: 'Safety', body: '' })
+            setShowNewPost(true)
+          }} />
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
@@ -558,7 +562,7 @@ function Home() {
 
       {/* New Post FAB */}
       <button
-        onClick={() => setShowNewPost(true)}
+        onClick={() => { setPostPreset(null); setShowNewPost(true) }}
         className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
       >
         + New Post
@@ -566,7 +570,8 @@ function Home() {
 
       <NewPostModal
         open={showNewPost}
-        onClose={() => setShowNewPost(false)}
+        preset={postPreset}
+        onClose={() => { setShowNewPost(false); setPostPreset(null) }}
         onCreated={() => setReloadKey((k) => k + 1)}
       />
 
