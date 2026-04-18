@@ -41,6 +41,9 @@ function renderReply(raw) {
 
 function ChatWidget() {
   const [open, setOpen] = useState(false)
+  // If /bear-mascot.png is present in public/, use the Morgan State bear logo.
+  // Falls back to the bear emoji so the button never looks broken during dev.
+  const [bearImgOk, setBearImgOk] = useState(true)
   const [messages, setMessages] = useState([
     {
       from: 'bot',
@@ -91,11 +94,23 @@ function ChatWidget() {
       {/* Chat bubble */}
       <div
         onClick={toggle}
-        className="fixed bottom-6 right-6 w-[50px] h-[50px] bg-navy flex items-center justify-center cursor-pointer z-[150] hover:scale-105 transition-transform"
+        className="fixed bottom-6 right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold flex items-center justify-center cursor-pointer z-[150] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
+        aria-label={open ? 'Close chat' : 'Open BearBoard chat'}
       >
-        <span className="text-[1.3rem]">{open ? '\u2715' : '\uD83D\uDCAC'}</span>
-        {badgeVisible && (
-          <div className="absolute -top-[3px] -right-[3px] bg-gold text-navy font-archivo text-[0.58rem] font-extrabold w-[18px] h-[18px] flex items-center justify-center">
+        {open ? (
+          <span className="text-white text-[1.3rem] font-archivo font-black">&#10005;</span>
+        ) : bearImgOk ? (
+          <img
+            src="/bear-mascot.png"
+            alt=""
+            onError={() => setBearImgOk(false)}
+            className="w-[42px] h-[42px] object-contain"
+          />
+        ) : (
+          <span className="text-[1.75rem] leading-none" aria-hidden="true">&#128059;</span>
+        )}
+        {badgeVisible && !open && (
+          <div className="absolute -top-1 -right-1 bg-gold text-navy font-archivo text-[0.58rem] font-extrabold w-[20px] h-[20px] rounded-full flex items-center justify-center ring-2 ring-navy">
             1
           </div>
         )}
@@ -107,8 +122,17 @@ function ChatWidget() {
           {/* Header */}
           <div className="bg-navy px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-[30px] h-[30px] bg-gold text-navy flex items-center justify-center font-archivo font-black text-[0.72rem]">
-                B
+              <div className="w-[32px] h-[32px] bg-gold rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                {bearImgOk ? (
+                  <img
+                    src="/bear-mascot.png"
+                    alt=""
+                    onError={() => setBearImgOk(false)}
+                    className="w-[28px] h-[28px] object-contain"
+                  />
+                ) : (
+                  <span className="text-[1rem]" aria-hidden="true">&#128059;</span>
+                )}
               </div>
               <div>
                 <div className="text-white font-semibold text-[0.85rem]">BearBoard Assistant</div>
