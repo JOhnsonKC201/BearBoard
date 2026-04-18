@@ -9,6 +9,7 @@ from models.group import Group
 from models.user import User
 from models.comment import Comment
 from services.morgan_events import sync_morgan_events
+from services.permissions import require_admin
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
 
@@ -51,9 +52,13 @@ def get_events(db: Session = Depends(get_db)):
 
 
 @router.post("/events/sync")
-def sync_events(db: Session = Depends(get_db)):
-    """Manual trigger for the Morgan State iCal sync. Useful for testing
-    without waiting for the scheduler."""
+def sync_events(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Manual trigger for the Morgan State iCal sync. Admin-only — the
+    endpoint makes an outbound HTTP call, so leaving it open would invite
+    SSRF / DoS abuse."""
     return sync_morgan_events(db)
 
 
