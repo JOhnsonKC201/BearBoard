@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
+import RoleBadge from '../components/RoleBadge'
 
 const AVATAR_PALETTE = [
   { color: '#5B3A8C', tc: '#FFFFFF' },
@@ -105,7 +106,10 @@ function Profile() {
             {initials}
           </div>
           <div>
-            <h1 className="font-archivo font-black text-[1.5rem] text-white uppercase tracking-tight">{user.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-archivo font-black text-[1.5rem] text-white uppercase tracking-tight">{user.name}</h1>
+              <RoleBadge role={user.role} size="lg" />
+            </div>
             <p className="text-white/50 text-[0.82rem]">{user.email}</p>
           </div>
         </div>

@@ -5,6 +5,7 @@ import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
+import RoleBadge from '../components/RoleBadge'
 import { apiFetch } from '../api/client'
 
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
@@ -686,7 +687,10 @@ function PostCard({ post }) {
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <strong className="text-[0.85rem] font-semibold block leading-tight truncate">{authorName}</strong>
+            <div className="flex items-center gap-1.5">
+              <strong className="text-[0.85rem] font-semibold leading-tight truncate">{authorName}</strong>
+              {!isAnonymous && <RoleBadge role={post.author?.role} />}
+            </div>
             <small className="text-[0.7rem] text-gray block truncate">
               {authorMajor && <>{authorMajor} &middot; </>}{formatRelativeTime(post.created_at)}
             </small>

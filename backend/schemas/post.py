@@ -23,6 +23,7 @@ class AuthorInfo(BaseModel):
     id: int
     name: str
     major: Optional[str] = None
+    role: str = "student"
 
     class Config:
         from_attributes = True
