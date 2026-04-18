@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 
 const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
@@ -44,8 +45,6 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
 
   const isEvent = category === 'Events'
   const isListing = LISTING_CATEGORIES.has(category)
-
-  if (!open) return null
 
   const validate = () => {
     const next = {}
@@ -105,11 +104,23 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="bg-card w-[90%] max-w-[600px] max-h-[85vh] overflow-y-auto border border-lightgray">
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
+          onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          <motion.div
+            className="bg-card w-[90%] max-w-[600px] max-h-[85vh] overflow-y-auto border border-lightgray"
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 4 }}
+            transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+          >
         <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
           <h3 className="font-archivo font-extrabold text-[1rem] uppercase tracking-tight">New Post</h3>
           <button
@@ -280,8 +291,10 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
             </div>
           </form>
         )}
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
