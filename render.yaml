@@ -18,7 +18,7 @@
 #     pg_cron.
 #   - Python 3.11 is pinned because some of our bcrypt/passlib versions
 #     don't ship wheels for 3.13 yet.
-#   - Service names (`bearboard-api`, `bearboard-web`) must be globally
+#   - Service names (`bearboard-api`, `bearboard`) must be globally
 #     unique on Render. If they're taken, rename them here before first deploy;
 #     the `fromService` references auto-resolve the new names.
 
@@ -47,13 +47,13 @@ services:
         # Hardcoded because Render's fromService interpolation returns only the
         # bare service name for static-site references (bug observed during
         # initial deploy). Update this string if the static site is renamed.
-        value: https://bearboard-web.onrender.com
+        value: https://bearboard.onrender.com
 
   # -------------------------------------------------------------------------
   # Frontend: Vite-built React SPA served as a static site from the CDN.
   # -------------------------------------------------------------------------
   - type: web
-    name: bearboard-web
+    name: bearboard
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
