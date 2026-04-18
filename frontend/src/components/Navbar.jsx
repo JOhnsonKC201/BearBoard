@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import HealthDot from './HealthDot'
 import { useAuth } from '../context/AuthContext'
@@ -15,16 +15,40 @@ function Navbar() {
   const { user, isAuthed, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchDraft, setSearchDraft] = useState(searchParams.get('q') || '')
+
+  // Push the search into the URL after a short debounce so Home.jsx picks it
+  // up without a fetch on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const current = searchParams.get('q') || ''
+      if (searchDraft === current) return
+      const next = new URLSearchParams(searchParams)
+      if (searchDraft.trim()) next.set('q', searchDraft.trim())
+      else next.delete('q')
+      setSearchParams(next, { replace: true })
+    }, 200)
+    return () => clearTimeout(id)
+  }, [searchDraft])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onSearchSubmit = (e) => {
+    e.preventDefault()
+    // If the user is on another route, jump to the feed so they see the match.
+    if (location.pathname !== '/' && location.pathname !== '/feed') navigate('/')
+  }
 
   const navLinks = [
     { to: '/', label: 'Feed', hash: '#feed' },
     { to: '/', label: 'Groups', hash: '#groups' },
     { to: '/', label: 'Events', hash: '#events' },
+    { to: '/map', label: 'Map' },
     { to: '/', label: 'Team', hash: '#team' },
   ]
 
   const isActive = (label) => {
     if (label === 'Feed' && location.pathname === '/') return true
+    if (label === 'Map' && location.pathname === '/map') return true
     return false
   }
 
@@ -42,28 +66,39 @@ function Navbar() {
 
       {/* Desktop nav links */}
       <div className="hidden md:flex gap-[2px]">
-        {navLinks.map((link) => (
-          <a
-            key={link.label}
-            href={link.hash}
-            className={`text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors ${
-              isActive(link.label)
-                ? 'text-gold bg-white/[0.06]'
-                : 'text-white/55 hover:text-white'
-            }`}
-          >
-            {link.label}
-          </a>
-        ))}
+        {navLinks.map((link) => {
+          const className = `text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors ${
+            isActive(link.label)
+              ? 'text-gold bg-white/[0.06]'
+              : 'text-white/55 hover:text-white'
+          }`
+          if (link.hash) {
+            return (
+              <a key={link.label} href={link.hash} className={className}>
+                {link.label}
+              </a>
+            )
+          }
+          return (
+            <Link key={link.label} to={link.to} className={className}>
+              {link.label}
+            </Link>
+          )
+        })}
       </div>
 
       <div className="flex items-center gap-2.5">
         <HealthDot />
-        <input
-          type="text"
-          className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
-          placeholder="Search posts, groups..."
-        />
+        <form onSubmit={onSearchSubmit}>
+          <input
+            type="text"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
+            placeholder="Search posts..."
+            aria-label="Search posts"
+          />
+        </form>
 
         {isAuthed ? (
           <>
@@ -135,16 +170,31 @@ function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="absolute top-[52px] left-0 right-0 bg-navy border-t border-white/10 flex flex-col p-4 gap-2 md:hidden z-[100]">
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.hash}
-              onClick={() => setMenuOpen(false)}
-              className="text-white/55 hover:text-white text-[0.85rem] font-semibold px-3 py-2 no-underline uppercase tracking-wide"
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) => {
+            const mobileCls = 'text-white/55 hover:text-white text-[0.85rem] font-semibold px-3 py-2 no-underline uppercase tracking-wide'
+            if (link.hash) {
+              return (
+                <a
+                  key={link.label}
+                  href={link.hash}
+                  onClick={() => setMenuOpen(false)}
+                  className={mobileCls}
+                >
+                  {link.label}
+                </a>
+              )
+            }
+            return (
+              <Link
+                key={link.label}
+                to={link.to}
+                onClick={() => setMenuOpen(false)}
+                className={mobileCls}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
         </div>
       )}
     </nav>
