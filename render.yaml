@@ -31,12 +31,14 @@ services:
     runtime: python
     plan: free
     rootDir: backend
-    pythonVersion: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      # Python version is set via env var on Render (no top-level field).
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: DATABASE_URL
         sync: false          # Paste your Supabase pooler string in the dashboard.
       - key: SECRET_KEY
