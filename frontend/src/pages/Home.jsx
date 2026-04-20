@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
+import MobileHome from '../components/MobileHome'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
@@ -278,6 +279,11 @@ function Home() {
 
   return (
     <div>
+      {/* Mobile + tablet dashboard (shown below lg). */}
+      <MobileHome posts={visiblePosts} trending={trending} events={events} loading={postsLoading || sidebarLoading} />
+
+      {/* Desktop layout (lg+) */}
+      <div className="hidden lg:block">
       {/* Header */}
       <div className="bg-navy px-6 pt-10 pb-11">
         <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
@@ -652,6 +658,7 @@ function Home() {
           Trello
         </a>
       </footer>
+      </div> {/* /desktop layout (lg+) */}
 
       {/* New Post FAB — desktop only; mobile uses the + tab in BottomNav. */}
       <button
