@@ -7,6 +7,7 @@ import AdminDashboard from '../components/AdminDashboard'
 import { useAuth } from '../context/AuthContext'
 import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo } from '../utils/format'
 import { catClassFor } from '../utils/avatar'
+import { IconCaretUp, IconChat, IconSiren, IconCalendar } from '../components/ActionIcons'
 
 // Reddit-subreddit-style profile page. Each user gets: banner + overlapping
 // avatar + about sidebar + their post feed in the main column.
@@ -168,7 +169,12 @@ function Profile() {
           {tab === 'posts' && (
             posts.length === 0 ? (
               <div className="bg-card border border-lightgray p-8 text-center">
-                <div className="text-[2rem] mb-2">&#128221;</div>
+                <div className="w-10 h-10 mx-auto mb-3 text-gray/60">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="w-full h-full">
+                    <path d="M19 4H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6z" />
+                    <path d="M9 9h8M9 13h8M9 17h5" />
+                  </svg>
+                </div>
                 <div className="font-archivo font-extrabold text-[1rem] text-navy mb-1">No posts yet</div>
                 <div className="text-[0.82rem] text-gray">
                   {isSelf ? "You haven't posted anything. Head back to the feed and start the conversation." : `${user.name} hasn't posted anything yet.`}
@@ -193,8 +199,8 @@ function Profile() {
                           </span>
                           <span className="text-[0.7rem] text-gray font-archivo">{formatTimeAgo(post.created_at)}</span>
                           {post.is_sos && !post.sos_resolved && (
-                            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-[#8B1A1A] text-white flex items-center gap-1">
-                              <span aria-hidden="true">&#128680;</span> SOS
+                            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-danger text-white flex items-center gap-1">
+                              <IconSiren /> SOS
                             </span>
                           )}
                         </div>
@@ -216,13 +222,13 @@ function Profile() {
                           />
                         </div>
                       )}
-                      <div className="px-[18px] py-2.5 border-t border-[#EAE7E0] flex items-center gap-3 text-[0.72rem] text-gray font-archivo font-bold">
-                        <span className="flex items-center gap-1">
-                          <span className="text-gold">&#9650;</span>
+                      <div className="px-[18px] py-2.5 border-t border-divider flex items-center gap-3 text-[0.72rem] text-gray font-archivo font-bold">
+                        <span className="flex items-center gap-1.5 text-gold">
+                          <IconCaretUp filled />
                           <span className="text-ink">{score}</span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <span aria-hidden="true">&#128488;</span>
+                        <span className="flex items-center gap-1.5">
+                          <IconChat />
                           <span>{post.comment_count ?? 0}</span>
                         </span>
                       </div>
@@ -235,7 +241,11 @@ function Profile() {
 
           {tab === 'comments' && (
             <div className="bg-card border border-lightgray p-8 text-center">
-              <div className="text-[1.8rem] mb-2">&#128172;</div>
+              <div className="w-10 h-10 mx-auto mb-3 text-gray/60">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="w-full h-full">
+                  <path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" />
+                </svg>
+              </div>
               <div className="font-archivo font-extrabold text-[1rem] text-navy mb-1">Comment history</div>
               <div className="text-[0.82rem] text-gray">Coming soon. We'll show every comment {isSelf ? 'you' : user.name} has left here.</div>
             </div>
@@ -279,7 +289,7 @@ function Profile() {
             </div>
             <div className="px-4 py-3 border-t border-[#EAE7E0] text-[0.72rem] text-gray">
               <div className="flex items-center gap-1.5">
-                <span aria-hidden="true">&#128197;</span>
+                <IconCalendar />
                 <span>Joined {formatJoinDate(user.created_at) || 'recently'}</span>
               </div>
             </div>
