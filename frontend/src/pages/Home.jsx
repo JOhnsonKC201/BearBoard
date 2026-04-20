@@ -231,17 +231,17 @@ function Home() {
       {/* Desktop layout (lg+) */}
       <div className="hidden lg:block">
       {/* Header */}
-      <div className="bg-navy px-6 pt-10 pb-11">
-        <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
+      <div className="bg-navy px-6 pt-7 pb-7 xl:pt-10 xl:pb-11">
+        <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto flex justify-between items-end gap-8 xl:gap-10 flex-col md:flex-row md:items-end">
           <div className="max-w-[560px]">
-            <h1 className="font-archivo font-black text-[2.8rem] md:text-[2.8rem] text-white leading-[1.05] tracking-tight uppercase">
+            <h1 className="font-archivo font-black text-[2.15rem] xl:text-[2.8rem] text-white leading-[1.05] tracking-tight uppercase">
               What's happening <span className="text-gold block">at Morgan State</span>
             </h1>
-            <p className="text-white/50 text-[0.92rem] mt-3 leading-relaxed max-w-[420px]">
+            <p className="text-white/50 text-[0.88rem] xl:text-[0.92rem] mt-2.5 xl:mt-3 leading-relaxed max-w-[420px]">
               Posts, study groups, events, and opportunities. All in one place, by students, for students.
             </p>
           </div>
-          <div className="flex gap-8">
+          <div className="flex gap-6 xl:gap-8">
             <HeaderNum value="1,247" label="Students" />
             <HeaderNum value="86" label="Groups" />
             <HeaderNum value="324" label="Posts Today" />
