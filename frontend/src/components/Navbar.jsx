@@ -13,7 +13,6 @@ function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, isAuthed, logout } = useAuth()
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchDraft, setSearchDraft] = useState(searchParams.get('q') || '')
@@ -56,7 +55,6 @@ function Navbar() {
 
   const handleLogout = () => {
     logout()
-    setProfileMenuOpen(false)
     navigate('/login')
   }
 
@@ -131,35 +129,32 @@ function Navbar() {
               </div>
             )}
             <NotificationBell />
-            <div className="relative">
-              <button
-                onClick={() => setProfileMenuOpen((v) => !v)}
-                className="w-9 h-9 lg:w-[30px] lg:h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.72rem] lg:text-[0.65rem] cursor-pointer"
-                aria-label="Account menu"
-                aria-expanded={profileMenuOpen}
+            {user && (
+              <Link
+                to={`/profile/${user.id}`}
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded hover:bg-white/[0.08] transition-colors no-underline"
+                aria-label={`Open ${user.name || 'your'} profile`}
               >
-                {initialsFor(user?.name)}
-              </button>
-              {profileMenuOpen && (
-                <div className="absolute right-0 top-[40px] w-[180px] bg-card border border-lightgray shadow-lg z-[300]">
-                  {user && (
-                    <Link
-                      to={`/profile/${user.id}`}
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="block px-4 py-2.5 text-[0.82rem] font-archivo font-semibold text-ink no-underline hover:bg-offwhite border-b border-[#EAE7E0]"
-                    >
-                      My Profile
-                    </Link>
-                  )}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left bg-transparent border-none px-4 py-2.5 text-[0.82rem] font-archivo font-semibold text-ink hover:bg-offwhite cursor-pointer"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
+                <span className="w-9 h-9 lg:w-8 lg:h-8 bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.72rem] lg:text-[0.68rem]">
+                  {initialsFor(user?.name)}
+                </span>
+                <span className="hidden lg:inline text-white font-archivo font-bold text-[0.78rem] tracking-tight max-w-[140px] truncate">
+                  {user.name}
+                </span>
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="hidden md:flex w-9 h-9 lg:w-8 lg:h-8 items-center justify-center rounded text-white/60 hover:text-white hover:bg-white/[0.08] border border-white/10 cursor-pointer"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M15 17l5-5-5-5" />
+                <path d="M20 12H9" />
+                <path d="M9 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+              </svg>
+            </button>
           </>
         ) : (
           <div className="flex items-center gap-1.5">
