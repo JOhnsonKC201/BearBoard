@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import MobileHome from '../components/MobileHome'
+import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck } from '../components/ActionIcons'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
@@ -771,6 +772,41 @@ function PostCard({ post }) {
   const [imgBroken, setImgBroken] = useState(false)
   const hasImage = Boolean(post.image_url) && !imgBroken
 
+  // Save (localStorage-backed; no backend endpoint for this yet).
+  const [saved, setSaved] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('bb:saved') || '[]')
+      return Array.isArray(raw) && raw.includes(post.id)
+    } catch { return false }
+  })
+  const toggleSave = () => {
+    try {
+      const set = new Set(JSON.parse(localStorage.getItem('bb:saved') || '[]'))
+      if (saved) set.delete(post.id); else set.add(post.id)
+      localStorage.setItem('bb:saved', JSON.stringify(Array.from(set)))
+    } catch { /* storage unavailable — still flip local state */ }
+    setSaved((v) => !v)
+  }
+
+  // Share via Web Share API when available, otherwise copy link. Briefly
+  // show a confirmation on the button.
+  const [shareState, setShareState] = useState(null) // null | 'copied' | 'failed'
+  const doShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: post.title, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setShareState('copied')
+    } catch (err) {
+      if (err && err.name === 'AbortError') return
+      setShareState('failed')
+    }
+    setTimeout(() => setShareState(null), 1800)
+  }
+
   return (
     <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_6px_24px_-10px_rgba(11,29,52,0.22)] hover:-translate-y-[1px] ${
       post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
@@ -876,9 +912,14 @@ function PostCard({ post }) {
       {/* Action bar */}
       <div className="px-[18px] pb-3.5 pt-1">
         <div className="flex items-center gap-1.5 pt-2.5 border-t border-[#EAE7E0]">
+          {/* Vote pill */}
           <div
-            className={`flex items-center font-archivo rounded-full transition-colors ${
-              upActive ? 'bg-gold/20' : downActive ? 'bg-[#8B1A1A]/10' : 'bg-offwhite hover:bg-[#EDE9DF]'
+            className={`flex items-center font-archivo rounded-full border transition-colors ${
+              upActive
+                ? 'bg-gold/15 border-gold/40'
+                : downActive
+                ? 'bg-[#8B1A1A]/10 border-[#8B1A1A]/25'
+                : 'bg-offwhite border-transparent hover:border-lightgray'
             }`}
           >
             <button
@@ -886,15 +927,15 @@ function PostCard({ post }) {
               aria-label="Upvote"
               aria-pressed={upActive}
               disabled={pending}
-              className={`bg-transparent border-none cursor-pointer text-[0.85rem] pl-3 pr-1.5 py-[6px] rounded-l-full transition-colors disabled:cursor-wait ${
+              className={`flex items-center justify-center w-7 h-7 rounded-l-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
                 upActive ? 'text-gold' : 'text-gray hover:text-navy'
               }`}
             >
-              &#9650;
+              <IconCaretUp filled={upActive} />
             </button>
             <span
               key={popKey}
-              className={`font-extrabold text-[0.75rem] min-w-[22px] text-center vote-pop ${
+              className={`font-extrabold text-[0.78rem] min-w-[22px] text-center vote-pop tabular-nums ${
                 upActive ? 'text-gold' : downActive ? 'text-[#8B1A1A]' : 'text-ink'
               }`}
             >
@@ -905,28 +946,57 @@ function PostCard({ post }) {
               aria-label="Downvote"
               aria-pressed={downActive}
               disabled={pending}
-              className={`bg-transparent border-none cursor-pointer text-[0.85rem] pr-3 pl-1.5 py-[6px] rounded-r-full transition-colors disabled:cursor-wait ${
+              className={`flex items-center justify-center w-7 h-7 rounded-r-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
                 downActive ? 'text-[#8B1A1A]' : 'text-gray hover:text-navy'
               }`}
             >
-              &#9660;
+              <IconCaretDown filled={downActive} />
             </button>
           </div>
+
+          {/* Comments */}
           <Link
             to={`/post/${post.id}`}
-            className="text-[0.72rem] text-gray no-underline font-archivo font-bold hover:text-navy flex items-center gap-1.5 bg-offwhite hover:bg-[#EDE9DF] rounded-full px-3 py-[6px] transition-colors"
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-offwhite text-gray text-[0.74rem] font-archivo font-bold no-underline hover:text-navy hover:bg-[#EDE9DF] transition-colors"
+            aria-label={`${post.comment_count ?? 0} comments`}
           >
-            <span aria-hidden="true">&#128488;</span>
-            <span>{post.comment_count ?? 0}</span>
+            <IconChat />
+            <span className="tabular-nums">{post.comment_count ?? 0}</span>
           </Link>
-          <button className="text-[0.72rem] text-gray cursor-pointer bg-offwhite hover:bg-[#EDE9DF] hover:text-navy border-none font-archivo font-bold rounded-full px-3 py-[6px] flex items-center gap-1.5 transition-colors">
-            <span aria-hidden="true">&#128278;</span>
-            <span>Save</span>
+
+          {/* Save */}
+          <button
+            onClick={toggleSave}
+            aria-pressed={saved}
+            aria-label={saved ? 'Remove from saved' : 'Save post'}
+            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[0.74rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
+              saved
+                ? 'bg-gold/15 text-[#8B6914] hover:bg-gold/25'
+                : 'bg-offwhite text-gray hover:text-navy hover:bg-[#EDE9DF]'
+            }`}
+          >
+            <IconBookmark filled={saved} />
+            <span>{saved ? 'Saved' : 'Save'}</span>
           </button>
-          <button className="text-[0.72rem] text-gray cursor-pointer bg-offwhite hover:bg-[#EDE9DF] hover:text-navy border-none font-archivo font-bold rounded-full px-3 py-[6px] flex items-center gap-1.5 transition-colors">
-            <span aria-hidden="true">&#8599;</span>
-            <span>Share</span>
+
+          {/* Share */}
+          <button
+            onClick={doShare}
+            aria-label="Share post"
+            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[0.74rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
+              shareState === 'copied'
+                ? 'bg-[#D0EDE9] text-[#0F5E54]'
+                : shareState === 'failed'
+                ? 'bg-[#F5D5D0] text-[#8B1A1A]'
+                : 'bg-offwhite text-gray hover:text-navy hover:bg-[#EDE9DF]'
+            }`}
+          >
+            {shareState === 'copied' ? <IconCheck /> : <IconShare />}
+            <span>
+              {shareState === 'copied' ? 'Copied' : shareState === 'failed' ? 'Failed' : 'Share'}
+            </span>
           </button>
+
           {voteError && <span className="text-[0.7rem] text-[#8B1A1A] ml-auto font-archivo font-bold">{voteError}</span>}
         </div>
       </div>
