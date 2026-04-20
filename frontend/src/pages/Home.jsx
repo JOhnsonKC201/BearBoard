@@ -71,53 +71,12 @@ function formatEventDateTime(dateStr, timeStr) {
 }
 
 const TEAM_DATA = {
-  kyndal: { name: 'Kyndal Maclin', role: 'Product Owner', initials: 'KM', color: '#5B3A8C', tc: '#fff',
-    tasks: [
-      { id: 'PO-01', desc: 'Define and prioritize the product backlog for all 4 sprints', p: 'h' },
-      { id: 'PO-02', desc: 'Accept or reject completed sprint deliverables', p: 'h' },
-      { id: 'PO-03', desc: 'Communicate product vision and requirements to the team', p: 'm' },
-      { id: 'PO-04', desc: 'Gather user feedback and validate feature decisions', p: 'm' },
-    ],
-  },
-  olu: { name: 'Oluwajomiloju King', role: 'Scrum Master', initials: 'OK', color: '#0B1D34', tc: '#fff',
-    tasks: [
-      { id: 'S1-04', desc: 'Set up Git repo, branch strategy, CI linting, and README', p: 'h' },
-      { id: 'S1-14', desc: 'Set up Trello board with Sprint 1 cards, coordinate standups, track blockers', p: 'h' },
-      { id: 'S1-15', desc: 'Write Sprint 1 review/retrospective document and demo prep', p: 'l' },
-    ],
-  },
-  aayush: { name: 'Aayush Shrestha', role: 'API, AI Agent & Backend', initials: 'AS', color: '#1A8A7D', tc: '#fff',
-    tasks: [
-      { id: 'S1-01', desc: 'Initialize FastAPI backend: project structure, Pydantic schemas, CORS, Swagger docs', p: 'h' },
-      { id: 'S1-08', desc: 'Build CRUD API endpoints for posts (create, list, get single, delete)', p: 'm' },
-      { id: 'S1-09', desc: 'Implement upvote/downvote API (one vote per user per post)', p: 'm' },
-      { id: 'S1-16', desc: 'Set up AI agent scaffolding: LLM client, agents/ folder, content moderation placeholder', p: 'l' },
-    ],
-  },
-  rohan: { name: 'Rohan Sainju', role: 'UI/UX', initials: 'RS', color: '#2E7D32', tc: '#fff',
-    tasks: [
-      { id: 'S1-12', desc: 'Design BearBoard design system: color palette, Tailwind theme, fonts, reusable UI components', p: 'h' },
-      { id: 'S1-17', desc: 'Design event calendar view UI and create post modal with category selection', p: 'm' },
-      { id: 'S1-18', desc: 'Design and build post detail page with comments section', p: 'm' },
-      { id: 'S1-19', desc: 'UX polish: responsive testing, hover states, transitions, user flow review', p: 'l' },
-    ],
-  },
-  sameer: { name: 'Sameer Shiwakoti', role: 'Frontend', initials: 'SS', color: '#C0392B', tc: '#fff',
-    tasks: [
-      { id: 'S1-03', desc: 'Initialize React + Vite project, configure Tailwind CSS, set up routing and folder structure', p: 'h' },
-      { id: 'S1-10', desc: 'Build Register and Login pages in React with form validation', p: 'h' },
-      { id: 'S1-11', desc: 'Build campus feed page UI with post cards, category tags, sort tabs', p: 'm' },
-      { id: 'S1-13', desc: 'Build top navbar component with search bar, navigation, responsive menu', p: 'l' },
-    ],
-  },
-  johnson: { name: 'Johnson KC', role: 'Full Stack', initials: 'JK', color: '#D4962A', tc: '#0B1D34',
-    tasks: [
-      { id: 'S1-02', desc: 'Set up MySQL on AWS RDS, configure SQLAlchemy ORM, Alembic migrations, create all tables', p: 'h' },
-      { id: 'S1-05', desc: 'Build registration API endpoint (email + password), hash passwords with bcrypt', p: 'h' },
-      { id: 'S1-06', desc: 'Build login API endpoint, JWT token generation and validation middleware', p: 'h' },
-      { id: 'S1-07', desc: 'Build user profile API + frontend profile page (full stack)', p: 'm' },
-    ],
-  },
+  kyndal: { name: 'Kyndal Maclin', role: 'Product Owner', initials: 'KM', color: '#5B3A8C', tc: '#fff' },
+  olu: { name: 'Oluwajomiloju King', role: 'Scrum Master', initials: 'OK', color: '#0B1D34', tc: '#fff' },
+  aayush: { name: 'Aayush Shrestha', role: 'API, AI Agent & Backend', initials: 'AS', color: '#1A8A7D', tc: '#fff' },
+  rohan: { name: 'Rohan Sainju', role: 'UI/UX', initials: 'RS', color: '#2E7D32', tc: '#fff' },
+  sameer: { name: 'Sameer Shiwakoti', role: 'Frontend', initials: 'SS', color: '#C0392B', tc: '#fff' },
+  johnson: { name: 'Johnson KC', role: 'Full Stack', initials: 'JK', color: '#D4962A', tc: '#0B1D34' },
 }
 
 const SAMPLE_POSTS = [
@@ -195,19 +154,10 @@ const CAT_STYLES = {
   safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
 }
 
-const PRI_STYLES = {
-  h: 'bg-[#F5D5D0] text-[#8B1A1A]',
-  m: 'bg-gold-pale text-[#8B6914]',
-  l: 'bg-[#D0EDE9] text-[#0F5E54]',
-}
-const PRI_LABELS = { h: 'High', m: 'Medium', l: 'Low' }
-
 function Home() {
   const [activeSort, setActiveSort] = useState('new')
   const [activeFilter, setActiveFilter] = useState('All')
   const [showIdea, setShowIdea] = useState(true)
-  const [taskPanel, setTaskPanel] = useState(null)
-  const [checkedTasks, setCheckedTasks] = useState({})
   const [showNewPost, setShowNewPost] = useState(false)
   const [postPreset, setPostPreset] = useState(null)
   const [posts, setPosts] = useState([])
@@ -272,12 +222,6 @@ function Home() {
       .finally(() => { if (!cancelled) setPostsLoading(false) })
     return () => { cancelled = true }
   }, [reloadKey, sortParam, categoryParam])
-
-  const toggleTask = (id) => {
-    setCheckedTasks((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  const teamMember = taskPanel ? TEAM_DATA[taskPanel] : null
 
   return (
     <div>
@@ -584,14 +528,13 @@ function Home() {
       {/* Team Section */}
       <div className="max-w-[1080px] mx-auto px-6 pt-8" id="team">
         <h2 className="font-archivo font-black text-[0.85rem] uppercase tracking-widest text-navy">The Team</h2>
-        <p className="text-[0.78rem] text-gray mt-1">COSC 458 - Software Engineering &middot; Spring 2026 &middot; Click a name to see their tasks</p>
+        <p className="text-[0.78rem] text-gray mt-1">COSC 458 &middot; Software Engineering &middot; Spring 2026</p>
       </div>
-      <div className="max-w-[1080px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-3 md:grid-cols-6 gap-2">
+      <div className="max-w-[1080px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
         {Object.entries(TEAM_DATA).map(([key, m]) => (
           <div
             key={key}
-            onClick={() => setTaskPanel(key)}
-            className="bg-card border border-lightgray p-4 text-center cursor-pointer hover:border-gold transition-colors"
+            className="bg-card border border-lightgray p-4 text-center"
           >
             <div
               className="w-10 h-10 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
@@ -604,58 +547,6 @@ function Home() {
           </div>
         ))}
       </div>
-
-      {/* Task Overlay */}
-      {taskPanel && teamMember && (
-        <div
-          className="fixed inset-0 bg-navy/60 z-[200] flex items-center justify-center"
-          onClick={(e) => { if (e.target === e.currentTarget) setTaskPanel(null) }}
-        >
-          <div className="bg-card w-[90%] max-w-[600px] max-h-[75vh] overflow-y-auto border border-lightgray">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
-              <div
-                className="w-[38px] h-[38px] rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.75rem] shrink-0"
-                style={{ background: teamMember.color, color: teamMember.tc }}
-              >
-                {teamMember.initials}
-              </div>
-              <div>
-                <h3 className="font-archivo font-extrabold text-[1rem]">{teamMember.name}</h3>
-                <div className="text-[0.72rem] text-gray">{teamMember.role} &bull; Sprint 1</div>
-              </div>
-              <button
-                onClick={() => setTaskPanel(null)}
-                className="ml-auto bg-transparent border-none text-[1.3rem] cursor-pointer text-gray hover:text-ink p-1"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="px-5 py-3">
-              {teamMember.tasks.map((t) => (
-                <div key={t.id} className="flex items-start gap-2.5 py-2.5 border-b border-[#EAE7E0] last:border-b-0">
-                  <div
-                    onClick={() => toggleTask(t.id)}
-                    className={`w-[18px] h-[18px] border-2 rounded-sm shrink-0 mt-[1px] cursor-pointer flex items-center justify-center text-[0.65rem] transition-colors ${
-                      checkedTasks[t.id]
-                        ? 'bg-navy border-navy text-white'
-                        : 'border-lightgray text-transparent hover:border-navy'
-                    }`}
-                  >
-                    {checkedTasks[t.id] ? '\u2713' : ''}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-archivo text-[0.62rem] font-extrabold text-gold tracking-wide">{t.id}</div>
-                    <div className="text-[0.85rem] font-medium my-[1px] leading-snug">{t.desc}</div>
-                    <span className={`font-archivo text-[0.6rem] font-bold uppercase tracking-wide py-[2px] px-[7px] rounded-sm ${PRI_STYLES[t.p]}`}>
-                      {PRI_LABELS[t.p]}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="bg-navy py-5 text-center text-white/30 text-[0.72rem]">
