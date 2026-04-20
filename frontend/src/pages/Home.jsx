@@ -11,6 +11,11 @@ import SafetyBox from '../components/SafetyBox'
 import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
 import { apiFetch } from '../api/client'
+import { useAuth } from '../context/AuthContext'
+
+// Roles allowed to see internal messaging like the "Got a new idea?" banner.
+// General students should not see team/Trello chrome.
+const STAFF_ROLES = new Set(['developer', 'moderator', 'admin'])
 
 const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
 
@@ -157,6 +162,8 @@ const CAT_STYLES = {
 function Home() {
   const [activeSort, setActiveSort] = useState('new')
   const [activeFilter, setActiveFilter] = useState('All')
+  const { user: authedUser } = useAuth()
+  const isStaff = Boolean(authedUser?.role && STAFF_ROLES.has(authedUser.role))
   const [showIdea, setShowIdea] = useState(true)
   const [showNewPost, setShowNewPost] = useState(false)
   const [postPreset, setPostPreset] = useState(null)
@@ -509,8 +516,9 @@ function Home() {
         </aside>
       </div>
 
-      {/* Idea Banner */}
-      {showIdea && (
+      {/* Idea Banner — staff-only (developer, moderator, admin). General
+           students never see the Trello / sprint-backlog chrome. */}
+      {isStaff && showIdea && (
         <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6">
           <div className="bg-navy px-5 py-4 flex items-center gap-3.5">
             <div className="text-[1.3rem]">&#128161;</div>
