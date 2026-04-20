@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import MobileHome from '../components/MobileHome'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import NewPostModal from '../components/NewPostModal'
+import CreateGroupModal from '../components/CreateGroupModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
@@ -163,6 +164,7 @@ function Home() {
   const [activeSort, setActiveSort] = useState('new')
   const [activeFilter, setActiveFilter] = useState('All')
   const { user: authedUser } = useAuth()
+  const navigate = useNavigate()
   const isStaff = Boolean(authedUser?.role && STAFF_ROLES.has(authedUser.role))
   const [showIdea, setShowIdea] = useState(true)
   const [showNewPost, setShowNewPost] = useState(false)
@@ -177,6 +179,12 @@ function Home() {
   const [sidebarLoading, setSidebarLoading] = useState(true)
   const [groupSearch, setGroupSearch] = useState('')
   const [groupSearchActive, setGroupSearchActive] = useState(false)
+  // Set of group ids the current user has joined. Loaded on mount (if
+  // authed) and mutated optimistically on join/leave so the buttons
+  // flip instantly without waiting on the round trip.
+  const [myGroupIds, setMyGroupIds] = useState(() => new Set())
+  const [groupBusy, setGroupBusy] = useState(null) // id currently joining/leaving
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
 
@@ -215,6 +223,62 @@ function Home() {
     }).finally(() => { if (!cancelled) setSidebarLoading(false) })
     return () => { cancelled = true }
   }, [reloadKey])
+
+  // Load which groups the current user belongs to so rows can render
+  // Join vs Leave. Only authed users have memberships; logged-out
+  // visitors always see a Join button that redirects to login.
+  useEffect(() => {
+    if (!authedUser) {
+      setMyGroupIds(new Set())
+      return
+    }
+    apiFetch('/api/groups/mine')
+      .then((ids) => setMyGroupIds(new Set(ids || [])))
+      .catch(() => setMyGroupIds(new Set()))
+  }, [authedUser?.id])
+
+  const toggleGroupMembership = async (groupId, joined) => {
+    if (!authedUser) return
+    setGroupBusy(groupId)
+    // Optimistic update
+    setMyGroupIds((prev) => {
+      const next = new Set(prev)
+      if (joined) next.delete(groupId); else next.add(groupId)
+      return next
+    })
+    setGroups((prev) => prev.map((g) => (
+      g.id === groupId ? { ...g, member_count: (g.member_count || 0) + (joined ? -1 : 1) } : g
+    )))
+    try {
+      if (joined) {
+        await apiFetch(`/api/groups/${groupId}/leave`, { method: 'DELETE' })
+      } else {
+        await apiFetch(`/api/groups/${groupId}/join`, { method: 'POST' })
+      }
+    } catch {
+      // Rollback on failure
+      setMyGroupIds((prev) => {
+        const next = new Set(prev)
+        if (joined) next.add(groupId); else next.delete(groupId)
+        return next
+      })
+      setGroups((prev) => prev.map((g) => (
+        g.id === groupId ? { ...g, member_count: (g.member_count || 0) + (joined ? 1 : -1) } : g
+      )))
+    } finally {
+      setGroupBusy(null)
+    }
+  }
+
+  const createGroup = async ({ name, course_code, description }) => {
+    const group = await apiFetch('/api/groups', {
+      method: 'POST',
+      body: JSON.stringify({ name, course_code, description }),
+    })
+    setGroups((prev) => [{ ...group }, ...prev])
+    setMyGroupIds((prev) => new Set(prev).add(group.id))
+    setShowCreateGroup(false)
+  }
 
   // Debounced group search. When the user types a course code, refetch
   // /api/groups with ?course= so the backend does the LIKE match (which
@@ -484,15 +548,22 @@ function Home() {
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
-            <div className="px-3 py-2 border-b border-[#EAE7E0] bg-offwhite">
+            <div className="px-3 py-2 border-b border-[#EAE7E0] bg-offwhite space-y-2">
               <input
                 type="text"
                 value={groupSearch}
                 onChange={(e) => setGroupSearch(e.target.value)}
                 placeholder="Search by course (e.g. COSC 350)"
-                className="w-full bg-white border border-lightgray px-2.5 py-[6px] text-[0.78rem] font-franklin outline-none focus:border-navy placeholder:text-gray/60"
+                className="w-full bg-white border border-lightgray px-2.5 py-[6px] text-[0.78rem] font-franklin focus:border-navy placeholder:text-gray/60"
                 aria-label="Search study groups by course"
               />
+              <button
+                type="button"
+                onClick={() => authedUser ? setShowCreateGroup(true) : navigate('/login')}
+                className="w-full bg-navy text-white font-archivo font-extrabold text-[0.7rem] uppercase tracking-wide py-2 border-none cursor-pointer hover:bg-[#132d4a] transition-colors"
+              >
+                + Create group
+              </button>
             </div>
             {(sidebarLoading && !groupSearchActive) ? (
               <SidebarSkeleton count={3} />
@@ -500,23 +571,41 @@ function Home() {
               <div className="px-4 py-3 text-[0.78rem] text-gray">
                 {groupSearch.trim()
                   ? `No groups match "${groupSearch.trim()}".`
-                  : 'No groups yet.'}
+                  : 'No groups yet. Create one above.'}
               </div>
-            ) : groups.map((g) => (
-              <div key={g.id} className="flex items-center justify-between px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 hover:bg-offwhite transition-colors">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {g.course_code && (
-                    <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-[7px] rounded-sm shrink-0 ${pillForCourse(g.course_code)}`}>
-                      {g.course_code}
-                    </span>
-                  )}
-                  <div className="text-[0.82rem] font-semibold truncate">{g.name}</div>
+            ) : groups.map((g) => {
+              const joined = myGroupIds.has(g.id)
+              const busy = groupBusy === g.id
+              return (
+                <div key={g.id} className="flex items-center gap-2 px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 hover:bg-offwhite transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {g.course_code && (
+                      <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-[7px] rounded-sm shrink-0 ${pillForCourse(g.course_code)}`}>
+                        {g.course_code}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-[0.82rem] font-semibold truncate leading-tight">{g.name}</div>
+                      <div className="text-[0.62rem] text-gray font-archivo font-bold flex items-center gap-1 mt-0.5">
+                        <IconUser />{g.member_count}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => authedUser ? toggleGroupMembership(g.id, joined) : navigate('/login')}
+                    disabled={busy}
+                    className={`font-archivo font-extrabold text-[0.62rem] uppercase tracking-wider py-1.5 px-2.5 shrink-0 border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-wait ${
+                      joined
+                        ? 'bg-transparent border-lightgray text-gray hover:border-danger hover:text-danger'
+                        : 'bg-gold border-gold text-navy hover:bg-[#E5A92E]'
+                    }`}
+                  >
+                    {busy ? '...' : joined ? 'Leave' : 'Join'}
+                  </button>
                 </div>
-                <span className="font-archivo text-[0.62rem] font-extrabold text-gray flex items-center gap-1 shrink-0">
-                  <IconUser />{g.member_count}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </SideBox>
         </aside>
       </div>
@@ -593,6 +682,12 @@ function Home() {
         preset={postPreset}
         onClose={() => { setShowNewPost(false); setPostPreset(null) }}
         onCreated={() => setReloadKey((k) => k + 1)}
+      />
+
+      <CreateGroupModal
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onCreate={createGroup}
       />
 
       {/* Chat Widget — desktop only on small screens it would collide with BottomNav. */}
