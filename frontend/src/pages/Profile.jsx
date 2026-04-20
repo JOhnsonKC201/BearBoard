@@ -5,11 +5,16 @@ import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import { useAuth } from '../context/AuthContext'
+import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo } from '../utils/format'
+import { catClassFor } from '../utils/avatar'
 
 // Reddit-subreddit-style profile page. Each user gets: banner + overlapping
 // avatar + about sidebar + their post feed in the main column.
-
-const AVATAR_PALETTE = [
+//
+// Profile has its own palette because entries carry a banner gradient the
+// shared AVATAR_PALETTE doesn't define (that one is for round avatars in
+// the feed). Same seeds are used so the same user still maps consistently.
+const PROFILE_PALETTE = [
   { color: '#5B3A8C', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #6B4AA0 0%, #2A1C4D 100%)' },
   { color: '#0B1D34', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #19314F 0%, #050D1C 100%)' },
   { color: '#1A8A7D', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #2BA89A 0%, #0A4A43 100%)' },
@@ -18,43 +23,9 @@ const AVATAR_PALETTE = [
   { color: '#2C5F2D', tc: '#FFFFFF', banner: 'linear-gradient(135deg, #4A8A4D 0%, #1A3A1B 100%)' },
 ]
 
-const CAT_STYLES = {
-  events: 'bg-gold-pale text-[#8B6914]',
-  academic: 'bg-[#D1E3F5] text-navy',
-  recruiters: 'bg-[#E6D8F0] text-purple',
-  social: 'bg-[#D0EDE9] text-[#0F5E54]',
-  general: 'bg-[#E5E3DE] text-[#5A5A5A]',
-  anonymous: 'bg-[#1A1A1A] text-white',
-  housing: 'bg-[#FCE8D2] text-[#8A4B16]',
-  swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
-  safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
-}
-
-function getInitials(name) {
-  if (!name) return '?'
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
-}
-
 function getAvatar(user) {
-  const seed = (user?.id ?? 0) % AVATAR_PALETTE.length
-  return AVATAR_PALETTE[seed]
-}
-
-function formatTimeAgo(iso) {
-  if (!iso) return ''
-  const then = new Date(iso).getTime()
-  if (Number.isNaN(then)) return ''
-  const seconds = Math.max(1, Math.floor((Date.now() - then) / 1000))
-  if (seconds < 60) return `${seconds}s ago`
-  const m = Math.floor(seconds / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `${d}d ago`
-  const mo = Math.floor(d / 30)
-  if (mo < 12) return `${mo}mo ago`
-  return `${Math.floor(mo / 12)}y ago`
+  const seed = (user?.id ?? 0) % PROFILE_PALETTE.length
+  return PROFILE_PALETTE[seed]
 }
 
 function formatJoinDate(iso) {
@@ -207,7 +178,7 @@ function Profile() {
               <div className="space-y-2.5">
                 {posts.map((post) => {
                   const cat = (post.category || 'general').toLowerCase()
-                  const catCls = CAT_STYLES[cat] || CAT_STYLES.general
+                  const catCls = catClassFor(cat)
                   const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
                   return (
                     <Link
