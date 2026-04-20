@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import MobileHome from '../components/MobileHome'
-import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck } from '../components/ActionIcons'
+import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
@@ -501,7 +501,7 @@ function Home() {
                   <div className="text-[0.82rem] font-semibold truncate">{g.name}</div>
                 </div>
                 <span className="font-archivo text-[0.62rem] font-extrabold text-gray flex items-center gap-1 shrink-0">
-                  <span aria-hidden="true">&#128100;</span>{g.member_count}
+                  <IconUser />{g.member_count}
                 </span>
               </div>
             ))}
@@ -719,9 +719,9 @@ function PostCard({ post }) {
             post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'
           }`}>
             <span className={`px-2 py-[3px] rounded-sm flex items-center gap-1 ${
-              post.sos_resolved ? 'bg-[#D0EDE9]' : 'bg-[#8B1A1A] text-white status-dot'
+              post.sos_resolved ? 'bg-success-bg' : 'bg-danger text-white status-dot'
             }`}>
-              <span aria-hidden="true">&#128680;</span>
+              <IconSiren />
               {post.sos_resolved ? 'SOS resolved' : 'SOS needs help'}
             </span>
           </div>
@@ -752,12 +752,12 @@ function PostCard({ post }) {
               className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#D4962A] text-white flex items-center gap-1 shrink-0"
               title="High engagement"
             >
-              <span aria-hidden="true">&#128293;</span> Hot
+              <IconFire /> Hot
             </span>
           )}
           {isEvent && (
             <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gold text-navy flex items-center gap-1 shrink-0">
-              <span aria-hidden="true">&#128197;</span> Event
+              <IconCalendar /> Event
             </span>
           )}
           <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
@@ -802,8 +802,8 @@ function PostCard({ post }) {
           </div>
         )}
         {isEvent && eventLabel && (
-          <div className="bg-gold-pale border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-[#8B6914] flex items-center gap-2">
-            <span aria-hidden="true">&#9200;</span> {eventLabel}
+          <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-warning flex items-center gap-2">
+            <IconClock /> {eventLabel}
           </div>
         )}
         {post.body && (
@@ -1092,13 +1092,13 @@ function EventShowcaseCard({ ev }) {
         </h3>
         {dateLabel && (
           <div className="text-[0.72rem] text-gray flex items-center gap-1.5 font-archivo font-bold">
-            <span aria-hidden="true">&#9200;</span>
+            <IconClock />
             <span className="truncate">{dateLabel}</span>
           </div>
         )}
         {ev.location && (
           <div className="text-[0.72rem] text-gray flex items-center gap-1.5 mt-1">
-            <span aria-hidden="true">&#128205;</span>
+            <IconPin />
             <span className="truncate">{ev.location}</span>
           </div>
         )}
