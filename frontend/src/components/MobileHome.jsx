@@ -98,7 +98,7 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
         </div>
 
         {/* Stats strip */}
-        <div className="flex items-start gap-6 mt-5">
+        <div className="grid grid-cols-3 gap-3 xs:gap-6 mt-5">
           <div>
             <div className="font-archivo font-black text-gold text-[1.35rem] leading-none">{stats.newToday}</div>
             <div className="font-archivo font-bold text-white/55 text-[0.58rem] uppercase tracking-[0.12em] mt-1">New today</div>
@@ -117,17 +117,37 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
       {/* Gold divider */}
       <div className="h-[3px] bg-gold" />
 
-      {/* Featured TOP TODAY card */}
+      {/* Featured TOP TODAY card — image backdrop when available, solid
+          navy with diagonal stripes otherwise. */}
       {featured && (
         <section className="px-4 pt-5">
           <Link
             to={`/post/${featured.id}`}
-            className="block no-underline text-white bg-navy relative overflow-hidden"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 14px)',
-            }}
+            className="block no-underline text-white bg-navy relative overflow-hidden group"
           >
-            <div className="px-5 pt-5 pb-5">
+            {/* Image backdrop */}
+            {featured.image_url && (
+              <div className="absolute inset-0 pointer-events-none" aria-hidden>
+                <img
+                  src={featured.image_url}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover opacity-40 group-hover:opacity-55 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-navy/40" />
+              </div>
+            )}
+            {/* Diagonal stripe pattern on top of backdrop */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 14px)' }}
+              aria-hidden
+            />
+            {/* Gold glow accent */}
+            <div className="absolute -bottom-16 -right-10 w-[200px] h-[200px] rounded-full bg-gold/10 blur-3xl pointer-events-none" aria-hidden />
+
+            <div className="relative px-5 pt-5 pb-5 min-h-[240px] flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.1em] px-2 py-[3px] bg-gold text-navy rounded-sm">
                   Top today
@@ -138,18 +158,18 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
                 {featured.title}
               </h2>
               {featured.body && (
-                <p className="text-white/70 text-[0.88rem] leading-snug mt-3 line-clamp-2">
+                <p className="text-white/80 text-[0.88rem] leading-snug mt-3 line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
                   {featured.body}
                 </p>
               )}
-              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-3">
+              <div className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <Avatar seed={featured.author?.id ?? featured.id} name={featured.author?.name} size={32} />
                   <div className="min-w-0">
                     <div className="font-archivo font-bold text-[0.78rem] truncate">
                       {featured.author?.name || 'Unknown'}
                     </div>
-                    <div className="text-white/50 text-[0.68rem]">{formatRelative(featured.created_at)}</div>
+                    <div className="text-white/60 text-[0.68rem]">{formatRelative(featured.created_at)}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-[0.78rem] shrink-0">
@@ -157,7 +177,7 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
                     <span aria-hidden>▲</span>
                     {featured.upvote_count ?? featured.upvotes ?? 0}
                   </span>
-                  <span className="flex items-center gap-1 text-white/70 font-archivo font-extrabold">
+                  <span className="flex items-center gap-1 text-white/80 font-archivo font-extrabold">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
