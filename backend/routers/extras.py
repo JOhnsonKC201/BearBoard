@@ -4,10 +4,14 @@ from sqlalchemy import desc, or_
 from core.database import get_db
 from core.rate_limit import limiter
 from schemas.post import PostResponse, EventResponse, GroupResponse, ChatRequest, ChatResponse
+from pydantic import BaseModel, Field
+from fastapi import HTTPException
 from models.post import Post
 from models.event import Event
 from models.group import Group
+from models.group_member import GroupMember
 from models.user import User
+from routers.auth import get_current_user_dep
 from models.comment import Comment
 from services.morgan_events import sync_morgan_events
 from services.permissions import require_admin
@@ -120,6 +124,101 @@ def get_groups(
             )
         )
     return q.order_by(desc(Group.member_count)).limit(20).all()
+
+
+# ---------------------------------------------------------------------------
+# Group membership — create / join / leave / mine
+# ---------------------------------------------------------------------------
+
+class GroupCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    course_code: str | None = Field(default=None, max_length=20)
+    description: str | None = None
+
+
+@router.post("/groups", response_model=GroupResponse, status_code=201)
+def create_group(
+    payload: GroupCreateRequest,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Create a new study group. The creator is auto-added as the first
+    member so the Join button on the UI reads as active immediately.
+    """
+    group = Group(
+        name=payload.name.strip(),
+        course_code=(payload.course_code or "").strip() or None,
+        description=(payload.description or "").strip() or None,
+        created_by=current_user.id,
+        member_count=1,
+    )
+    db.add(group)
+    db.flush()  # assign group.id before creating the membership row
+    db.add(GroupMember(group_id=group.id, user_id=current_user.id))
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.post("/groups/{group_id}/join", response_model=GroupResponse)
+def join_group(
+    group_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    group = db.query(Group).filter(Group.id == group_id).one_or_none()
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    existing = db.query(GroupMember).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.user_id == current_user.id,
+    ).one_or_none()
+    if existing is None:
+        db.add(GroupMember(group_id=group_id, user_id=current_user.id))
+        group.member_count = (group.member_count or 0) + 1
+        db.commit()
+        db.refresh(group)
+    return group
+
+
+@router.delete("/groups/{group_id}/leave", response_model=GroupResponse)
+def leave_group(
+    group_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    group = db.query(Group).filter(Group.id == group_id).one_or_none()
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    existing = db.query(GroupMember).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.user_id == current_user.id,
+    ).one_or_none()
+    if existing is not None:
+        db.delete(existing)
+        group.member_count = max(0, (group.member_count or 1) - 1)
+        db.commit()
+        db.refresh(group)
+    return group
+
+
+@router.get("/groups/mine", response_model=list[int])
+def my_group_ids(
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Return just the ids of groups the current user belongs to. The feed
+    UI fetches this once and converts it to a Set so each group row can
+    render a Join or Leave button without per-row requests.
+    """
+    rows = (
+        db.query(GroupMember.group_id)
+        .filter(GroupMember.user_id == current_user.id)
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 CANNED_RESPONSES = {
