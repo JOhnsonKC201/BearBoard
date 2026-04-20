@@ -168,6 +168,8 @@ function Home() {
   const [events, setEvents] = useState([])
   const [groups, setGroups] = useState([])
   const [sidebarLoading, setSidebarLoading] = useState(true)
+  const [groupSearch, setGroupSearch] = useState('')
+  const [groupSearchActive, setGroupSearchActive] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
 
@@ -206,6 +208,28 @@ function Home() {
     }).finally(() => { if (!cancelled) setSidebarLoading(false) })
     return () => { cancelled = true }
   }, [reloadKey])
+
+  // Debounced group search. When the user types a course code, refetch
+  // /api/groups with ?course= so the backend does the LIKE match (which
+  // knows that "cosc350" should match "COSC 350" and so on).
+  useEffect(() => {
+    const q = groupSearch.trim()
+    if (!q) {
+      // Cleared — reload the default list and drop the search flag.
+      if (groupSearchActive) {
+        setGroupSearchActive(false)
+        apiFetch('/api/groups').catch(() => []).then((g) => setGroups(g || []))
+      }
+      return
+    }
+    setGroupSearchActive(true)
+    const handle = setTimeout(() => {
+      apiFetch(`/api/groups?course=${encodeURIComponent(q)}`)
+        .catch(() => [])
+        .then((g) => setGroups(g || []))
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [groupSearch])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortParam = activeSort === 'new' ? 'newest' : activeSort
   const categoryParam = activeFilter === 'All' ? null : activeFilter.toLowerCase()
@@ -492,10 +516,24 @@ function Home() {
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
-            {sidebarLoading ? (
+            <div className="px-3 py-2 border-b border-[#EAE7E0] bg-offwhite">
+              <input
+                type="text"
+                value={groupSearch}
+                onChange={(e) => setGroupSearch(e.target.value)}
+                placeholder="Search by course (e.g. COSC 350)"
+                className="w-full bg-white border border-lightgray px-2.5 py-[6px] text-[0.78rem] font-franklin outline-none focus:border-navy placeholder:text-gray/60"
+                aria-label="Search study groups by course"
+              />
+            </div>
+            {(sidebarLoading && !groupSearchActive) ? (
               <SidebarSkeleton count={3} />
             ) : groups.length === 0 ? (
-              <div className="px-4 py-3 text-[0.78rem] text-gray">No groups yet.</div>
+              <div className="px-4 py-3 text-[0.78rem] text-gray">
+                {groupSearch.trim()
+                  ? `No groups match "${groupSearch.trim()}".`
+                  : 'No groups yet.'}
+              </div>
             ) : groups.map((g) => (
               <div key={g.id} className="flex items-center justify-between px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 hover:bg-offwhite transition-colors">
                 <div className="flex items-center gap-2.5 min-w-0">

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from core.database import get_db
 from core.rate_limit import limiter
 from schemas.post import PostResponse, EventResponse, GroupResponse, ChatRequest, ChatResponse
@@ -98,9 +98,28 @@ def public_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/groups", response_model=list[GroupResponse])
-def get_groups(db: Session = Depends(get_db)):
-    groups = db.query(Group).limit(10).all()
-    return groups
+def get_groups(
+    course: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """List study groups, optionally filtered by a course code or name
+    fragment ("COSC 350", "cosc350", "networking"). Case-insensitive.
+    """
+    q = db.query(Group)
+    if course and course.strip():
+        # Allow "cosc350" to match "COSC 350" by stripping spaces on both sides.
+        raw = course.strip()
+        compact = raw.replace(" ", "")
+        like_raw = f"%{raw}%"
+        like_compact = f"%{compact}%"
+        q = q.filter(
+            or_(
+                Group.course_code.ilike(like_raw),
+                Group.course_code.ilike(like_compact),
+                Group.name.ilike(like_raw),
+            )
+        )
+    return q.order_by(desc(Group.member_count)).limit(20).all()
 
 
 CANNED_RESPONSES = {
