@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import SafetyBox from './SafetyBox'
 
 const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const MONTHS_LONG = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER']
@@ -268,8 +269,41 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
         )}
       </section>
 
+      {/* Trending */}
+      {trending.length > 0 && (
+        <section className="mt-6 px-4">
+          <h3 className="font-archivo font-extrabold text-[0.78rem] uppercase tracking-[0.1em] text-ink mb-2">
+            Trending
+          </h3>
+          <div className="bg-white border border-lightgray">
+            {trending.slice(0, 5).map((t, i) => (
+              <Link
+                key={t.id}
+                to={`/post/${t.id}`}
+                className="flex gap-3 items-start px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink"
+              >
+                <div className="font-archivo font-black text-[1.5rem] text-gold leading-none w-[24px] shrink-0 tracking-tighter">
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[0.84rem] font-semibold leading-tight line-clamp-2">{t.title}</div>
+                  <div className="text-[0.68rem] text-gray flex items-center gap-2 mt-1">
+                    <span className="flex items-center gap-[3px]">
+                      <span className="text-gold" aria-hidden>▲</span>
+                      {(t.upvotes ?? 0) - (t.downvotes ?? 0)}
+                    </span>
+                    <span className="opacity-40">&middot;</span>
+                    <span>{t.comment_count ?? 0} comments</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* More on the board */}
-      <section className="mt-6 pb-6">
+      <section className="mt-6">
         <div className="flex items-center justify-between px-4 mb-2">
           <h3 className="font-archivo font-extrabold text-[0.78rem] uppercase tracking-[0.1em] text-ink">
             More on the board
@@ -313,6 +347,11 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
             ))}
           </ul>
         )}
+      </section>
+
+      {/* Campus Safety */}
+      <section className="mt-6 px-4 pb-6">
+        <SafetyBox />
       </section>
     </div>
   )
