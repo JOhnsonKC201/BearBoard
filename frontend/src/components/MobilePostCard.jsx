@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import { catClassFor } from '../utils/avatar'
 import { formatRelativeShort as formatRelative } from '../utils/format'
 import {
@@ -26,6 +27,8 @@ import {
 //   - share → Web Share API or clipboard
 
 function MobilePostCard({ post }) {
+  const { isAuthed } = useAuth()
+  const navigate = useNavigate()
   const hasImage = Boolean(post.image_url)
   const initialScore =
     (post.upvote_count ?? post.upvotes ?? 0) -
@@ -50,6 +53,14 @@ function MobilePostCard({ post }) {
     e.preventDefault()
     e.stopPropagation()
     if (pending) return
+
+    // Voting requires auth. Send unauthed users to login rather than
+    // firing a request that'll return 403 and surfacing a vague
+    // "Vote failed" error.
+    if (!isAuthed) {
+      navigate('/login')
+      return
+    }
 
     const prevScore = score
     const prevVote = userVote
@@ -77,8 +88,14 @@ function MobilePostCard({ post }) {
     } catch (err) {
       setScore(prevScore)
       setUserVote(prevVote)
-      setVoteError(err.status === 401 ? 'Log in to vote' : 'Vote failed')
-      setTimeout(() => setVoteError(null), 2000)
+      // Both 401 (bad token) and 403 (missing auth header) mean "not
+      // logged in" from the user's perspective; redirect in that case.
+      if (err.status === 401 || err.status === 403) {
+        navigate('/login')
+      } else {
+        setVoteError('Vote failed. Try again.')
+        setTimeout(() => setVoteError(null), 2000)
+      }
     } finally {
       setPending(false)
     }

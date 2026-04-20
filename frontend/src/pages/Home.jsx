@@ -736,9 +736,20 @@ function PostCard({ post }) {
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
   const [popKey, setPopKey] = useState(0)
+  const { isAuthed } = useAuth()
+  const nav = useNavigate()
 
   const applyVote = async (voteType) => {
     if (pending) return
+    // Voting requires auth. Send unauthed users to /login instead of
+    // firing a POST that'll come back 403 (FastAPI's HTTPBearer returns
+    // 403 for a missing Authorization header, not 401) and showing a
+    // vague "Vote failed" error on the card.
+    if (!isAuthed) {
+      nav('/login')
+      return
+    }
+
     const prevScore = score
     const prevVote = userVote
 
@@ -769,7 +780,13 @@ function PostCard({ post }) {
     } catch (err) {
       setScore(prevScore)
       setUserVote(prevVote)
-      setVoteError(err.status === 401 ? 'Log in to vote' : 'Vote failed')
+      if (err.status === 401 || err.status === 403) {
+        // Token expired/missing — bounce to login.
+        nav('/login')
+      } else {
+        setVoteError('Vote failed. Try again.')
+        setTimeout(() => setVoteError(null), 2000)
+      }
     } finally {
       setPending(false)
     }
