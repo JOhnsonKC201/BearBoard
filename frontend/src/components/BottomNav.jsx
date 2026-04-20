@@ -45,11 +45,17 @@ function IconMe({ active }) {
 function Tab({ to, label, Icon, active, onClick }) {
   const body = (
     <>
-      <span className={active ? 'text-gold' : 'text-white/70'}>
+      {/* Active state uses a gold pill halo behind the icon so the tap
+          target has visual weight, not just a color change. */}
+      <span
+        className={`flex items-center justify-center w-10 h-7 rounded-full transition-colors ${
+          active ? 'bg-gold/15 text-gold' : 'text-white/70'
+        }`}
+      >
         <Icon active={active} />
       </span>
       <span
-        className={`font-archivo font-extrabold text-[0.58rem] tracking-[0.08em] uppercase mt-1 ${
+        className={`font-archivo font-extrabold text-[0.58rem] tracking-[0.08em] uppercase mt-0.5 ${
           active ? 'text-gold' : 'text-white/55'
         }`}
       >
@@ -57,16 +63,18 @@ function Tab({ to, label, Icon, active, onClick }) {
       </span>
     </>
   )
-  const cls = 'flex-1 flex flex-col items-center justify-center py-2 no-underline'
+  // min-h-[56px] is the iOS / Material bottom-nav standard, well above
+  // the 44px tap target floor.
+  const cls = 'flex-1 flex flex-col items-center justify-center min-h-[56px] py-1.5 no-underline'
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={`${cls} bg-transparent border-0 cursor-pointer`}>
+      <button type="button" onClick={onClick} className={`${cls} bg-transparent border-0 cursor-pointer`} aria-current={active ? 'page' : undefined}>
         {body}
       </button>
     )
   }
   return (
-    <Link to={to} className={cls}>
+    <Link to={to} className={cls} aria-current={active ? 'page' : undefined}>
       {body}
     </Link>
   )
