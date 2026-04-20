@@ -9,10 +9,47 @@
 }
 
 body {
-  font-family: 'Libre Franklin', sans-serif;
+  font-family: 'Libre Franklin', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #F0ECE4;
   color: #1C1C1C;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Enable ligatures and contextual alternates across body text. */
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* Every heading defaults to Archivo with proper letterspacing and
+   tabular-ish ligature support, so any heading that forgets a
+   font-archivo class still inherits the brand voice rather than
+   falling back to Libre Franklin. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Archivo', 'Libre Franklin', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+}
+
+/* Uppercase labels should use capital-spacing features so all-caps
+   tracking looks balanced. Apply to every element with tracking-*
+   plus uppercase (the broadsheet label pattern used across
+   BearBoard). */
+.uppercase {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "case" 1, "cpsp" 1;
+}
+
+/* Tabular numerals everywhere we show a count — vote scores,
+   comment counts, stats ledger, group members. Guarantees columns
+   of numbers line up and widths don't jitter when the score ticks
+   from 9 to 10. */
+.tabular-nums {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Buttons and inputs inherit Libre Franklin, not the browser default
+   system stack. Without this, form controls flash in Helvetica / Arial
+   on Safari before JS hydrates. */
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 /* Global keyboard focus ring. Only fires for keyboard (:focus-visible);

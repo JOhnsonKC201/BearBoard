@@ -804,7 +804,7 @@ function HeroStat({ value, label, highlight = false }) {
     <div className="text-right">
       <dt className="sr-only">{label}</dt>
       <dd
-        className={`font-archivo font-black leading-none tracking-[-0.02em] ${
+        className={`font-archivo font-black leading-none tracking-[-0.02em] tabular-nums ${
           highlight ? 'text-gold text-[2.2rem] xl:text-[2.6rem]' : 'text-white text-[1.7rem] xl:text-[2rem]'
         }`}
       >
