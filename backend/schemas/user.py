@@ -13,6 +13,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
     major: Optional[str] = Field(default=None, max_length=100)
     graduation_year: Optional[int] = Field(default=None, ge=1900, le=2100)
+    bio: Optional[str] = Field(default=None, max_length=500)
 
 class UserResponse(BaseModel):
     """Self-view of the authenticated user (includes email/PII)."""
@@ -22,6 +23,7 @@ class UserResponse(BaseModel):
     major: Optional[str] = None
     graduation_year: Optional[int] = None
     avatar_url: Optional[str] = None
+    bio: Optional[str] = None
     karma: int
     streak_count: int = 0
     role: str = "student"
@@ -38,6 +40,7 @@ class UserPublicResponse(BaseModel):
     major: Optional[str] = None
     graduation_year: Optional[int] = None
     avatar_url: Optional[str] = None
+    bio: Optional[str] = None
     karma: int
     streak_count: int = 0
     role: str = "student"

@@ -55,6 +55,9 @@ def update_user(
         user.major = patch.major.strip()
     if patch.graduation_year is not None:
         user.graduation_year = patch.graduation_year
+    if patch.bio is not None:
+        # Empty string clears the bio; anything else gets trimmed.
+        user.bio = patch.bio.strip() or None
     db.commit()
     db.refresh(user)
     return user

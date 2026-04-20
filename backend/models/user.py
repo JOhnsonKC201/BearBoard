@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -13,6 +13,7 @@ class User(Base):
     major = Column(String(100))
     graduation_year = Column(Integer)
     avatar_url = Column(String(500), default="")
+    bio = Column(Text, nullable=True)
     karma = Column(Integer, default=0)
     streak_count = Column(Integer, default=0, nullable=False)
     last_activity_date = Column(Date, nullable=True)

@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
 import AdminDashboard from '../components/AdminDashboard'
+import EditProfileModal from '../components/EditProfileModal'
 import { useAuth } from '../context/AuthContext'
 import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo } from '../utils/format'
 import { catClassFor } from '../utils/avatar'
@@ -38,12 +39,13 @@ function formatJoinDate(iso) {
 
 function Profile() {
   const { id } = useParams()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, setUser: setAuthUser } = useAuth()
   const [user, setUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('posts')
+  const [showEdit, setShowEdit] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -132,7 +134,11 @@ function Profile() {
                 </>
               )}
               {isSelf && (
-                <button className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide rounded-full hover:bg-[#E5A92E] transition-colors cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(true)}
+                  className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide rounded-full hover:bg-[#E5A92E] transition-colors cursor-pointer min-h-[40px]"
+                >
                   Edit profile
                 </button>
               )}
@@ -272,8 +278,10 @@ function Profile() {
             <div className="bg-navy text-gold px-4 py-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest">
               About u/{(user.name || '').split(/\s+/)[0]?.toLowerCase() || 'student'}
             </div>
-            <div className="px-4 py-4 text-[0.85rem] text-ink leading-relaxed">
-              {user.major
+            <div className="px-4 py-4 text-[0.85rem] text-ink leading-relaxed whitespace-pre-wrap">
+              {user.bio
+                ? user.bio
+                : user.major
                 ? `Studying ${user.major}${user.graduation_year ? `, Class of ${user.graduation_year}` : ''} at Morgan State.`
                 : 'Morgan State student on BearBoard.'}
             </div>
@@ -309,6 +317,17 @@ function Profile() {
           </div>
         </aside>
       </div>
+      <EditProfileModal
+        open={showEdit}
+        user={user}
+        onClose={() => setShowEdit(false)}
+        onSaved={(updated) => {
+          setUser(updated)
+          // Keep the navbar (auth user) in sync so the name + initials
+          // refresh without a hard reload.
+          if (isSelf && setAuthUser) setAuthUser(updated)
+        }}
+      />
     </div>
   )
 }

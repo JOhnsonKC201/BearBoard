@@ -67,7 +67,16 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const value = { user, token, loading, login, register, logout, isAuthed: Boolean(token) }
+  const value = {
+    user,
+    setUser, // exposed so profile edits can update the navbar avatar immediately
+    token,
+    loading,
+    login,
+    register,
+    logout,
+    isAuthed: Boolean(token),
+  }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
