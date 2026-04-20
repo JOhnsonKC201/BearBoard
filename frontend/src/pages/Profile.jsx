@@ -240,6 +240,7 @@ function Profile() {
                             src={post.image_url}
                             alt=""
                             loading="lazy"
+                            decoding="async"
                             className="w-full max-h-[320px] object-contain mx-auto"
                           />
                         </div>

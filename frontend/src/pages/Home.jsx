@@ -768,6 +768,7 @@ function PostCard({ post }) {
             src={post.image_url}
             alt=""
             loading="lazy"
+            decoding="async"
             onError={() => setImgBroken(true)}
             className="w-full max-h-[520px] object-contain mx-auto"
           />
@@ -1039,6 +1040,7 @@ function EventShowcaseCard({ ev }) {
             src={ev.image_url}
             onError={() => setImgBroken(true)}
             loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
             alt=""
           />
