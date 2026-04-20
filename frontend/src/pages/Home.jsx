@@ -304,56 +304,58 @@ function Home() {
       </div>
       <hr className="h-[3px] bg-gold border-none m-0" />
 
-      {/* Upcoming Events Showcase */}
-      <section className="max-w-[1080px] mx-auto px-6 pt-8 pb-2" id="events-showcase">
-        <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
-          <div>
-            <h2 className="font-archivo font-black text-[1.3rem] uppercase tracking-tight text-navy leading-none">
-              Upcoming at <span className="text-gold">Morgan</span>
-            </h2>
-            <p className="text-[0.75rem] text-gray mt-1.5">
-              Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` · ${events.length} upcoming`}
-            </p>
-          </div>
-          <a
-            href="https://events.morgan.edu/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline flex items-center gap-1"
-          >
-            View full calendar <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
-
-        {sidebarLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-lightgray overflow-hidden">
-                <div className="aspect-[16/9] bg-offwhite animate-pulse" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="bg-card border border-lightgray px-4 py-6 text-center text-[0.82rem] text-gray">
-            No upcoming events synced yet.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.slice(0, 9).map((ev) => (
-              <EventShowcaseCard key={ev.id} ev={ev} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Feed + Sidebar */}
-      <div className="max-w-[1080px] mx-auto px-6 py-7 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-7" id="feed">
-        {/* Main Feed */}
+      {/* Feed + Sidebar — the events showcase lives inside the main column
+           so the right rail (Trending + Safety) is visible from the top of
+           the page instead of being pushed below a full-width events grid. */}
+      <div className="max-w-[1080px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-7" id="feed">
+        {/* Main column */}
         <div>
+          {/* Upcoming Events Showcase */}
+          <section className="mb-8" id="events-showcase">
+            <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+              <div>
+                <h2 className="font-archivo font-black text-[1.3rem] uppercase tracking-tight text-navy leading-none">
+                  Upcoming at <span className="text-gold">Morgan</span>
+                </h2>
+                <p className="text-[0.75rem] text-gray mt-1.5">
+                  Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` · ${events.length} upcoming`}
+                </p>
+              </div>
+              <a
+                href="https://events.morgan.edu/"
+                target="_blank"
+                rel="noreferrer"
+                className="font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline flex items-center gap-1"
+              >
+                View full calendar <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+
+            {sidebarLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-card border border-lightgray overflow-hidden">
+                    <div className="aspect-[16/9] bg-offwhite animate-pulse" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" />
+                      <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : events.length === 0 ? (
+              <div className="bg-card border border-lightgray px-4 py-6 text-center text-[0.82rem] text-gray">
+                No upcoming events synced yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {events.slice(0, 6).map((ev) => (
+                  <EventShowcaseCard key={ev.id} ev={ev} />
+                ))}
+              </div>
+            )}
+          </section>
+
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-archivo font-extrabold text-[0.85rem] uppercase tracking-widest text-gray">Campus Feed</h2>
             <div className="flex gap-1 bg-offwhite border border-lightgray rounded-full p-1">
