@@ -3,6 +3,10 @@ import { API_URL } from '../api/client'
 
 const POLL_MS = 30000
 
+// Lightweight connectivity indicator. When the backend is up this
+// component renders nothing — we don't need to tell every visitor the API
+// is "Live." It only surfaces when we're offline or reconnecting, with
+// human copy instead of a debug word like "Offline."
 function HealthDot() {
   const [status, setStatus] = useState('checking') // checking | online | offline
 
@@ -28,19 +32,20 @@ function HealthDot() {
     }
   }, [])
 
-  const config = {
-    checking: { color: 'bg-gold', label: 'Checking API…', pulse: true },
-    online: { color: 'bg-[#4CAF50]', label: 'API online', pulse: true },
-    offline: { color: 'bg-[#C0392B]', label: 'API offline', pulse: false },
-  }[status]
+  if (status === 'online') return null
+
+  const label = status === 'offline' ? 'Reconnecting...' : 'Connecting...'
+  const dot = status === 'offline' ? 'bg-danger' : 'bg-gold'
 
   return (
     <div
-      className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded text-white/55 text-[0.6rem] font-archivo font-bold uppercase tracking-wider"
-      title={config.label}
+      className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-white/70 text-[0.6rem] font-archivo font-bold uppercase tracking-wider"
+      title={label}
+      role="status"
+      aria-live="polite"
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.color} ${config.pulse ? 'status-dot' : ''}`} />
-      <span>{status === 'offline' ? 'Offline' : status === 'checking' ? '…' : 'Live'}</span>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot} status-dot`} />
+      <span>{label}</span>
     </div>
   )
 }
