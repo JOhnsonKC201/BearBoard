@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
 const LISTING_CATEGORIES = new Set(['Housing', 'Swap'])
@@ -8,6 +9,7 @@ const TITLE_MAX = 200
 const BODY_MAX = 5000
 
 function NewPostModal({ open, onClose, onCreated, preset }) {
+  const { isAuthed } = useAuth()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState(preset?.category || 'General')
@@ -94,6 +96,10 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
     setErrors(next)
     if (Object.keys(next).length > 0) return
 
+    if (!isAuthed) {
+      setSubmitError('You must be signed in to post.')
+      return
+    }
     setSubmitting(true)
     try {
       const payload = {
