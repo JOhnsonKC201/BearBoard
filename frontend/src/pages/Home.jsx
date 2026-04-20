@@ -201,6 +201,15 @@ function Home() {
     }
   }, [searchParams, setSearchParams])
 
+  // BottomNav's + tab also dispatches a bearboard:newpost event as a more
+  // reliable alternative to the ?new=1 ping-pong — needed because React
+  // Router can no-op when navigating to the same pathname+search.
+  useEffect(() => {
+    const onNewPost = () => { setPostPreset(null); setShowNewPost(true) }
+    window.addEventListener('bearboard:newpost', onNewPost)
+    return () => window.removeEventListener('bearboard:newpost', onNewPost)
+  }, [])
+
   const visiblePosts = useMemo(() => {
     if (!searchQuery) return posts
     return posts.filter((p) => {
@@ -326,7 +335,16 @@ function Home() {
   return (
     <div>
       {/* Mobile + tablet dashboard (shown below lg). */}
-      <MobileHome posts={visiblePosts} trending={trending} events={events} loading={postsLoading || sidebarLoading} />
+      <MobileHome
+        posts={visiblePosts}
+        trending={trending}
+        events={events}
+        groups={groups}
+        myGroupIds={myGroupIds}
+        onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
+        onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
+        loading={postsLoading || sidebarLoading}
+      />
 
       {/* Desktop layout (lg+) */}
       <div className="hidden lg:block">

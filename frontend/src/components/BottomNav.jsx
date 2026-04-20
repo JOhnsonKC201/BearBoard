@@ -91,13 +91,32 @@ function BottomNav() {
     (!isAuthed && location.pathname === '/login')
   const meTo = isAuthed && user ? `/profile/${user.id}` : '/login'
 
-  const openNewPost = () => {
+  // Scroll to a named section on Home. If the user is already on Home,
+  // scroll directly; otherwise navigate then scroll after the route renders.
+  const goToSection = (id) => {
+    const scroll = () => {
+      const el = document.getElementById(id)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    if (isFeed) {
+      scroll()
+    } else {
+      navigate('/')
+      // Wait a tick for Home to mount before trying to find the section.
+      setTimeout(scroll, 80)
+    }
+  }
+
+  const openNewPost = (e) => {
+    e.preventDefault()
     if (!isAuthed) {
       navigate('/login')
       return
     }
-    // Home.jsx reads ?new=1 and opens the New Post modal, then clears the param.
-    navigate('/?new=1')
+    // Home.jsx listens for this event and opens the modal. More reliable
+    // than query-param ping-pong, which silently no-ops when you tap the
+    // + button twice in a row from the same URL.
+    window.dispatchEvent(new CustomEvent('bearboard:newpost'))
   }
 
   return (
@@ -107,7 +126,12 @@ function BottomNav() {
       aria-label="Primary mobile navigation"
     >
       <Tab to="/" label="Feed" Icon={IconFeed} active={isFeed} />
-      <Tab to="/#events" label="Events" Icon={IconEvents} active={false} />
+      <Tab
+        label="Events"
+        Icon={IconEvents}
+        active={false}
+        onClick={() => goToSection('upcoming')}
+      />
 
       {/* Center + FAB, raised above the bar */}
       <div className="flex-1 flex items-start justify-center relative">
@@ -115,13 +139,18 @@ function BottomNav() {
           type="button"
           onClick={openNewPost}
           aria-label="Create new post"
-          className="-translate-y-1/3 w-[52px] h-[52px] bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-black text-2xl leading-none cursor-pointer border-[3px] border-navy shadow-[0_6px_16px_-6px_rgba(0,0,0,0.6)] hover:bg-[#E5A92E] transition-colors"
+          className="-translate-y-1/3 w-[52px] h-[52px] bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-black text-2xl leading-none cursor-pointer border-[3px] border-navy shadow-[0_6px_16px_-6px_rgba(0,0,0,0.6)] hover:bg-[#E5A92E] transition-colors active:scale-95 transition-transform"
         >
           +
         </button>
       </div>
 
-      <Tab to="/#groups" label="Groups" Icon={IconGroups} active={false} />
+      <Tab
+        label="Groups"
+        Icon={IconGroups}
+        active={false}
+        onClick={() => goToSection('groups')}
+      />
       <Tab to={meTo} label="Me" Icon={IconMe} active={isMe} />
     </nav>
   )

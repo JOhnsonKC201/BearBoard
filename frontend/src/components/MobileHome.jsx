@@ -132,7 +132,16 @@ function IconArrowRight() {
 // Main component
 // -----------------------------------------------------------------------------
 
-function MobileHome({ posts = [], trending = [], events = [], loading = false }) {
+function MobileHome({
+  posts = [],
+  trending = [],
+  events = [],
+  groups = [],
+  myGroupIds,
+  onToggleMembership,
+  onCreateGroup,
+  loading = false,
+}) {
   const { user, isAuthed } = useAuth()
 
   // Date masthead values: "TUE · APRIL 22 · 2026" + "VOL. SPRING — ISSUE 113".
@@ -383,7 +392,7 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
       {/* ===========================================================
           02 — UPCOMING (horizontal scroll, newspaper-style date cards)
           =========================================================== */}
-      <section aria-labelledby="sec-upcoming">
+      <section id="upcoming" aria-labelledby="sec-upcoming">
         <SectionFolio
           num={2}
           title="Upcoming at Morgan"
@@ -528,10 +537,79 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
       </section>
 
       {/* ===========================================================
-          05 — CAMPUS SAFETY
+          05 — YOUR GROUPS
+          =========================================================== */}
+      <section id="groups" aria-labelledby="sec-groups">
+        <SectionFolio
+          num={5}
+          title="Your groups"
+          action={
+            <button
+              type="button"
+              onClick={() => onCreateGroup?.()}
+              className="font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.14em] text-navy hover:text-gold bg-transparent border-0 cursor-pointer min-h-[40px] px-2"
+            >
+              + New
+            </button>
+          }
+        />
+        <h2 id="sec-groups" className="sr-only">Your groups</h2>
+
+        {groups.length === 0 ? (
+          <div className="px-5 py-5 bg-card mx-px border-t border-ink/10">
+            <p className="text-[0.88rem] text-gray font-franklin mb-3">
+              No study groups yet. Start one for your course and invite classmates.
+            </p>
+            <button
+              type="button"
+              onClick={() => onCreateGroup?.()}
+              className="w-full bg-navy text-white font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.1em] py-3 min-h-[44px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors"
+            >
+              + Create a group
+            </button>
+          </div>
+        ) : (
+          <ul className="bg-card divide-y divide-ink/10 mx-px">
+            {groups.slice(0, 8).map((g) => {
+              const joined = myGroupIds?.has?.(g.id)
+              return (
+                <li key={g.id} className="flex items-center gap-3 px-5 py-3.5 min-h-[72px]">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {g.course_code && (
+                        <span className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.12em] text-navy bg-gold-pale px-2 py-[3px]">
+                          {g.course_code}
+                        </span>
+                      )}
+                      <span className="font-archivo font-bold text-[0.6rem] uppercase tracking-[0.14em] text-gray">
+                        {g.member_count} {g.member_count === 1 ? 'member' : 'members'}
+                      </span>
+                    </div>
+                    <div className="font-archivo font-bold text-[0.95rem] leading-snug truncate">{g.name}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleMembership?.(g.id, joined)}
+                    className={`font-archivo font-extrabold text-[0.64rem] uppercase tracking-[0.12em] py-2 px-3 min-h-[40px] shrink-0 border cursor-pointer transition-colors ${
+                      joined
+                        ? 'bg-transparent border-lightgray text-gray'
+                        : 'bg-gold border-gold text-navy'
+                    }`}
+                  >
+                    {joined ? 'Leave' : 'Join'}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* ===========================================================
+          06 — CAMPUS SAFETY
           =========================================================== */}
       <section aria-labelledby="sec-safety">
-        <SectionFolio num={5} title="Campus safety" />
+        <SectionFolio num={6} title="Campus safety" />
         <h2 id="sec-safety" className="sr-only">Campus safety</h2>
         <div className="px-5">
           <SafetyBox />
