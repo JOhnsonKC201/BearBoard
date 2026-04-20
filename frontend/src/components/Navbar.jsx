@@ -14,6 +14,7 @@ function Navbar() {
   const navigate = useNavigate()
   const { user, isAuthed, logout } = useAuth()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchDraft, setSearchDraft] = useState(searchParams.get('q') || '')
 
@@ -88,14 +89,31 @@ function Navbar() {
         })}
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <HealthDot />
-        <form onSubmit={onSearchSubmit}>
+
+        {/* Mobile (below sm): icon-only search button that flips a full-
+            width search sheet under the navbar. Desktop: always-visible
+            inline input. */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label={searchOpen ? 'Close search' : 'Open search'}
+          aria-expanded={searchOpen}
+          className="sm:hidden w-10 h-10 flex items-center justify-center rounded bg-white/[0.08] border border-white/10 text-white/80 hover:text-white cursor-pointer"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+        </button>
+
+        <form onSubmit={onSearchSubmit} className="hidden sm:block">
           <input
             type="text"
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
-            className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[130px] sm:w-[170px] lg:w-[190px] lg:focus:w-[240px] transition-all placeholder:text-white/30"
+            className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[170px] lg:w-[200px] lg:focus:w-[260px] transition-all placeholder:text-white/30"
             placeholder="Search posts..."
             aria-label="Search posts"
           />
@@ -116,8 +134,9 @@ function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen((v) => !v)}
-                className="w-[30px] h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.65rem] cursor-pointer"
+                className="w-9 h-9 lg:w-[30px] lg:h-[30px] bg-gold text-navy rounded flex items-center justify-center font-archivo font-extrabold text-[0.72rem] lg:text-[0.65rem] cursor-pointer"
                 aria-label="Account menu"
+                aria-expanded={profileMenuOpen}
               >
                 {initialsFor(user?.name)}
               </button>
@@ -146,13 +165,13 @@ function Navbar() {
           <div className="flex items-center gap-1.5">
             <Link
               to="/login"
-              className="text-white/70 hover:text-white text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-[7px] no-underline"
+              className="text-white/70 hover:text-white text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-2.5 lg:py-[7px] no-underline"
             >
               Sign In
             </Link>
             <Link
               to="/register"
-              className="bg-gold text-navy text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-[7px] no-underline hover:bg-[#E5A92E] transition-colors"
+              className="bg-gold text-navy text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-2.5 lg:py-[7px] no-underline hover:bg-[#E5A92E] transition-colors"
             >
               Join
             </Link>
@@ -160,6 +179,29 @@ function Navbar() {
         )}
 
       </div>
+
+      {/* Mobile search sheet — full-width input that drops below the
+          navbar when the icon button is tapped. */}
+      {searchOpen && (
+        <div className="sm:hidden absolute left-0 right-0 top-[52px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
+          <form
+            onSubmit={(e) => {
+              onSearchSubmit(e)
+              setSearchOpen(false)
+            }}
+          >
+            <input
+              type="text"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              autoFocus
+              className="w-full bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.95rem] py-3 px-4 rounded outline-none placeholder:text-white/30"
+              placeholder="Search posts..."
+              aria-label="Search posts"
+            />
+          </form>
+        </div>
+      )}
     </nav>
   )
 }
