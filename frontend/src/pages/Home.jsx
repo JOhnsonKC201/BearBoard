@@ -280,18 +280,34 @@ function Home() {
             {sidebarLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-card border border-lightgray overflow-hidden">
-                    <div className="aspect-[16/9] bg-offwhite animate-pulse" />
+                  <div
+                    key={i}
+                    className="bg-card border border-lightgray overflow-hidden"
+                    style={{ animationDelay: `${i * 90}ms` }}
+                  >
+                    <div
+                      className="aspect-[16/9] bg-gradient-to-br from-offwhite via-[#EBE7DE] to-offwhite bg-[length:200%_100%] animate-pulse"
+                      style={{ animationDelay: `${i * 90}ms` }}
+                    />
                     <div className="p-4 space-y-2">
-                      <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" />
-                      <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" />
+                      <div className="h-[10px] bg-gold/20 rounded w-20 animate-pulse" style={{ animationDelay: `${i * 90 + 40}ms` }} />
+                      <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" style={{ animationDelay: `${i * 90 + 80}ms` }} />
+                      <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" style={{ animationDelay: `${i * 90 + 120}ms` }} />
                     </div>
                   </div>
                 ))}
               </div>
             ) : events.length === 0 ? (
-              <div className="bg-card border border-lightgray px-4 py-6 text-center text-[0.82rem] text-gray">
-                No upcoming events synced yet.
+              <div className="bg-card border border-lightgray px-4 py-8 text-center">
+                <div className="text-[0.82rem] text-gray">No upcoming events synced yet.</div>
+                <a
+                  href="https://events.morgan.edu/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline border border-navy/20 hover:border-gold px-3 py-1.5"
+                >
+                  Open events.morgan.edu &rarr;
+                </a>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
