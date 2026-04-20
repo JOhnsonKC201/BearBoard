@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 
@@ -21,6 +21,28 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const titleInputRef = useRef(null)
+
+  // Esc-to-close + lock body scroll while the modal is open. Also autofocus
+  // the title field so keyboard users can start typing immediately.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusTimer = setTimeout(() => titleInputRef.current?.focus(), 60)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+      clearTimeout(focusTimer)
+    }
+  }, [open, onClose])
 
   useEffect(() => {
     if (!open) {
@@ -159,12 +181,13 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
           <form onSubmit={handleSubmit} className="px-5 py-4">
             <Field label="Title" error={errors.title}>
               <input
+                ref={titleInputRef}
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={submitting}
                 maxLength={TITLE_MAX + 50}
-                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy"
                 placeholder="What's your post about?"
               />
               <CharCount value={title} max={TITLE_MAX} />
