@@ -202,7 +202,7 @@ function Home() {
   }, [searchParams, setSearchParams])
 
   // BottomNav's + tab also dispatches a bearboard:newpost event as a more
-  // reliable alternative to the ?new=1 ping-pong — needed because React
+  // reliable alternative to the ?new=1 ping-pong - needed because React
   // Router can no-op when navigating to the same pathname+search.
   useEffect(() => {
     const onNewPost = () => { setPostPreset(null); setShowNewPost(true) }
@@ -231,7 +231,7 @@ function Home() {
       setEvents(e || [])
       setGroups(g || [])
     }).finally(() => { if (!cancelled) setSidebarLoading(false) })
-    // Live hero metrics. Fails silently — hero falls back to "—" placeholders.
+    // Live hero metrics. Fails silently - hero falls back to "-" placeholders.
     apiFetch('/api/stats')
       .then((s) => { if (!cancelled) setStats(s) })
       .catch(() => {})
@@ -300,7 +300,7 @@ function Home() {
   useEffect(() => {
     const q = groupSearch.trim()
     if (!q) {
-      // Cleared — reload the default list and drop the search flag.
+      // Cleared - reload the default list and drop the search flag.
       if (groupSearchActive) {
         setGroupSearchActive(false)
         apiFetch('/api/groups').catch(() => []).then((g) => setGroups(g || []))
@@ -348,7 +348,7 @@ function Home() {
 
       {/* Desktop layout (lg+) */}
       <div className="hidden lg:block">
-      {/* Header — broadsheet masthead. Matches the mobile campus-broadsheet
+      {/* Header - broadsheet masthead. Matches the mobile campus-broadsheet
           direction: gold flag line at top, date eyebrow, dynamic greeting
           if authed, a subtle diagonal stripe + corner glow for atmosphere,
           and a live stats ledger pulled from /api/stats. */}
@@ -385,13 +385,13 @@ function Home() {
       </div>
       <hr className="h-[3px] bg-gold border-none m-0" />
 
-      {/* Feed — Reddit-style 3-column layout at lg+:
+      {/* Feed - Reddit-style 3-column layout at lg+:
              [ left NavRail | main feed | right rail ]
            Left rail is the navigation (Home/Popular/New/Trending +
            Events/Groups/Map/Profs/Team); right rail is content (Trending /
            Safety / Your Groups). Both are sticky. */}
       <div className="max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 lg:grid-cols-[200px_minmax(0,1fr)_300px] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-5 xl:gap-7" id="feed">
-        {/* Left rail — site navigation */}
+        {/* Left rail - site navigation */}
         <aside className="lg:sticky lg:top-[68px] lg:self-start lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto order-first">
           <NavRail />
         </aside>
@@ -552,7 +552,7 @@ function Home() {
           )}
         </div>
 
-        {/* Right rail — content widgets (Trending / Safety / Groups). */}
+        {/* Right rail - content widgets (Trending / Safety / Groups). */}
         <aside className="lg:sticky lg:top-[68px] lg:self-start lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto lg:pr-1">
           {/* Trending */}
           <SideBox title="Trending" id="trending-box">
@@ -650,7 +650,7 @@ function Home() {
         </aside>
       </div>
 
-      {/* Idea Banner — staff-only (developer, moderator, admin). General
+      {/* Idea Banner - staff-only (developer, moderator, admin). General
            students never see the Trello / sprint-backlog chrome. */}
       {isStaff && showIdea && (
         <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6">
@@ -709,7 +709,7 @@ function Home() {
       </footer>
       </div> {/* /desktop layout (lg+) */}
 
-      {/* New Post FAB — desktop only; mobile uses the + tab in BottomNav. */}
+      {/* New Post FAB - desktop only; mobile uses the + tab in BottomNav. */}
       <button
         onClick={() => { setPostPreset(null); setShowNewPost(true) }}
         className="hidden lg:flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
@@ -730,7 +730,7 @@ function Home() {
         onCreate={createGroup}
       />
 
-      {/* Chat Widget — desktop only on small screens it would collide with BottomNav. */}
+      {/* Chat Widget - desktop only on small screens it would collide with BottomNav. */}
       <div className="hidden lg:block">
         <ChatWidget />
       </div>
@@ -739,7 +739,7 @@ function Home() {
 }
 
 // -----------------------------------------------------------------------------
-// Hero primitives — broadsheet-style masthead pieces for the desktop header.
+// Hero primitives - broadsheet-style masthead pieces for the desktop header.
 // -----------------------------------------------------------------------------
 
 const WEEKDAY_SHORT_CAPS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
@@ -749,7 +749,7 @@ const MONTH_LONG_CAPS = [
 ]
 
 function HeroFlag({ stats }) {
-  // Top "newspaper flag" — issue number + date + synced-events badge.
+  // Top "newspaper flag" - issue number + date + synced-events badge.
   // Mirrors the MobileHome masthead so brand language is consistent.
   const now = new Date()
   const issue = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / (1000 * 60 * 60 * 24)) + 1
@@ -817,7 +817,7 @@ function HeroGreeting({ user }) {
 
 function HeroStat({ value, label, highlight = false }) {
   const display =
-    value == null ? '—' : value >= 1000 ? value.toLocaleString() : String(value)
+    value == null ? '-' : value >= 1000 ? value.toLocaleString() : String(value)
   return (
     <div className="text-right">
       <dt className="sr-only">{label}</dt>
@@ -913,7 +913,7 @@ function PostCard({ post }) {
       setScore(prevScore)
       setUserVote(prevVote)
       if (err.status === 401 || err.status === 403) {
-        // Token expired/missing — bounce to login.
+        // Token expired/missing - bounce to login.
         nav('/login')
       } else {
         setVoteError('Vote failed. Try again.')
@@ -942,7 +942,7 @@ function PostCard({ post }) {
       const set = new Set(JSON.parse(localStorage.getItem('bb:saved') || '[]'))
       if (saved) set.delete(post.id); else set.add(post.id)
       localStorage.setItem('bb:saved', JSON.stringify(Array.from(set)))
-    } catch { /* storage unavailable — still flip local state */ }
+    } catch { /* storage unavailable - still flip local state */ }
     setSaved((v) => !v)
   }
 

@@ -4,7 +4,7 @@ import { API_URL } from '../api/client'
 const POLL_MS = 30000
 
 // Lightweight connectivity indicator. When the backend is up this
-// component renders nothing — we don't need to tell every visitor the API
+// component renders nothing - we don't need to tell every visitor the API
 // is "Live." It only surfaces when we're offline or reconnecting, with
 // human copy instead of a debug word like "Offline."
 function HealthDot() {

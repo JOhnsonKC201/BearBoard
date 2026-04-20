@@ -135,7 +135,7 @@ function EditProfileModal({ open, user, onClose, onSaved }) {
               disabled={submitting}
               rows={4}
               className="w-full border border-lightgray bg-white px-3.5 py-2.5 text-[0.92rem] font-franklin resize-y focus:border-navy"
-              placeholder="A few sentences about you — major, interests, favorite spot on campus."
+              placeholder="A few sentences about you - major, interests, favorite spot on campus."
             />
           </div>
 

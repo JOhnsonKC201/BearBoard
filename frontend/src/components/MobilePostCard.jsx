@@ -13,7 +13,7 @@ import {
   IconCheck,
 } from './ActionIcons'
 
-// Mobile post card — Reddit-mobile inspired. Full-bleed media, header
+// Mobile post card - Reddit-mobile inspired. Full-bleed media, header
 // with category + author + timestamp, bold title, and an interactive
 // action row where the vote pill and save toggle actually work
 // without navigating away from the feed.
@@ -135,7 +135,7 @@ function MobilePostCard({ post }) {
 
   return (
     <article className="bg-card border-t border-ink/10 first:border-t-0">
-      {/* Metadata + title — tappable to post detail */}
+      {/* Metadata + title - tappable to post detail */}
       <Link
         to={`/post/${post.id}`}
         className="block px-4 pt-4 pb-3 no-underline text-ink"
@@ -155,7 +155,7 @@ function MobilePostCard({ post }) {
         </h3>
       </Link>
 
-      {/* Full-width media — tappable */}
+      {/* Full-width media - tappable */}
       {hasImage && (
         <Link to={`/post/${post.id}`} className="block bg-navy">
           <img
@@ -168,7 +168,7 @@ function MobilePostCard({ post }) {
         </Link>
       )}
 
-      {/* Action row — buttons outside the Link so they fire instead
+      {/* Action row - buttons outside the Link so they fire instead
           of navigating */}
       <div className="px-3 py-2.5 flex items-center gap-1.5">
         {/* Vote pill */}

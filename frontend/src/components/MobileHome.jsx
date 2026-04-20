@@ -11,7 +11,7 @@ import {
 } from '../utils/format'
 
 // =============================================================================
-// MobileHome — "Campus Broadsheet"
+// MobileHome - "Campus Broadsheet"
 //
 // A vertical student newspaper for Morgan State. The design leans into
 // editorial / broadsheet cues: a masthead with volume + date flag, oversized
@@ -23,7 +23,7 @@ import {
 //     keep their soft muted fills; category is content, not chrome).
 //   - Fonts: Archivo for display / labels, Libre Franklin for body.
 //   - 44px+ touch targets, mobile-only (lg:hidden wrapper preserved).
-//   - No drop shadows — depth comes from gradients, rules, and scale.
+//   - No drop shadows - depth comes from gradients, rules, and scale.
 //
 // Everything in this file is mobile (<1024px). Desktop is untouched.
 // =============================================================================
@@ -105,7 +105,7 @@ function MetaDot() {
   return <span className="text-ink/25" aria-hidden>·</span>
 }
 
-// SVG icons — inline so color inherits and there's no emoji-render drift.
+// SVG icons - inline so color inherits and there's no emoji-render drift.
 function IconArrowUp() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
@@ -144,7 +144,7 @@ function MobileHome({
 }) {
   const { user, isAuthed } = useAuth()
 
-  // Date masthead values: "TUE · APRIL 22 · 2026" + "VOL. SPRING — ISSUE 113".
+  // Date masthead values: "TUE · APRIL 22 · 2026" + "VOL. SPRING - ISSUE 113".
   // Issue number is a stable offset from Jan 1 so it feels like a running
   // newspaper count without needing real CMS data.
   const masthead = useMemo(() => {
@@ -195,7 +195,7 @@ function MobileHome({
   return (
     <div className="lg:hidden bg-offwhite">
       {/* ===========================================================
-          MASTHEAD — broadsheet flag + date + greeting + stats
+          MASTHEAD - broadsheet flag + date + greeting + stats
           =========================================================== */}
       <section className="relative bg-navy text-white overflow-hidden">
         {/* Diagonal halftone texture (very low opacity) */}
@@ -218,7 +218,7 @@ function MobileHome({
           <div className="flex items-center justify-between font-archivo font-extrabold text-[0.56rem] uppercase tracking-[0.24em] text-white/55 pb-3 border-b border-white/15">
             <span>
               BEAR<span className="text-gold">BOARD</span>
-              <span className="text-white/30"> — MORGAN STATE</span>
+              <span className="text-white/30"> - MORGAN STATE</span>
             </span>
             <span>No. {masthead.issue}</span>
           </div>
@@ -270,7 +270,7 @@ function MobileHome({
             )}
           </div>
 
-          {/* Stats ledger — separated by thin vertical rules (no gaps),
+          {/* Stats ledger - separated by thin vertical rules (no gaps),
               numerals in gold, labels in small caps. */}
           <dl className="mt-6 grid grid-cols-3 border-t border-white/15 pt-4">
             <StatCell value={stats.newToday} label="New today" />
@@ -280,12 +280,12 @@ function MobileHome({
         </div>
       </section>
 
-      {/* Double gold rule — a small broadsheet flourish */}
+      {/* Double gold rule - a small broadsheet flourish */}
       <div className="h-[1px] bg-gold" />
       <div className="h-[3px] bg-gold mt-[2px]" />
 
       {/* ===========================================================
-          01 — TOP TODAY (featured, full-bleed)
+          01 - TOP TODAY (featured, full-bleed)
           =========================================================== */}
       {featured && (
         <article className="relative">
@@ -310,7 +310,7 @@ function MobileHome({
             to={`/post/${featured.id}`}
             className="relative block no-underline text-white bg-navy overflow-hidden"
           >
-            {/* Image backdrop — aggressive darken toward the bottom so the
+            {/* Image backdrop - aggressive darken toward the bottom so the
                 headline always has enough contrast. */}
             {featured.image_url && (
               <div className="absolute inset-0" aria-hidden>
@@ -357,7 +357,7 @@ function MobileHome({
                 </p>
               )}
 
-              {/* Byline strip — newspaper-style */}
+              {/* Byline strip - newspaper-style */}
               <div className="mt-auto pt-5 flex items-end justify-between gap-3 border-t border-white/20">
                 <div className="flex items-center gap-2.5 min-w-0 pt-3">
                   <Avatar seed={featured.author?.id ?? featured.id} name={featured.author?.name} size={32} />
@@ -390,7 +390,7 @@ function MobileHome({
       )}
 
       {/* ===========================================================
-          02 — UPCOMING (horizontal scroll, newspaper-style date cards)
+          02 - UPCOMING (horizontal scroll, newspaper-style date cards)
           =========================================================== */}
       <section id="upcoming" aria-labelledby="sec-upcoming">
         <SectionFolio
@@ -456,7 +456,7 @@ function MobileHome({
       </section>
 
       {/* ===========================================================
-          03 — TRENDING (numbered ranking list)
+          03 - TRENDING (numbered ranking list)
           =========================================================== */}
       {restTrending.length > 0 && (
         <section aria-labelledby="sec-trending">
@@ -504,7 +504,7 @@ function MobileHome({
       )}
 
       {/* ===========================================================
-          04 — MORE ON THE BOARD (compact post rows)
+          04 - MORE ON THE BOARD (compact post rows)
           =========================================================== */}
       <section aria-labelledby="sec-more">
         <SectionFolio
@@ -537,7 +537,7 @@ function MobileHome({
       </section>
 
       {/* ===========================================================
-          05 — YOUR GROUPS
+          05 - YOUR GROUPS
           =========================================================== */}
       <section id="groups" aria-labelledby="sec-groups">
         <SectionFolio
@@ -606,7 +606,7 @@ function MobileHome({
       </section>
 
       {/* ===========================================================
-          06 — CAMPUS SAFETY
+          06 - CAMPUS SAFETY
           =========================================================== */}
       <section aria-labelledby="sec-safety">
         <SectionFolio num={6} title="Campus safety" />
@@ -616,7 +616,7 @@ function MobileHome({
         </div>
       </section>
 
-      {/* Colophon — broadsheet footer */}
+      {/* Colophon - broadsheet footer */}
       <footer className="mt-8 mb-6 px-5">
         <div className="border-t-[3px] border-gold pt-3 flex items-center justify-between">
           <span className="font-archivo font-black text-[0.62rem] uppercase tracking-[0.2em] text-ink">
@@ -631,7 +631,7 @@ function MobileHome({
   )
 }
 
-// Stat ledger cell — numeral in gold, label in small caps underneath.
+// Stat ledger cell - numeral in gold, label in small caps underneath.
 // The divider prop adds a thin vertical rule on the left so three cells
 // feel bound together instead of floating.
 function StatCell({ value, label, divider = false }) {

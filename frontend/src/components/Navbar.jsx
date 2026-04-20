@@ -175,7 +175,7 @@ function Navbar() {
 
       </div>
 
-      {/* Mobile search sheet — full-width input that drops below the
+      {/* Mobile search sheet - full-width input that drops below the
           navbar when the icon button is tapped. */}
       {searchOpen && (
         <div className="sm:hidden absolute left-0 right-0 top-[52px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">

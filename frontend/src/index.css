@@ -36,7 +36,7 @@ h1, h2, h3, h4, h5, h6 {
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "case" 1, "cpsp" 1;
 }
 
-/* Tabular numerals everywhere we show a count — vote scores,
+/* Tabular numerals everywhere we show a count - vote scores,
    comment counts, stats ledger, group members. Guarantees columns
    of numbers line up and widths don't jitter when the score ticks
    from 9 to 10. */

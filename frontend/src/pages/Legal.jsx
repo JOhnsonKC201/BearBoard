@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom'
 
 // ---------------------------------------------------------------------------
-// Legal / policy documents — Rules, Privacy, Terms, Accessibility.
+// Legal / policy documents - Rules, Privacy, Terms, Accessibility.
 //
 // All four live in one component because they share the exact same layout
 // (masthead + sections + Morgan State colophon), and only the content data
 // differs. Each route passes a slug prop; the doc is pulled from DOCS.
 //
-// Content here is BearBoard-specific — written for a student project at
-// Morgan State — not a Reddit copy. Update in-place when you need to
+// Content here is BearBoard-specific - written for a student project at
+// Morgan State - not a Reddit copy. Update in-place when you need to
 // reword something; keep sections short and skim-friendly.
 // ---------------------------------------------------------------------------
 
@@ -29,12 +29,12 @@ const DOCS = {
       {
         heading: '2. Keep it Morgan',
         body:
-          'Posts should be relevant to the Morgan State community — campus events, academics, housing, swaps, jobs, or student life. General-web spam, off-campus resale, and crypto shilling get removed.',
+          'Posts should be relevant to the Morgan State community - campus events, academics, housing, swaps, jobs, or student life. General-web spam, off-campus resale, and crypto shilling get removed.',
       },
       {
         heading: '3. Use categories honestly',
         body:
-          'Pick the category that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) — not for avoiding accountability for low-effort posts. SOS is for real help requests.',
+          'Pick the category that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) - not for avoiding accountability for low-effort posts. SOS is for real help requests.',
       },
       {
         heading: '4. No harassment, hate speech, or targeted attacks',
@@ -102,7 +102,7 @@ const DOCS = {
     title: 'Terms of use',
     kicker: 'The agreement between you and BearBoard when you sign in',
     intro:
-      'By creating an account on BearBoard you agree to these terms. They\u2019re short and readable on purpose. If anything here is unclear, ask the team — we\u2019ll rewrite it.',
+      'By creating an account on BearBoard you agree to these terms. They\u2019re short and readable on purpose. If anything here is unclear, ask the team - we\u2019ll rewrite it.',
     sections: [
       {
         heading: 'Who can sign up',

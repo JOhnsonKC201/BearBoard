@@ -9,7 +9,7 @@ const STATS = [
 function AuthLayout({ title, subtitle, children }) {
   return (
     <div className="min-h-screen bg-navy lg:bg-offwhite lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
-      {/* Hero — full-bleed navy on mobile; left brand panel on lg+ */}
+      {/* Hero - full-bleed navy on mobile; left brand panel on lg+ */}
       <div className="relative bg-navy text-white flex flex-col overflow-hidden px-6 pt-12 pb-36 lg:p-10 lg:pb-10">
         {/* Gold diagonal stripe pattern */}
         <div
@@ -48,7 +48,7 @@ function AuthLayout({ title, subtitle, children }) {
           </p>
         </div>
 
-        {/* Stats — desktop only; the mobile version hides them so the form
+        {/* Stats - desktop only; the mobile version hides them so the form
              card can overlap the hero without crowding. */}
         <div className="relative hidden lg:grid grid-cols-3 gap-6 border-t border-white/10 pt-6">
           {STATS.map((s) => (
@@ -60,7 +60,7 @@ function AuthLayout({ title, subtitle, children }) {
         </div>
       </div>
 
-      {/* Form panel — floats up into the navy hero on mobile via -mt; sits
+      {/* Form panel - floats up into the navy hero on mobile via -mt; sits
            beside the hero on lg+. */}
       <div className="relative -mt-24 lg:mt-0 px-5 pb-10 lg:py-10 flex items-start lg:items-center justify-center z-10">
         <div className="w-full max-w-[440px]">
