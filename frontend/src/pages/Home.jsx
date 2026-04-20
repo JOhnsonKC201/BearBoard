@@ -915,7 +915,20 @@ function PostCard({ post }) {
           </div>
         )}
         {post.body && (
-          <div className="text-[0.88rem] text-ink/80 leading-relaxed mb-3 whitespace-pre-wrap line-clamp-3">{post.body}</div>
+          <div className="relative mb-3">
+            <div className="text-[0.88rem] text-ink/80 leading-relaxed whitespace-pre-wrap line-clamp-3">
+              {post.body}
+            </div>
+            {/* Gradient fade at the bottom hints that there's more content
+                to read when the body overflows past 3 lines. Rough length
+                check keeps the fade off short posts that fit in clamp. */}
+            {post.body.length > 180 && (
+              <div
+                className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-card via-card/85 to-transparent pointer-events-none"
+                aria-hidden
+              />
+            )}
+          </div>
         )}
       </div>
 
