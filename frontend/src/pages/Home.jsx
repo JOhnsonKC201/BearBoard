@@ -232,7 +232,7 @@ function Home() {
       <div className="hidden lg:block">
       {/* Header */}
       <div className="bg-navy px-6 pt-10 pb-11">
-        <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
+        <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
           <div className="max-w-[560px]">
             <h1 className="font-archivo font-black text-[2.8rem] md:text-[2.8rem] text-white leading-[1.05] tracking-tight uppercase">
               What's happening <span className="text-gold block">at Morgan State</span>
@@ -253,7 +253,7 @@ function Home() {
       {/* Feed + Sidebar — the events showcase lives inside the main column
            so the right rail (Trending + Safety) is visible from the top of
            the page instead of being pushed below a full-width events grid. */}
-      <div className="max-w-[1080px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-7" id="feed">
+      <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px] gap-7" id="feed">
         {/* Main column */}
         <div>
           {/* Upcoming Events Showcase */}
@@ -501,7 +501,7 @@ function Home() {
 
       {/* Idea Banner */}
       {showIdea && (
-        <div className="max-w-[1080px] mx-auto px-6">
+        <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6">
           <div className="bg-navy px-5 py-4 flex items-center gap-3.5">
             <div className="text-[1.3rem]">&#128161;</div>
             <div className="flex-1 text-white/70 text-[0.85rem]">
@@ -526,11 +526,11 @@ function Home() {
       )}
 
       {/* Team Section */}
-      <div className="max-w-[1080px] mx-auto px-6 pt-8" id="team">
+      <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6 pt-8" id="team">
         <h2 className="font-archivo font-black text-[0.85rem] uppercase tracking-widest text-navy">The Team</h2>
         <p className="text-[0.78rem] text-gray mt-1">COSC 458 &middot; Software Engineering &middot; Spring 2026</p>
       </div>
-      <div className="max-w-[1080px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+      <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6 pb-8 pt-3.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
         {Object.entries(TEAM_DATA).map(([key, m]) => (
           <div
             key={key}
