@@ -177,6 +177,7 @@ function Home() {
   const [events, setEvents] = useState([])
   const [groups, setGroups] = useState([])
   const [sidebarLoading, setSidebarLoading] = useState(true)
+  const [stats, setStats] = useState(null)
   const [groupSearch, setGroupSearch] = useState('')
   const [groupSearchActive, setGroupSearchActive] = useState(false)
   // Set of group ids the current user has joined. Loaded on mount (if
@@ -221,6 +222,10 @@ function Home() {
       setEvents(e || [])
       setGroups(g || [])
     }).finally(() => { if (!cancelled) setSidebarLoading(false) })
+    // Live hero metrics. Fails silently — hero falls back to "—" placeholders.
+    apiFetch('/api/stats')
+      .then((s) => { if (!cancelled) setStats(s) })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [reloadKey])
 
@@ -325,21 +330,38 @@ function Home() {
 
       {/* Desktop layout (lg+) */}
       <div className="hidden lg:block">
-      {/* Header */}
-      <div className="bg-navy px-6 pt-7 pb-7 xl:pt-10 xl:pb-11">
-        <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto flex justify-between items-end gap-8 xl:gap-10 flex-col md:flex-row md:items-end">
-          <div className="max-w-[560px]">
-            <h1 className="font-archivo font-black text-[2.15rem] xl:text-[2.8rem] text-white leading-[1.05] tracking-tight uppercase">
-              What's happening <span className="text-gold block">at Morgan State</span>
-            </h1>
-            <p className="text-white/50 text-[0.88rem] xl:text-[0.92rem] mt-2.5 xl:mt-3 leading-relaxed max-w-[420px]">
-              Posts, study groups, events, and opportunities. All in one place, by students, for students.
-            </p>
-          </div>
-          <div className="flex gap-6 xl:gap-8">
-            <HeaderNum value="1,247" label="Students" />
-            <HeaderNum value="86" label="Groups" />
-            <HeaderNum value="324" label="Posts Today" />
+      {/* Header — broadsheet masthead. Matches the mobile campus-broadsheet
+          direction: gold flag line at top, date eyebrow, dynamic greeting
+          if authed, a subtle diagonal stripe + corner glow for atmosphere,
+          and a live stats ledger pulled from /api/stats. */}
+      <div className="relative bg-navy overflow-hidden">
+        {/* Gold diagonal hairline pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{ backgroundImage: 'repeating-linear-gradient(135deg, #FFD66B 0 1px, transparent 1px 14px)' }}
+          aria-hidden
+        />
+        {/* Gold glow bottom-right */}
+        <div
+          className="absolute -bottom-36 -right-16 w-[520px] h-[520px] rounded-full bg-gold/[0.09] blur-3xl pointer-events-none"
+          aria-hidden
+        />
+
+        <div className="relative max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-5 pb-8 xl:pt-7 xl:pb-10">
+          <HeroFlag stats={stats} />
+
+          <div className="mt-5 xl:mt-7 flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
+            <div className="max-w-[580px]">
+              <HeroGreeting user={authedUser} />
+              <p className="text-white/55 text-[0.92rem] xl:text-[0.98rem] mt-3 leading-relaxed max-w-[440px] font-franklin">
+                Posts, study groups, events, and opportunities. All in one place, by students, for students.
+              </p>
+            </div>
+            <dl className="flex gap-6 xl:gap-10 border-l border-white/10 pl-6 xl:pl-10">
+              <HeroStat value={stats?.users} label="Students" />
+              <HeroStat value={stats?.groups} label="Groups" />
+              <HeroStat value={stats?.posts_last_24h} label="Today" highlight />
+            </dl>
           </div>
         </div>
       </div>
@@ -698,11 +720,103 @@ function Home() {
   )
 }
 
-function HeaderNum({ value, label }) {
+// -----------------------------------------------------------------------------
+// Hero primitives — broadsheet-style masthead pieces for the desktop header.
+// -----------------------------------------------------------------------------
+
+const WEEKDAY_SHORT_CAPS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+const MONTH_LONG_CAPS = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+]
+
+function HeroFlag({ stats }) {
+  // Top "newspaper flag" — issue number + date + synced-events badge.
+  // Mirrors the MobileHome masthead so brand language is consistent.
+  const now = new Date()
+  const issue = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / (1000 * 60 * 60 * 24)) + 1
+  const weekday = WEEKDAY_SHORT_CAPS[now.getDay()]
+  const month = MONTH_LONG_CAPS[now.getMonth()]
+  const year = now.getFullYear()
+  return (
+    <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/15">
+      <div className="flex items-center gap-3 font-archivo font-extrabold text-[0.6rem] uppercase tracking-[0.22em]">
+        <span className="text-gold">BearBoard</span>
+        <span className="text-white/25" aria-hidden>|</span>
+        <span className="text-white/55">
+          {weekday} &middot; {month} {now.getDate()}, {year}
+        </span>
+      </div>
+      <div className="flex items-center gap-4 font-archivo font-bold text-[0.6rem] uppercase tracking-[0.18em] text-white/45">
+        <span>No. {issue}</span>
+        {stats?.synced_campus_events != null && (
+          <>
+            <span className="text-white/20" aria-hidden>/</span>
+            <span className="text-white/65">
+              {stats.synced_campus_events} events synced
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function HeroGreeting({ user }) {
+  // Dynamic headline. Logged-in students get a time-of-day greeting; anyone
+  // else sees the evergreen "What's happening at Morgan State" billboard.
+  const first = (user?.name || '').split(/\s+/).filter(Boolean)[0]
+  if (first) {
+    const h = new Date().getHours()
+    const greet = h < 5 ? 'UP LATE' : h < 12 ? 'GOOD MORNING' : h < 18 ? 'GOOD AFTERNOON' : 'GOOD EVENING'
+    return (
+      <>
+        <div className="font-archivo font-extrabold text-gold text-[0.72rem] uppercase tracking-[0.22em] mb-2">
+          Campus edition &middot; {greet}
+        </div>
+        <h1 className="font-archivo font-black text-white text-[2.25rem] xl:text-[2.95rem] leading-[1.02] tracking-[-0.01em] uppercase">
+          Hey, <span className="text-gold">{first}</span>
+          <span className="block">what's happening</span>
+          <span className="block text-white/40 text-[1.35rem] xl:text-[1.65rem] font-extrabold tracking-tight normal-case mt-2">
+            at Morgan State today?
+          </span>
+        </h1>
+      </>
+    )
+  }
+  return (
+    <>
+      <div className="font-archivo font-extrabold text-gold text-[0.72rem] uppercase tracking-[0.22em] mb-2">
+        Campus edition &middot; Spring 2026
+      </div>
+      <h1 className="font-archivo font-black text-white text-[2.25rem] xl:text-[2.95rem] leading-[1.02] tracking-[-0.01em] uppercase">
+        What's happening
+        <span className="text-gold block">at Morgan State</span>
+      </h1>
+    </>
+  )
+}
+
+function HeroStat({ value, label, highlight = false }) {
+  const display =
+    value == null ? '—' : value >= 1000 ? value.toLocaleString() : String(value)
   return (
     <div className="text-right">
-      <div className="font-archivo font-black text-[2rem] text-gold leading-none tracking-tight">{value}</div>
-      <div className="text-white/35 text-[0.68rem] uppercase tracking-widest font-semibold mt-1">{label}</div>
+      <dt className="sr-only">{label}</dt>
+      <dd
+        className={`font-archivo font-black leading-none tracking-[-0.02em] ${
+          highlight ? 'text-gold text-[2.2rem] xl:text-[2.6rem]' : 'text-white text-[1.7rem] xl:text-[2rem]'
+        }`}
+      >
+        {display}
+      </dd>
+      <div
+        className={`text-[0.6rem] xl:text-[0.66rem] uppercase tracking-[0.18em] font-archivo font-extrabold mt-1.5 ${
+          highlight ? 'text-gold/80' : 'text-white/35'
+        }`}
+      >
+        {label}
+      </div>
     </div>
   )
 }

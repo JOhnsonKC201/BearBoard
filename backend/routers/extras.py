@@ -77,6 +77,7 @@ def public_stats(db: Session = Depends(get_db)):
     total_posts = db.query(func.count(Post.id)).scalar() or 0
     total_users = db.query(func.count(User.id)).filter(User.password_hash != "!pending").scalar() or 0
     total_comments = db.query(func.count(Comment.id)).scalar() or 0
+    total_groups = db.query(func.count(Group.id)).scalar() or 0
     synced_events = db.query(func.count(Event.id)).filter(Event.source.isnot(None)).scalar() or 0
     posts_24h = db.query(func.count(Post.id)).filter(Post.created_at >= day_ago).scalar() or 0
     posts_7d = db.query(func.count(Post.id)).filter(Post.created_at >= week_ago).scalar() or 0
@@ -92,6 +93,7 @@ def public_stats(db: Session = Depends(get_db)):
     return {
         "users": total_users,
         "posts": total_posts,
+        "groups": total_groups,
         "comments": total_comments,
         "synced_campus_events": synced_events,
         "posts_last_24h": posts_24h,
