@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SafetyBox from './SafetyBox'
@@ -182,15 +182,22 @@ function MobileHome({
     return { newToday, unread, total: posts.length }
   }, [posts, user])
 
-  const featured = trending[0] || posts[0] || null
+  // Build the Top Stories carousel. Use the trending list when we have
+  // enough of it, otherwise fall back to the newest posts. Cap at 5 so
+  // the reader isn't swiping through forever to reach the rest of the feed.
+  const topStories = useMemo(() => {
+    const pool = trending.length >= 3 ? trending : posts
+    return pool.slice(0, 5).filter(Boolean)
+  }, [trending, posts])
+  const featured = topStories[0] || null
+  const topIds = useMemo(() => new Set(topStories.map((p) => p.id)), [topStories])
   const restTrending = useMemo(() => {
     const list = trending.length ? trending : posts
-    return list.filter((p) => !featured || p.id !== featured.id).slice(0, 5)
-  }, [trending, posts, featured])
+    return list.filter((p) => !topIds.has(p.id)).slice(0, 5)
+  }, [trending, posts, topIds])
   const moreOnBoard = useMemo(() => {
-    if (!featured) return posts
-    return posts.filter((p) => p.id !== featured.id).slice(0, 20)
-  }, [posts, featured])
+    return posts.filter((p) => !topIds.has(p.id)).slice(0, 20)
+  }, [posts, topIds])
 
   return (
     <div className="lg:hidden bg-offwhite">
@@ -285,108 +292,10 @@ function MobileHome({
       <div className="h-[3px] bg-gold mt-[2px]" />
 
       {/* ===========================================================
-          01 - TOP TODAY (featured, full-bleed)
+          01 - TOP STORIES (horizontal swipe carousel)
           =========================================================== */}
-      {featured && (
-        <article className="relative">
-          <div className="px-5 pt-6 pb-2 flex items-baseline gap-3">
-            <span
-              className="font-archivo font-black text-gold leading-none tracking-[-0.04em] select-none"
-              style={{ fontSize: '2.15rem' }}
-              aria-hidden
-            >
-              01
-            </span>
-            <h2 className="font-archivo font-black text-[0.82rem] uppercase tracking-[0.18em] text-ink leading-none pb-1">
-              Top today
-            </h2>
-            <div className="flex-1 h-[1px] bg-ink/10 self-center mb-1" />
-            <span className="pb-1 font-archivo font-extrabold text-[0.6rem] uppercase tracking-[0.14em] text-gray">
-              Lead
-            </span>
-          </div>
-
-          <Link
-            to={`/post/${featured.id}`}
-            className="relative block no-underline text-white bg-navy overflow-hidden"
-          >
-            {/* Image backdrop - aggressive darken toward the bottom so the
-                headline always has enough contrast. */}
-            {featured.image_url && (
-              <div className="absolute inset-0" aria-hidden>
-                <img
-                  src={featured.image_url}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover opacity-55"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/75 to-navy/15" />
-              </div>
-            )}
-            {/* Diagonal rule pattern */}
-            <div
-              className="absolute inset-0 opacity-[0.06] pointer-events-none"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(135deg, #FFD66B 0 1px, transparent 1px 9px)',
-              }}
-              aria-hidden
-            />
-
-            <div className="relative px-5 pt-5 pb-5 min-h-[380px] flex flex-col">
-              {/* Pills */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-archivo font-black text-[0.56rem] uppercase tracking-[0.2em] px-2 py-1 bg-gold text-navy">
-                  Top story
-                </span>
-                {featured.category && <CategoryPill category={featured.category} inverse />}
-              </div>
-
-              {/* Massive headline */}
-              <h3
-                className="font-archivo font-black uppercase tracking-[-0.02em] leading-[0.98] mt-4"
-                style={{ fontSize: 'clamp(1.75rem, 7vw, 2.2rem)' }}
-              >
-                {featured.title}
-              </h3>
-
-              {featured.body && (
-                <p className="text-white/75 font-franklin text-[0.9rem] leading-snug mt-3 line-clamp-2 max-w-[34ch]">
-                  {featured.body}
-                </p>
-              )}
-
-              {/* Byline strip - newspaper-style */}
-              <div className="mt-auto pt-5 flex items-end justify-between gap-3 border-t border-white/20">
-                <div className="flex items-center gap-2.5 min-w-0 pt-3">
-                  <Avatar seed={featured.author?.id ?? featured.id} name={featured.author?.name} size={32} />
-                  <div className="min-w-0">
-                    <div className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.18em] text-white/55 leading-none">
-                      By
-                    </div>
-                    <div className="font-archivo font-bold text-[0.82rem] truncate leading-tight mt-1">
-                      {featured.author?.name || 'Unknown'}
-                    </div>
-                    <div className="text-white/50 text-[0.66rem] font-franklin mt-0.5">
-                      {formatRelative(featured.created_at)} ago
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 pt-3">
-                  <span className="flex items-center gap-1 text-gold font-archivo font-black text-[0.82rem]">
-                    <IconArrowUp />
-                    {featured.upvote_count ?? featured.upvotes ?? 0}
-                  </span>
-                  <span className="flex items-center gap-1 text-white/75 font-archivo font-extrabold text-[0.78rem]">
-                    <IconChatSm />
-                    {featured.comment_count ?? 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Link>
-        </article>
+      {topStories.length > 0 && (
+        <TopStoriesCarousel stories={topStories} />
       )}
 
       {/* ===========================================================
@@ -506,7 +415,7 @@ function MobileHome({
       {/* ===========================================================
           04 - MORE ON THE BOARD (compact post rows)
           =========================================================== */}
-      <section aria-labelledby="sec-more">
+      <section id="more-on-the-board" aria-labelledby="sec-more">
         <SectionFolio
           num={4}
           title="More on the board"
@@ -627,6 +536,184 @@ function MobileHome({
           </span>
         </div>
       </footer>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Top Stories carousel - horizontal swipe of up to five lead cards. Scroll
+// snaps so each story lands centered. Dots below track position and are
+// clickable to jump to a specific story. The folio header shows 1 / 5 so the
+// reader always knows where they are in the run.
+// ---------------------------------------------------------------------------
+
+function TopStoriesCarousel({ stories }) {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const scrollerRef = useRef(null)
+
+  // Reset to the first story whenever the list changes (fresh data load).
+  useEffect(() => {
+    setActiveIdx(0)
+    if (scrollerRef.current) scrollerRef.current.scrollLeft = 0
+  }, [stories.length])
+
+  const onScroll = useCallback((e) => {
+    const el = e.currentTarget
+    const w = el.clientWidth || 1
+    const idx = Math.min(stories.length - 1, Math.max(0, Math.round(el.scrollLeft / w)))
+    if (idx !== activeIdx) setActiveIdx(idx)
+  }, [activeIdx, stories.length])
+
+  const jumpTo = (idx) => {
+    const el = scrollerRef.current
+    if (!el) return
+    el.scrollTo({ left: idx * el.clientWidth, behavior: 'smooth' })
+  }
+
+  return (
+    <article className="relative">
+      <header className="flex items-baseline gap-3 px-5 pt-8 pb-3">
+        <span
+          className="font-archivo font-black text-gold leading-none tracking-[-0.04em] select-none"
+          style={{ fontSize: '2.15rem' }}
+          aria-hidden
+        >
+          01
+        </span>
+        <h2 className="font-archivo font-black text-[0.82rem] uppercase tracking-[0.18em] text-ink leading-none pb-1">
+          Top stories
+        </h2>
+        <div className="flex-1 h-[1px] bg-ink/10 self-center mb-1" />
+        <span className="pb-1 font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.14em] text-gray tabular-nums">
+          {activeIdx + 1} / {stories.length}
+        </span>
+      </header>
+
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+        style={{ scrollbarWidth: 'none' }}
+        aria-roledescription="carousel"
+        aria-label="Top stories"
+      >
+        {stories.map((story, i) => (
+          <TopStoryCard
+            key={story.id}
+            story={story}
+            index={i}
+            total={stories.length}
+          />
+        ))}
+      </div>
+
+      {/* Dot indicators - expandable pill on the active one. Tapping a
+          dot jumps to that story so swipe isn't the only navigation. */}
+      <div className="flex items-center justify-center gap-2 py-3" role="tablist" aria-label="Top stories navigation">
+        {stories.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => jumpTo(i)}
+            aria-label={`Go to story ${i + 1}`}
+            aria-selected={i === activeIdx}
+            role="tab"
+            className={`h-1.5 rounded-full transition-all cursor-pointer border-0 p-0 ${
+              i === activeIdx ? 'w-8 bg-gold' : 'w-1.5 bg-ink/25 hover:bg-ink/40'
+            }`}
+          />
+        ))}
+        <div className="w-3" />
+        <a
+          href="#more-on-the-board"
+          className="font-archivo font-extrabold text-[0.6rem] uppercase tracking-[0.14em] text-gray hover:text-navy no-underline"
+        >
+          See all
+        </a>
+      </div>
+    </article>
+  )
+}
+
+function TopStoryCard({ story, index, total }) {
+  return (
+    <div className="snap-start shrink-0 basis-full min-w-0 px-0" style={{ width: '100%' }}>
+      <Link
+        to={`/post/${story.id}`}
+        className="relative block no-underline text-white bg-navy overflow-hidden mx-px"
+      >
+        {/* Image backdrop */}
+        {story.image_url && (
+          <div className="absolute inset-0" aria-hidden>
+            <img
+              src={story.image_url}
+              alt=""
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              className="w-full h-full object-cover opacity-55"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/75 to-navy/15" />
+          </div>
+        )}
+        {/* Diagonal rule pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(135deg, #FFD66B 0 1px, transparent 1px 9px)',
+          }}
+          aria-hidden
+        />
+
+        <div className="relative px-5 pt-5 pb-5 min-h-[380px] flex flex-col">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-archivo font-black text-[0.56rem] uppercase tracking-[0.2em] px-2 py-1 bg-gold text-navy">
+              {index === 0 ? 'Top story' : `No. ${index + 1}`}
+            </span>
+            {story.category && <CategoryPill category={story.category} inverse />}
+          </div>
+
+          <h3
+            className="font-archivo font-black uppercase tracking-[-0.02em] leading-[0.98] mt-4"
+            style={{ fontSize: 'clamp(1.75rem, 7vw, 2.2rem)' }}
+          >
+            {story.title}
+          </h3>
+
+          {story.body && (
+            <p className="text-white/75 font-franklin text-[0.9rem] leading-snug mt-3 line-clamp-2 max-w-[34ch]">
+              {story.body}
+            </p>
+          )}
+
+          <div className="mt-auto pt-5 flex items-end justify-between gap-3 border-t border-white/20">
+            <div className="flex items-center gap-2.5 min-w-0 pt-3">
+              <Avatar seed={story.author?.id ?? story.id} name={story.author?.name} size={32} />
+              <div className="min-w-0">
+                <div className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.18em] text-white/55 leading-none">
+                  By
+                </div>
+                <div className="font-archivo font-bold text-[0.82rem] truncate leading-tight mt-1">
+                  {story.author?.name || 'Unknown'}
+                </div>
+                <div className="text-white/50 text-[0.66rem] font-franklin mt-0.5">
+                  {formatRelative(story.created_at)} ago
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 pt-3">
+              <span className="flex items-center gap-1 text-gold font-archivo font-black text-[0.82rem]">
+                <IconArrowUp />
+                {story.upvote_count ?? story.upvotes ?? 0}
+              </span>
+              <span className="flex items-center gap-1 text-white/75 font-archivo font-extrabold text-[0.78rem]">
+                <IconChatSm />
+                {story.comment_count ?? 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Link>
     </div>
   )
 }
