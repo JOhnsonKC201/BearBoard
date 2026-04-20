@@ -281,12 +281,19 @@ function Home() {
       </div>
       <hr className="h-[3px] bg-gold border-none m-0" />
 
-      {/* Feed + Sidebar — the events showcase lives inside the main column
-           so the right rail (Trending + Safety) is visible from the top of
-           the page instead of being pushed below a full-width events grid. */}
-      <div className="max-w-[1080px] xl:max-w-[1200px] 2xl:max-w-[1320px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px] gap-7" id="feed">
+      {/* Feed — Reddit-style 3-column layout at lg+:
+             [ left NavRail | main feed | right rail ]
+           Left rail is the navigation (Home/Popular/New/Trending +
+           Events/Groups/Map/Profs/Team); right rail is content (Trending /
+           Safety / Your Groups). Both are sticky. */}
+      <div className="max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-8 pb-7 grid grid-cols-1 lg:grid-cols-[200px_minmax(0,1fr)_300px] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-5 xl:gap-7" id="feed">
+        {/* Left rail — site navigation */}
+        <aside className="lg:sticky lg:top-[68px] lg:self-start lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto order-first">
+          <NavRail />
+        </aside>
+
         {/* Main column */}
-        <div>
+        <div className="min-w-0">
           {/* Upcoming Events Showcase */}
           <section className="mb-8" id="events-showcase">
             <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
@@ -309,7 +316,7 @@ function Home() {
             </div>
 
             {sidebarLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div
                     key={i}
@@ -341,7 +348,7 @@ function Home() {
                 </a>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {events.slice(0, 6).map((ev) => (
                   <EventShowcaseCard key={ev.id} ev={ev} />
                 ))}
@@ -441,10 +448,8 @@ function Home() {
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* Right rail — content widgets (Trending / Safety / Groups). */}
         <aside className="lg:sticky lg:top-[68px] lg:self-start lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto lg:pr-1">
-          <NavRail />
-
           {/* Trending */}
           <SideBox title="Trending" id="trending-box">
             {sidebarLoading ? (
