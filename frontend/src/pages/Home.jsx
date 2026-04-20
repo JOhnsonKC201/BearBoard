@@ -395,7 +395,7 @@ function Home() {
         </div>
 
         {/* Sidebar */}
-        <aside>
+        <aside className="lg:sticky lg:top-[68px] lg:self-start lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto lg:pr-1">
           <NavRail />
 
           {/* Trending */}
