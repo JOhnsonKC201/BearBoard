@@ -16,6 +16,7 @@ const PostDetail = lazy(() => import('./pages/PostDetail'))
 const Stats = lazy(() => import('./pages/Stats'))
 const CampusMap = lazy(() => import('./pages/Map'))
 const Professors = lazy(() => import('./pages/Professors'))
+const Legal = lazy(() => import('./pages/Legal'))
 
 function WithNav({ children }) {
   return (
@@ -51,6 +52,10 @@ function App() {
             <Route path="/map" element={<WithNav><CampusMap /></WithNav>} />
             <Route path="/professors" element={<WithNav><Professors /></WithNav>} />
             <Route path="/stats" element={<Stats />} />
+            <Route path="/rules" element={<WithNav><Legal slug="rules" /></WithNav>} />
+            <Route path="/privacy" element={<WithNav><Legal slug="privacy" /></WithNav>} />
+            <Route path="/terms" element={<WithNav><Legal slug="terms" /></WithNav>} />
+            <Route path="/accessibility" element={<WithNav><Legal slug="accessibility" /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>

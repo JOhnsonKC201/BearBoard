@@ -73,6 +73,38 @@ function IconTeam() {
     </svg>
   )
 }
+function IconBook() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+      <path d="M6 19h13" />
+    </svg>
+  )
+}
+function IconShield() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3l8 3v6c0 5-3.4 8.6-8 9-4.6-.4-8-4-8-9V6z" />
+    </svg>
+  )
+}
+function IconScroll() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M8 7h6M8 11h6M8 15h4" />
+    </svg>
+  )
+}
+function IconA11y() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="5" r="1.6" />
+      <path d="M5 9l7 2 7-2" />
+      <path d="M12 11v3l-3 7M12 14l3 7" />
+    </svg>
+  )
+}
 
 function RailItem({ to, hash, label, Icon, active }) {
   const cls = `flex items-center gap-2.5 px-3 py-2 no-underline text-[0.82rem] font-archivo font-semibold rounded-sm transition-colors ${
@@ -130,6 +162,19 @@ function NavRail() {
         <RailItem to="/professors" label="Professors" Icon={IconMortar} active={location.pathname === '/professors'} />
         <RailItem hash="#team" label="Team" Icon={IconTeam} />
       </RailSection>
+      <div className="border-t border-[#EAE7E0]" />
+      <RailSection title="Policies">
+        <RailItem to="/rules" label="Community Rules" Icon={IconBook} active={location.pathname === '/rules'} />
+        <RailItem to="/privacy" label="Privacy Policy" Icon={IconShield} active={location.pathname === '/privacy'} />
+        <RailItem to="/terms" label="Terms of Use" Icon={IconScroll} active={location.pathname === '/terms'} />
+        <RailItem to="/accessibility" label="Accessibility" Icon={IconA11y} active={location.pathname === '/accessibility'} />
+      </RailSection>
+      <div className="px-3 py-3 border-t border-[#EAE7E0] font-archivo font-bold text-[0.6rem] uppercase tracking-[0.14em] text-gray leading-relaxed">
+        BEAR<span className="text-gold">BOARD</span>
+        <span className="block mt-0.5 text-[0.58rem] text-gray/70 normal-case tracking-wide font-franklin">
+          Morgan State &middot; Spring 2026
+        </span>
+      </div>
     </nav>
   )
 }
