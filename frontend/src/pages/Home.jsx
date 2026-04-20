@@ -215,8 +215,20 @@ function Home() {
   const [events, setEvents] = useState([])
   const [groups, setGroups] = useState([])
   const [sidebarLoading, setSidebarLoading] = useState(true)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
+
+  // BottomNav's + tab navigates here with ?new=1. Open the modal and strip the
+  // param so a refresh doesn't re-open it.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setPostPreset(null)
+      setShowNewPost(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('new')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const visiblePosts = useMemo(() => {
     if (!searchQuery) return posts
@@ -641,10 +653,10 @@ function Home() {
         </a>
       </footer>
 
-      {/* New Post FAB */}
+      {/* New Post FAB — desktop only; mobile uses the + tab in BottomNav. */}
       <button
         onClick={() => { setPostPreset(null); setShowNewPost(true) }}
-        className="fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 flex items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
+        className="hidden lg:flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
       >
         + New Post
       </button>
@@ -656,8 +668,10 @@ function Home() {
         onCreated={() => setReloadKey((k) => k + 1)}
       />
 
-      {/* Chat Widget */}
-      <ChatWidget />
+      {/* Chat Widget — desktop only on small screens it would collide with BottomNav. */}
+      <div className="hidden lg:block">
+        <ChatWidget />
+      </div>
     </div>
   )
 }

@@ -13,7 +13,6 @@ function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, isAuthed, logout } = useAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchDraft, setSearchDraft] = useState(searchParams.get('q') || '')
@@ -66,8 +65,8 @@ function Navbar() {
         BEAR<span className="text-gold">BOARD</span>
       </Link>
 
-      {/* Desktop nav links */}
-      <div className="hidden md:flex gap-[2px]">
+      {/* Desktop nav links (shown on lg+; bottom nav covers smaller screens) */}
+      <div className="hidden lg:flex gap-[2px]">
         {navLinks.map((link) => {
           const className = `text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors ${
             isActive(link.label)
@@ -96,7 +95,7 @@ function Navbar() {
             type="text"
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
-            className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[190px] focus:border-gold focus:w-[240px] transition-all placeholder:text-white/30"
+            className="bg-white/[0.08] border border-white/10 text-white font-franklin text-[0.8rem] py-[7px] px-3.5 rounded outline-none w-[130px] sm:w-[170px] lg:w-[190px] lg:focus:w-[240px] transition-all placeholder:text-white/30"
             placeholder="Search posts..."
             aria-label="Search posts"
           />
@@ -106,7 +105,7 @@ function Navbar() {
           <>
             {user?.streak_count > 0 && (
               <div
-                className="hidden md:flex items-center gap-1 px-2 py-1 rounded bg-gold/15 text-gold text-[0.7rem] font-archivo font-extrabold"
+                className="hidden lg:flex items-center gap-1 px-2 py-1 rounded bg-gold/15 text-gold text-[0.7rem] font-archivo font-extrabold"
                 title={`${user.streak_count}-day activity streak`}
               >
                 <span aria-hidden="true">🔥</span>
@@ -160,45 +159,7 @@ function Navbar() {
           </div>
         )}
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden bg-transparent border-none text-white text-xl cursor-pointer ml-1"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          {menuOpen ? '\u2715' : '\u2630'}
-        </button>
       </div>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="absolute top-[52px] left-0 right-0 bg-navy border-t border-white/10 flex flex-col p-4 gap-2 md:hidden z-[100]">
-          {navLinks.map((link) => {
-            const mobileCls = 'text-white/55 hover:text-white text-[0.85rem] font-semibold px-3 py-2 no-underline uppercase tracking-wide'
-            if (link.hash) {
-              return (
-                <a
-                  key={link.label}
-                  href={link.hash}
-                  onClick={() => setMenuOpen(false)}
-                  className={mobileCls}
-                >
-                  {link.label}
-                </a>
-              )
-            }
-            return (
-              <Link
-                key={link.label}
-                to={link.to}
-                onClick={() => setMenuOpen(false)}
-                className={mobileCls}
-              >
-                {link.label}
-              </Link>
-            )
-          })}
-        </div>
-      )}
     </nav>
   )
 }
