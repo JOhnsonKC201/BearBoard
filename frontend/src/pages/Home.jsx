@@ -465,50 +465,6 @@ function Home() {
             ))}
           </SideBox>
 
-          {/* Events */}
-          <SideBox title="Events" id="events">
-            {sidebarLoading ? (
-              <SidebarSkeleton count={3} />
-            ) : events.length === 0 ? (
-              <div className="px-4 py-3 text-[0.78rem] text-gray">No upcoming events.</div>
-            ) : events.map((ev) => {
-              const { month, day, weekday } = eventDateParts(ev.event_date)
-              const detail = [ev.location, ev.start_time].filter(Boolean).join(' \u00B7 ')
-              const isExternal = Boolean(ev.source)
-              const Wrapper = ev.source_url ? 'a' : 'div'
-              const wrapperProps = ev.source_url
-                ? { href: ev.source_url, target: '_blank', rel: 'noreferrer', className: 'no-underline text-ink' }
-                : {}
-              return (
-                <Wrapper key={ev.id} {...wrapperProps}>
-                  <div className="flex gap-3 px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 items-center hover:bg-offwhite transition-colors">
-                    <div className="w-[44px] shrink-0 border border-lightgray bg-white overflow-hidden">
-                      <div className="bg-navy text-gold text-[0.52rem] uppercase tracking-wider font-archivo font-extrabold text-center py-[2px]">{weekday || month}</div>
-                      <div className="text-center py-[3px]">
-                        <div className="font-archivo font-black text-navy text-[1.15rem] leading-none">{day}</div>
-                        <div className="text-[0.5rem] uppercase tracking-wider text-gray font-archivo font-bold mt-[1px]">{month}</div>
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="text-[0.82rem] font-semibold leading-tight truncate">{ev.title}</div>
-                        {isExternal && (
-                          <span
-                            className="font-archivo text-[0.5rem] font-extrabold uppercase tracking-wider py-[1px] px-[5px] rounded-sm bg-navy text-gold shrink-0"
-                            title={`Synced from ${ev.source}`}
-                          >
-                            {ev.source}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[0.68rem] text-gray truncate">{detail || '-'}</div>
-                    </div>
-                  </div>
-                </Wrapper>
-              )
-            })}
-          </SideBox>
-
           <SafetyBox onReportIncident={() => {
             setPostPreset({ category: 'Safety', body: '' })
             setShowNewPost(true)
