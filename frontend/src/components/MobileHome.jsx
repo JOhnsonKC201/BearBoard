@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SafetyBox from './SafetyBox'
+import MobilePostCard from './MobilePostCard'
 import { paletteFor, catClassFor } from '../utils/avatar'
 import {
   initialsFor,
@@ -518,55 +519,11 @@ function MobileHome({ posts = [], trending = [], events = [], loading = false })
             No posts yet. Be the first.
           </div>
         ) : (
-          <ul className="bg-card divide-y divide-ink/10 mx-px">
-            {moreOnBoard.map((post) => {
-              const score = (post.upvote_count ?? post.upvotes ?? 0) -
-                (post.downvote_count ?? post.downvotes ?? 0)
-              const hasImage = Boolean(post.image_url)
-              return (
-                <li key={post.id}>
-                  <Link
-                    to={`/post/${post.id}`}
-                    className="flex gap-3 px-5 py-4 no-underline text-ink min-h-[88px]"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {post.category && <CategoryPill category={post.category} />}
-                        <span className="text-[0.66rem] text-gray font-archivo font-bold uppercase tracking-wider truncate">
-                          {post.author?.name || 'Anon'} · {formatRelative(post.created_at)}
-                        </span>
-                      </div>
-                      <h3 className="font-archivo font-bold text-[0.98rem] leading-[1.25] line-clamp-3">
-                        {post.title}
-                      </h3>
-                      <div className="flex items-center gap-3 text-[0.7rem] text-gray font-archivo font-bold mt-2">
-                        <span className="flex items-center gap-1 text-warning">
-                          <IconArrowUp />
-                          {score}
-                        </span>
-                        <MetaDot />
-                        <span className="flex items-center gap-1">
-                          <IconChatSm />
-                          {post.comment_count ?? 0}
-                        </span>
-                      </div>
-                    </div>
-                    {hasImage && (
-                      <div className="w-[84px] h-[84px] shrink-0 bg-offwhite overflow-hidden border border-ink/10">
-                        <img
-                          src={post.image_url}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+          <div className="bg-card">
+            {moreOnBoard.map((post) => (
+              <MobilePostCard key={post.id} post={post} />
+            ))}
+          </div>
         )}
       </section>
 
