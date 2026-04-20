@@ -2,62 +2,11 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SafetyBox from './SafetyBox'
+import { paletteFor, catClassFor } from '../utils/avatar'
+import { initialsFor, formatRelativeShort as formatRelative, eventDateParts } from '../utils/format'
 
 const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const MONTHS_LONG = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER']
-const MONTHS_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-
-const AVATAR_PALETTE = [
-  { bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)', tc: '#FFFFFF' },
-  { bg: 'linear-gradient(135deg, #19314F 0%, #0B1D34 100%)', tc: '#FFFFFF' },
-  { bg: 'linear-gradient(135deg, #2BA89A 0%, #137267 100%)', tc: '#FFFFFF' },
-  { bg: 'linear-gradient(135deg, #D45347 0%, #962E22 100%)', tc: '#FFFFFF' },
-  { bg: 'linear-gradient(135deg, #EAA841 0%, #B47A14 100%)', tc: '#0B1D34' },
-  { bg: 'linear-gradient(135deg, #4A8A4D 0%, #234C25 100%)', tc: '#FFFFFF' },
-]
-
-const CAT_STYLES = {
-  events: 'bg-gold-pale text-[#8B6914]',
-  academic: 'bg-[#D1E3F5] text-navy',
-  recruiters: 'bg-[#E6D8F0] text-purple',
-  social: 'bg-[#D0EDE9] text-[#0F5E54]',
-  general: 'bg-[#E5E3DE] text-[#5A5A5A]',
-  anonymous: 'bg-[#1A1A1A] text-white',
-  housing: 'bg-[#FCE8D2] text-[#8A4B16]',
-  swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
-  safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
-}
-
-function paletteFor(seed) {
-  return AVATAR_PALETTE[Math.abs(seed ?? 0) % AVATAR_PALETTE.length]
-}
-
-function initialsFor(name) {
-  if (!name) return '?'
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
-}
-
-function formatRelative(iso) {
-  if (!iso) return ''
-  const t = new Date(iso).getTime()
-  if (Number.isNaN(t)) return ''
-  const s = Math.max(1, Math.floor((Date.now() - t) / 1000))
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h`
-  const d = Math.floor(h / 24)
-  return `${d}d`
-}
-
-function eventDateParts(iso) {
-  if (!iso) return { day: '', month: '' }
-  const [y, mo, d] = iso.split('-').map(Number)
-  const dt = new Date(y, (mo || 1) - 1, d || 1)
-  if (Number.isNaN(dt.getTime())) return { day: '', month: '' }
-  return { day: String(dt.getDate()), month: MONTHS_SHORT[dt.getMonth()] }
-}
 
 function Avatar({ seed, name, size = 36 }) {
   const pal = paletteFor(seed)
@@ -73,10 +22,8 @@ function Avatar({ seed, name, size = 36 }) {
 
 function CategoryPill({ category }) {
   if (!category) return null
-  const key = String(category).toLowerCase()
-  const cls = CAT_STYLES[key] || CAT_STYLES.general
   return (
-    <span className={`font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.08em] px-2 py-[3px] rounded-sm ${cls}`}>
+    <span className={`font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.08em] px-2 py-[3px] rounded-sm ${catClassFor(category)}`}>
       {category}
     </span>
   )
