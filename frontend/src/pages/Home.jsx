@@ -7,6 +7,7 @@ import NewPostModal from '../components/NewPostModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
+import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
 import { apiFetch } from '../api/client'
 
@@ -450,6 +451,8 @@ function Home() {
 
         {/* Sidebar */}
         <aside>
+          <NavRail />
+
           {/* Trending */}
           <SideBox title="Trending" id="trending-box">
             {sidebarLoading ? (
