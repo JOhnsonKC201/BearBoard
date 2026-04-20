@@ -2,9 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the navy hero bleed under the iPhone notch
+         and the bottom nav tuck under the home-indicator. Individual
+         components use env(safe-area-inset-*) for safe padding. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>BearBoard - Morgan State</title>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Libre+Franklin:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta name="description" content="Posts, study groups, events, and opportunities. All in one place, by students, for students at Morgan State University." />
+
+    <!-- Matches the navy hero so mobile browser chrome and the iOS status
+         bar blend with the header instead of flashing white on load. -->
+    <meta name="theme-color" content="#0B1D34" />
+
+    <!-- Font loading: preconnect warms the TCP handshake, the stylesheet
+         link kicks off font fetches, and display=swap keeps text visible
+         while the custom fonts arrive so we don't flash invisible text. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Libre+Franklin:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>
