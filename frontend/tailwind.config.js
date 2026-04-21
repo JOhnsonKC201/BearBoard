@@ -44,6 +44,10 @@ export default {
       fontFamily: {
         archivo: ['Archivo', 'sans-serif'],
         franklin: ['Libre Franklin', 'sans-serif'],
+        // Editorial serif used for profile nameplates, pull quotes, and
+        // anywhere else we want a warm, magazine-feature voice. Variable
+        // font so optical size and italic axis are free to use.
+        editorial: ['Fraunces', 'Georgia', 'serif'],
       },
       // Additional fontSize tokens so we stop reaching for arbitrary values
       // like text-[0.62rem] and text-[0.78rem] in every component.

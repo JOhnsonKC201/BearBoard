@@ -80,8 +80,20 @@ def list_professors(
     query = db.query(Professor)
     if q:
         needle = f"%{q.strip().lower()}%"
+        # Covers: first name, surname (substring match), department,
+        # and any course code the professor has been rated for
+        # (e.g. "COSC 458" → any prof someone reviewed under that code).
+        profs_via_course = (
+            db.query(ProfessorRating.professor_id)
+            .filter(func.lower(ProfessorRating.course_code).like(needle))
+            .distinct()
+        )
         query = query.filter(
-            or_(func.lower(Professor.name).like(needle), func.lower(Professor.department).like(needle))
+            or_(
+                func.lower(Professor.name).like(needle),
+                func.lower(Professor.department).like(needle),
+                Professor.id.in_(profs_via_course),
+            )
         )
 
     # For "top" we need aggregates to rank, so fetch candidates then sort in
