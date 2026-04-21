@@ -218,6 +218,22 @@ function Home() {
     })
   }, [posts, searchQuery])
 
+  // Megathreads float to the top of the feed. Recognized by a "Megathread:"
+  // title prefix (set by seed_megathreads.py). When a future schema change
+  // adds a real `is_pinned` column, swap the predicate here.
+  const { pinnedPosts, regularPosts } = useMemo(() => {
+    const pinned = []
+    const regular = []
+    for (const p of visiblePosts) {
+      if (typeof p.title === 'string' && p.title.trim().toLowerCase().startsWith('megathread:')) {
+        pinned.push(p)
+      } else {
+        regular.push(p)
+      }
+    }
+    return { pinnedPosts: pinned, regularPosts: regular }
+  }, [visiblePosts])
+
   useEffect(() => {
     let cancelled = false
     setSidebarLoading(true)
@@ -535,20 +551,40 @@ function Home() {
               />
             )
           ) : (
-            <AnimatePresence initial={true}>
-              {visiblePosts.map((post, i) => (
-                <motion.div
-                  key={post.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
-                  transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
-                >
-                  <PostCard post={post} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            <>
+              {pinnedPosts.length > 0 && (
+                <div className="mb-3">
+                  <div className="bg-navy text-gold px-4 py-2 font-archivo font-black text-[0.62rem] uppercase tracking-[0.22em] flex items-center gap-2">
+                    <IconPin />
+                    <span>Pinned megathreads</span>
+                    <span className="ml-auto text-gold/60 font-franklin normal-case tracking-normal italic text-[0.72rem]">
+                      Permanent discussion homes
+                    </span>
+                  </div>
+                  <div className="border-l-[3px] border-l-gold">
+                    {pinnedPosts.map((post) => (
+                      <div key={post.id} className="border-b border-lightgray last:border-b-0 bg-gold/[0.04]">
+                        <PostCard post={post} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <AnimatePresence initial={true}>
+                {regularPosts.map((post, i) => (
+                  <motion.div
+                    key={post.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
+                    transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
+                  >
+                    <PostCard post={post} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </>
           )}
         </div>
 
