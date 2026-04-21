@@ -663,7 +663,7 @@ function Home() {
               href="https://trello.com/b/ZVVEpSeC/my-trello-board"
               target="_blank"
               rel="noreferrer"
-              className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-wide bg-gold text-navy px-[18px] py-[9px] no-underline hover:bg-[#E5A92E] transition-colors shrink-0"
+              className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-wide bg-gold text-navy px-[18px] py-[9px] no-underline hover:bg-[#E5A92E] transition-colors shrink-0 rounded-full"
             >
               + Add Idea
             </a>
@@ -689,7 +689,7 @@ function Home() {
             className="bg-card border border-lightgray p-4 text-center"
           >
             <div
-              className="w-10 h-10 rounded-[3px] flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
+              className="w-10 h-10 rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.72rem] mx-auto mb-2"
               style={{ background: m.color, color: m.tc }}
             >
               {m.initials}
@@ -841,7 +841,7 @@ function HeroStat({ value, label, highlight = false }) {
 
 function SideBox({ title, children, id }) {
   return (
-    <div className="border border-lightgray bg-card mb-3.5 overflow-hidden" id={id}>
+    <div className="border border-lightgray bg-card mb-3.5 overflow-hidden rounded-xl shadow-sm" id={id}>
       <div className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest px-4 py-3 bg-navy text-gold">
         {title}
       </div>
@@ -963,6 +963,16 @@ function PostCard({ post }) {
       setShareState('failed')
     }
     setTimeout(() => setShareState(null), 1800)
+  }
+
+  const vote = (dir) => {
+    if (userVote === dir) {
+      setVotes(votes + (dir === 'up' ? -1 : 1))
+      setUserVote(null)
+    } else {
+      setVotes(votes + (dir === 'up' ? (userVote === 'down' ? 2 : 1) : (userVote === 'up' ? -2 : -1)))
+      setUserVote(dir)
+    }
   }
 
   return (

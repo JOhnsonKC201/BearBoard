@@ -118,7 +118,7 @@ function ChatWidget() {
 
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-[84px] right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[160] flex flex-col overflow-hidden max-[768px]:w-[calc(100%-16px)] max-[768px]:right-2 max-[768px]:h-[420px]">
+        <div className="fixed bottom-[84px] right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[160] flex flex-col overflow-hidden rounded-2xl shadow-2xl max-[768px]:w-[calc(100%-16px)] max-[768px]:right-2 max-[768px]:h-[420px]">
           {/* Header */}
           <div className="bg-navy px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -157,7 +157,7 @@ function ChatWidget() {
                 }`}
               >
                 <div
-                  className={`w-[26px] h-[26px] flex items-center justify-center font-archivo text-[0.6rem] font-extrabold shrink-0 ${
+                  className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-archivo text-[0.6rem] font-extrabold shrink-0 ${
                     msg.from === 'bot' ? 'bg-navy text-gold' : 'bg-gold text-navy'
                   }`}
                 >
@@ -167,8 +167,8 @@ function ChatWidget() {
                   <div
                     className={`px-[13px] py-2.5 text-[0.82rem] leading-relaxed ${
                       msg.from === 'bot'
-                        ? 'bg-card border border-lightgray text-ink'
-                        : 'bg-navy text-white'
+                        ? 'bg-card border border-lightgray text-ink rounded-2xl rounded-tl-sm'
+                        : 'bg-navy text-white rounded-2xl rounded-tr-sm'
                     }`}
                   >
                     {msg.from === 'bot' ? renderReply(msg.text) : msg.text}
@@ -187,7 +187,7 @@ function ChatWidget() {
                   <button
                     key={s}
                     onClick={() => sendMessage(s)}
-                    className="bg-card border border-lightgray px-2.5 py-[5px] text-[0.7rem] font-franklin font-medium text-navy cursor-pointer hover:bg-navy hover:text-white hover:border-navy transition-colors"
+                    className="bg-card border border-lightgray px-2.5 py-[5px] text-[0.7rem] font-franklin font-medium text-navy cursor-pointer hover:bg-navy hover:text-white hover:border-navy transition-colors rounded-full"
                   >
                     {s}
                   </button>
@@ -198,10 +198,10 @@ function ChatWidget() {
             {/* Typing indicator */}
             {typing && (
               <div className="flex gap-2 self-start">
-                <div className="w-[26px] h-[26px] flex items-center justify-center font-archivo text-[0.6rem] font-extrabold bg-navy text-gold shrink-0">
+                <div className="w-[26px] h-[26px] rounded-full flex items-center justify-center font-archivo text-[0.6rem] font-extrabold bg-navy text-gold shrink-0">
                   B
                 </div>
-                <div className="flex items-center gap-1 px-[13px] py-2">
+                <div className="flex items-center gap-1 px-[13px] py-2 bg-card border border-lightgray rounded-2xl rounded-tl-sm">
                   <span className="w-[5px] h-[5px] bg-gray rounded-full" style={{ animation: 'bounce-dot 1.2s infinite' }} />
                   <span className="w-[5px] h-[5px] bg-gray rounded-full" style={{ animation: 'bounce-dot 1.2s infinite 0.15s' }} />
                   <span className="w-[5px] h-[5px] bg-gray rounded-full" style={{ animation: 'bounce-dot 1.2s infinite 0.3s' }} />
@@ -218,11 +218,11 @@ function ChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
               placeholder="Ask anything about BearBoard..."
-              className="flex-1 border border-lightgray py-[9px] px-3.5 text-[0.82rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray"
+              className="flex-1 border border-lightgray py-[9px] px-3.5 text-[0.82rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray rounded-full"
             />
             <button
               onClick={() => sendMessage(input)}
-              className="w-9 h-9 bg-gold text-navy border-none cursor-pointer text-[1rem] flex items-center justify-center hover:bg-[#E5A92E] transition-colors"
+              className="w-9 h-9 bg-gold text-navy border-none cursor-pointer text-[1rem] flex items-center justify-center hover:bg-[#E5A92E] transition-colors rounded-full"
             >
               &#10148;
             </button>

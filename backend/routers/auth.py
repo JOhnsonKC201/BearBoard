@@ -50,8 +50,12 @@ def get_current_user_dep(
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
+        sub = payload.get("sub")
+        if sub is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        try:
+            user_id = int(sub)
+        except (TypeError, ValueError):
             raise HTTPException(status_code=401, detail="Invalid token")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -120,7 +124,10 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = jwt.encode({"sub": db_user.id, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    # JWT spec requires `sub` to be a string; python-jose enforces this on
+    # decode and would otherwise raise JWTClaimsError, returning 401 for
+    # every authenticated request right after login.
+    token = jwt.encode({"sub": str(db_user.id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
 
 
