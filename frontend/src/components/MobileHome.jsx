@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SafetyBox from './SafetyBox'
 import MobilePostCard from './MobilePostCard'
-import { paletteFor, catClassFor } from '../utils/avatar'
+import { paletteFor, catClassFor, flairLabel } from '../utils/avatar'
 import {
   initialsFor,
   formatRelativeShort as formatRelative,
@@ -61,12 +61,16 @@ function Avatar({ seed, name, size = 40, ring = false }) {
 
 function CategoryPill({ category, inverse = false }) {
   if (!category) return null
+  // Render "Lost & Found" instead of the raw "lostfound" slug we send
+  // to the backend. flairLabel falls back to the original string if the
+  // slug isn't in the registered set.
+  const label = flairLabel(category)
   // On dark surfaces we swap to a transparent gold-outlined pill so the
   // muted category fills don't fight the navy backdrop.
   if (inverse) {
     return (
       <span className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.14em] px-2 py-[3px] border border-gold/60 text-gold">
-        {category}
+        {label}
       </span>
     )
   }
@@ -74,7 +78,7 @@ function CategoryPill({ category, inverse = false }) {
     <span
       className={`font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.1em] px-2 py-[3px] ${catClassFor(category)}`}
     >
-      {category}
+      {label}
     </span>
   )
 }

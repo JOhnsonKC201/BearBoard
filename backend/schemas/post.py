@@ -7,6 +7,9 @@ from datetime import datetime, date
 # deliberate backend work.
 ALLOWED_CATEGORIES = {
     "general", "academic", "events", "housing", "swap", "safety", "anonymous",
+    # Post flairs added for the community-essentials pass. Keep slugs
+    # lowercase + alphanumeric so URL params and filter chips match.
+    "memes", "advice", "lostfound", "admissions",
     # legacy/backfill categories that exist in older rows:
     "recruiters", "social",
 }

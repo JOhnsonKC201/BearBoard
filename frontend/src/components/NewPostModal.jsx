@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { FLAIRS, flairSlug } from '../utils/avatar'
 
-const CATEGORIES = ['General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
+// Picker labels. Order mirrors FLAIRS so the UI matches the feed filter rail.
+const CATEGORIES = FLAIRS.map((f) => f.label)
 const LISTING_CATEGORIES = new Set(['Housing', 'Swap'])
 const TITLE_MAX = 200
 const BODY_MAX = 5000
@@ -105,7 +107,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
       const payload = {
         title: title.trim(),
         body: body.trim(),
-        category: category.toLowerCase(),
+        category: flairSlug(category),
         is_sos: isSos,
       }
       if (isEvent) {
