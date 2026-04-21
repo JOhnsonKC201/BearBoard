@@ -15,5 +15,11 @@ class Event(Base):
     end_time = Column(String(20))
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, server_default=func.now())
+    # External-source bookkeeping. external_id is the iCal UID (or other stable
+    # remote id) we dedupe on when re-syncing from morgan.edu.
+    source = Column(String(40), nullable=True)
+    external_id = Column(String(255), nullable=True, index=True)
+    source_url = Column(String(500), nullable=True)
+    image_url = Column(String(500), nullable=True)
 
     creator = relationship("User")

@@ -1,15 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-
-const CANNED = {
-  'What events are coming up?':
-    'This week:<br/><br/>\u2022 <b>Yard Fest 2026</b> \u2014 Apr 18, Main Yard, 12-8 PM<br/>\u2022 <b>Spring Career Fair</b> \u2014 Apr 22, Student Center, 10 AM-3 PM<br/>\u2022 <b>Hackathon Kickoff</b> \u2014 Apr 25, SCMNS 201, 6 PM',
-  'Find me a study group for COSC 350':
-    'Found one! <b>"Networking Gang"</b> for COSC 350 \u2014 12 members, meets Tue/Thu on library 3rd floor. They\'re doing networking layers and socket programming. Want me to add you?',
-  "What's trending today?":
-    'Top posts today:<br/><br/>1. <b>Yard Fest Weekend Plans</b> \u2014 89 upvotes<br/>2. <b>JPMorgan Internship</b> \u2014 64 upvotes<br/>3. <b>Spring Career Fair</b> \u2014 47 upvotes',
-  'How do I create a post?':
-    'Hit the <b>"+ New Post"</b> button on the right side. Pick a category, write your title and body, and post. For events, add a date/time so it shows on the calendar.',
-}
+import { apiFetch } from '../api/client'
 
 const SUGGESTIONS = [
   'What events are coming up?',
@@ -18,8 +8,42 @@ const SUGGESTIONS = [
   'How do I create a post?',
 ]
 
+// Render the server's lightweight markdown (**bold**, newlines) as React
+// nodes. Uses pure JSX so content is always escaped by React; never call
+// dangerouslySetInnerHTML here.
+function renderReply(raw) {
+  const text = String(raw ?? '')
+  const lines = text.split('\n')
+  return lines.map((line, lineIdx) => {
+    const parts = []
+    const boldRe = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match
+    let partIdx = 0
+    while ((match = boldRe.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(<span key={`t-${lineIdx}-${partIdx++}`}>{line.slice(lastIndex, match.index)}</span>)
+      }
+      parts.push(<b key={`b-${lineIdx}-${partIdx++}`}>{match[1]}</b>)
+      lastIndex = match.index + match[0].length
+    }
+    if (lastIndex < line.length) {
+      parts.push(<span key={`t-${lineIdx}-${partIdx++}`}>{line.slice(lastIndex)}</span>)
+    }
+    return (
+      <span key={`line-${lineIdx}`}>
+        {parts}
+        {lineIdx < lines.length - 1 && <br />}
+      </span>
+    )
+  })
+}
+
 function ChatWidget() {
   const [open, setOpen] = useState(false)
+  // If /bear-mascot.png is present in public/, use the Morgan State bear logo.
+  // Falls back to the bear emoji so the button never looks broken during dev.
+  const [bearImgOk, setBearImgOk] = useState(true)
   const [messages, setMessages] = useState([
     {
       from: 'bot',
@@ -38,24 +62,26 @@ function ChatWidget() {
     }
   }, [messages, typing])
 
-  const addBotReply = (text) => {
-    setTyping(true)
-    setTimeout(() => {
-      setTyping(false)
-      setMessages((prev) => [...prev, { from: 'bot', text }])
-    }, 1000)
-  }
-
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
     if (!text.trim()) return
     setMessages((prev) => [...prev, { from: 'user', text }])
     setShowSuggestions(false)
     setInput('')
-
-    const reply =
-      CANNED[text] ||
-      'Thanks for your message! Try asking about <b>events</b>, <b>study groups</b>, <b>trending posts</b>, or <b>how to use features</b>. The full AI version will be able to answer anything about campus life.'
-    addBotReply(reply)
+    setTyping(true)
+    try {
+      const data = await apiFetch('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: text }),
+      })
+      setMessages((prev) => [...prev, { from: 'bot', text: data.reply || '' }])
+    } catch (err) {
+      setMessages((prev) => [...prev, {
+        from: 'bot',
+        text: err.message || "I'm having trouble reaching the server right now. Try again in a moment.",
+      }])
+    } finally {
+      setTyping(false)
+    }
   }
 
   const toggle = () => {
@@ -68,11 +94,23 @@ function ChatWidget() {
       {/* Chat bubble */}
       <div
         onClick={toggle}
-        className="fixed bottom-6 right-6 w-[54px] h-[54px] bg-navy rounded-full flex items-center justify-center cursor-pointer z-[150] hover:scale-105 transition-transform shadow-lg"
+        className="fixed bottom-6 right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold flex items-center justify-center cursor-pointer z-[150] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
+        aria-label={open ? 'Close chat' : 'Open BearBoard chat'}
       >
-        <span className="text-[1.3rem]">{open ? '\u2715' : '\uD83D\uDCAC'}</span>
-        {badgeVisible && (
-          <div className="absolute -top-[3px] -right-[3px] bg-gold text-navy font-archivo text-[0.58rem] font-extrabold w-[18px] h-[18px] flex items-center justify-center rounded-full">
+        {open ? (
+          <span className="text-white text-[1.3rem] font-archivo font-black">&#10005;</span>
+        ) : bearImgOk ? (
+          <img
+            src="/bear-mascot.png"
+            alt=""
+            onError={() => setBearImgOk(false)}
+            className="w-[42px] h-[42px] object-contain"
+          />
+        ) : (
+          <span className="text-[1.75rem] leading-none" aria-hidden="true">&#128059;</span>
+        )}
+        {badgeVisible && !open && (
+          <div className="absolute -top-1 -right-1 bg-gold text-navy font-archivo text-[0.58rem] font-extrabold w-[20px] h-[20px] rounded-full flex items-center justify-center ring-2 ring-navy">
             1
           </div>
         )}
@@ -84,8 +122,17 @@ function ChatWidget() {
           {/* Header */}
           <div className="bg-navy px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-[30px] h-[30px] bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-black text-[0.72rem]">
-                B
+              <div className="w-[32px] h-[32px] bg-gold rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                {bearImgOk ? (
+                  <img
+                    src="/bear-mascot.png"
+                    alt=""
+                    onError={() => setBearImgOk(false)}
+                    className="w-[28px] h-[28px] object-contain"
+                  />
+                ) : (
+                  <span className="text-[1rem]" aria-hidden="true">&#128059;</span>
+                )}
               </div>
               <div>
                 <div className="text-white font-semibold text-[0.85rem]">BearBoard Assistant</div>
@@ -123,8 +170,9 @@ function ChatWidget() {
                         ? 'bg-card border border-lightgray text-ink rounded-2xl rounded-tl-sm'
                         : 'bg-navy text-white rounded-2xl rounded-tr-sm'
                     }`}
-                    dangerouslySetInnerHTML={{ __html: msg.text }}
-                  />
+                  >
+                    {msg.from === 'bot' ? renderReply(msg.text) : msg.text}
+                  </div>
                   <div className={`text-[0.6rem] text-gray px-1 ${msg.from === 'user' ? 'text-right' : ''}`}>
                     Just now
                   </div>

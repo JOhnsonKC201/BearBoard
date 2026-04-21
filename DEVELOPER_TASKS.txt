@@ -117,54 +117,18 @@
   [DONE] 3. Register.jsx has confirm password field with match check.
   [DONE] 4. client.js has error handling and reads VITE_API_URL from env.
 
-  REMAINING WORK - these are the Sprint 1 priority:
-
-  5. Build auth context/provider (frontend/src/context/AuthContext.jsx):
-     - Store JWT token in localStorage + user info in React context.
-     - Provide login(), logout(), register() functions.
-     - On app load, check for stored token and call GET /api/auth/me.
-     - Navbar should show user initials avatar when logged in, and
-       Login/Register links when logged out.
-     - This is the #1 blocker - most other tasks depend on auth state.
-
-  6. Connect Login.jsx to POST /api/auth/login:
-     - Login.jsx currently just does console.log on submit.
-     - Call the API via apiFetch, store token via auth context.
-     - Redirect to / on success. Show error on invalid credentials.
-
-  7. Connect Register.jsx to POST /api/auth/register:
-     - Register.jsx currently just does console.log on submit.
-     - Call the API, auto-login after success, redirect to /.
-
-  8. Connect the feed (Home.jsx) to GET /api/posts:
-     - Home.jsx uses hardcoded SAMPLE_POSTS, TRENDING, EVENTS, GROUPS.
-     - Replace with apiFetch calls to /api/posts, /api/trending,
-       /api/events, /api/groups.
-     - Show a loading state while fetching. Show empty state if no posts.
-
-  9. Wire sort tabs to the API:
-     - The New/Popular/Trending tabs exist in the UI but only toggle
-       local state. Pass the sort param to GET /api/posts?sort=X.
-
-  10. Wire category filter chips to the API:
-      - The filter chips exist but only toggle local state. Pass the
-        category param to GET /api/posts?category=X.
-
-  11. Wire vote buttons on post cards:
-      - Vote buttons exist in PostCard but have no onClick handlers.
-      - Call POST /api/posts/{id}/vote on click.
-      - Update the displayed count. Requires auth.
-
-  12. Build the "New Post" modal:
-      - The gold "+ New Post" FAB button exists but does nothing.
-      - Clicking it should open a modal with: title, body, category dropdown.
-      - Submit calls POST /api/posts (auth required).
-      - New post should appear in the feed after creation.
-
-  13. Connect the chat widget to POST /api/chat:
-      - ChatWidget.jsx currently uses local CANNED responses.
-      - Replace with apiFetch call to POST /api/chat.
-      - Keep suggestion chips working the same way.
+  [DONE] 5. AuthContext provider stores JWT + user, provides login/logout/register;
+            Navbar shows initials avatar when authed and Sign In/Join when not.
+  [DONE] 6. Login.jsx calls POST /api/auth/login, redirects to / on success,
+            shows error on invalid credentials.
+  [DONE] 7. Register.jsx calls POST /api/auth/register, auto-logs in, redirects to /.
+  [DONE] 8. Home.jsx fetches /api/posts, /api/trending, /api/events, /api/groups
+            with loading and empty states.
+  [DONE] 9. Sort tabs (new/popular/trending) pass `sort=` to /api/posts.
+  [DONE] 10. Category filter chips pass `category=` to /api/posts (server-side).
+  [DONE] 11. Vote buttons call POST /api/posts/{id}/vote with optimistic UI.
+  [DONE] 12. + New Post FAB opens modal posting to POST /api/posts.
+  [DONE] 13. ChatWidget posts to /api/chat (suggestion chips still work).
 
   DO NOT:
   - Do not build the post detail page (that is Rohan's work).

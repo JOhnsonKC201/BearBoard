@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, case
 from core.database import get_db
+from core.rate_limit import limiter
 from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse, CommentCreate, CommentResponse
 from models.post import Post
 from models.vote import Vote
@@ -10,7 +11,12 @@ from models.event import Event
 from models.group import Group
 from models.user import User
 from routers.auth import get_current_user_dep
+from services.streak import bump_streak
+from services.resurface import find_relevant_recipients
+from models.notification import Notification
 from datetime import datetime, timedelta, timezone
+
+SOS_NOTIFICATION_KIND = "sos"
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -19,6 +25,7 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 def get_posts(
     sort: str = Query("newest", regex="^(newest|popular|trending)$"),
     category: str = Query(None),
+    author_id: int = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -28,31 +35,95 @@ def get_posts(
     if category:
         query = query.filter(Post.category == category)
 
+    if author_id is not None:
+        query = query.filter(Post.author_id == author_id)
+
+    # Unresolved SOS posts always pin to the top of the feed regardless of sort.
+    sos_first = case((Post.is_sos.is_(True) & Post.sos_resolved.is_(False), 0), else_=1)
+
     if sort == "popular":
-        query = query.order_by(desc(Post.upvotes - Post.downvotes))
+        query = query.order_by(sos_first, desc(Post.upvotes - Post.downvotes))
     elif sort == "trending":
         day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-        query = query.filter(Post.created_at >= day_ago).order_by(desc(Post.upvotes - Post.downvotes))
+        query = query.filter(Post.created_at >= day_ago).order_by(sos_first, desc(Post.upvotes - Post.downvotes))
     else:
-        query = query.order_by(desc(Post.created_at))
+        query = query.order_by(sos_first, desc(Post.created_at))
 
     posts = query.offset(offset).limit(limit).all()
+
+    if posts:
+        post_ids = [p.id for p in posts]
+        counts = dict(
+            db.query(Comment.post_id, func.count(Comment.id))
+            .filter(Comment.post_id.in_(post_ids))
+            .group_by(Comment.post_id)
+            .all()
+        )
+        for p in posts:
+            p.comment_count = counts.get(p.id, 0)
+
     return posts
 
 
+SOS_RECENT_LIMIT = 1
+SOS_RECENT_WINDOW_HOURS = 6
+
+
 @router.post("/", response_model=PostResponse)
+@limiter.limit("20/hour")
 def create_post(
+    request: Request,
     post: PostCreate,
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    is_event = post.category.lower() in {"event", "events"}
+    is_listing = post.category.lower() in {"housing", "swap"}
+
+    if post.is_sos:
+        # Per-user SOS throttle so a single student cannot mass-notify major-mates.
+        window = datetime.now(timezone.utc) - timedelta(hours=SOS_RECENT_WINDOW_HOURS)
+        recent_sos = (
+            db.query(func.count(Post.id))
+            .filter(
+                Post.author_id == current_user.id,
+                Post.is_sos.is_(True),
+                Post.created_at >= window,
+            )
+            .scalar()
+            or 0
+        )
+        if recent_sos >= SOS_RECENT_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"SOS limit reached: {SOS_RECENT_LIMIT} per {SOS_RECENT_WINDOW_HOURS}h.",
+            )
     db_post = Post(
         title=post.title,
         body=post.body,
         category=post.category,
         author_id=current_user.id,
+        event_date=post.event_date if is_event else None,
+        event_time=post.event_time if is_event else None,
+        is_sos=bool(post.is_sos),
+        price=(post.price or None) if is_listing else None,
+        contact_info=(post.contact_info or None) if is_listing else None,
+        image_url=(post.image_url or None),
     )
     db.add(db_post)
+    bump_streak(db, current_user)
+    db.flush()  # need db_post.id for SOS notifications
+
+    if db_post.is_sos:
+        recipient_ids = find_relevant_recipients(db, current_user)
+        for rid in recipient_ids:
+            db.add(Notification(
+                recipient_id=rid,
+                post_id=db_post.id,
+                kind=SOS_NOTIFICATION_KIND,
+                read=False,
+            ))
+
     db.commit()
     db.refresh(db_post)
     return db_post
@@ -80,11 +151,33 @@ def delete_post(
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.author_id != current_user.id:
+    is_mod = current_user.role in ("admin", "moderator")
+    if post.author_id != current_user.id and not is_mod:
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
     db.delete(post)
     db.commit()
-    return {"detail": "Post deleted"}
+    return {"detail": "Post deleted", "by_mod": is_mod and post.author_id != current_user.id}
+
+
+@router.post("/{post_id}/resolve-sos")
+def resolve_sos(
+    post_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Mark an SOS post as resolved. The author can resolve their own; mods/admins
+    can resolve anyone's."""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if not post.is_sos:
+        raise HTTPException(status_code=400, detail="Post is not an SOS")
+    is_mod = current_user.role in ("admin", "moderator")
+    if post.author_id != current_user.id and not is_mod:
+        raise HTTPException(status_code=403, detail="Not authorized to resolve this SOS")
+    post.sos_resolved = True
+    db.commit()
+    return {"detail": "resolved"}
 
 
 @router.post("/{post_id}/vote")
@@ -149,6 +242,9 @@ def create_comment(
 
     new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
     db.add(new_comment)
+    bump_streak(db, current_user)
+    if post.is_sos and not post.sos_resolved:
+        post.sos_resolved = True
     db.commit()
     db.refresh(new_comment)
 

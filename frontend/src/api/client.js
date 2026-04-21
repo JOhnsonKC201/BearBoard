@@ -1,4 +1,14 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+// Normalize VITE_API_URL so both full URLs ("https://api.example.com") and
+// bare hostnames ("api.example.com") work. Render's Blueprint `fromService`
+// interpolation emits just the host, so we prepend https:// when missing.
+function normalizeApiUrl(raw) {
+  if (!raw) return "http://localhost:8000"
+  const trimmed = String(raw).trim().replace(/\/$/, "")
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
+
+export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL)
 
 export async function apiFetch(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`

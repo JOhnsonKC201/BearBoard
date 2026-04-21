@@ -9,13 +9,113 @@
 }
 
 body {
-  font-family: 'Libre Franklin', sans-serif;
+  font-family: 'Libre Franklin', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #F0ECE4;
   color: #1C1C1C;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Enable ligatures and contextual alternates across body text. */
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* Every heading defaults to Archivo with proper letterspacing and
+   tabular-ish ligature support, so any heading that forgets a
+   font-archivo class still inherits the brand voice rather than
+   falling back to Libre Franklin. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Archivo', 'Libre Franklin', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+}
+
+/* Uppercase labels should use capital-spacing features so all-caps
+   tracking looks balanced. Apply to every element with tracking-*
+   plus uppercase (the broadsheet label pattern used across
+   BearBoard). */
+.uppercase {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "case" 1, "cpsp" 1;
+}
+
+/* Tabular numerals everywhere we show a count - vote scores,
+   comment counts, stats ledger, group members. Guarantees columns
+   of numbers line up and widths don't jitter when the score ticks
+   from 9 to 10. */
+.tabular-nums {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Buttons and inputs inherit Libre Franklin, not the browser default
+   system stack. Without this, form controls flash in Helvetica / Arial
+   on Safari before JS hydrates. */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+/* Global keyboard focus ring. Only fires for keyboard (:focus-visible);
+   mouse/touch clicks never see it. Colored gold against navy, navy
+   against gold, and dark-ring-on-light-bg otherwise so it always has
+   contrast against BearBoard's surfaces. */
+*:focus { outline: none; }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #D4962A;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Respect users who want less motion: disable looping/decorative
+   animations, shorten transitions, and kill framer-motion reveal
+   offsets. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes bounce-dot {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
   30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #EAE7E0 0%, #F4F1EA 50%, #EAE7E0 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.15); }
+}
+
+.status-dot {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes vote-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+.vote-pop {
+  animation: vote-pop 280ms ease-out;
 }
