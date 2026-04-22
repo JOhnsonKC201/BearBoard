@@ -23,6 +23,7 @@ from sqlalchemy import func, case, Integer
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.memocache import ttl_cache
 from models.user import User
 from models.post import Post
 from models.comment import Comment
@@ -47,10 +48,13 @@ def _user_card(user: User) -> dict:
 
 
 @router.get("")
+@ttl_cache(ttl_seconds=60)
 def get_leaderboard(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
+    # Cached for 60s keyed by `limit` — five aggregation subqueries per
+    # call, and rankings shifting minute-by-minute isn't useful.
     # Collect everyone we'll render so we can bulk-fetch the User rows once.
     # Each sub-query returns (user_id, metric_value); we deduplicate at the end.
 
