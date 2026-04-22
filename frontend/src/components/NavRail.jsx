@@ -160,6 +160,7 @@ function NavRail() {
         <RailItem hash="#groups" label="Groups" Icon={IconPeople} />
         <RailItem to="/map" label="Campus Map" Icon={IconMap} active={location.pathname === '/map'} />
         <RailItem to="/professors" label="Professors" Icon={IconMortar} active={location.pathname === '/professors'} />
+        <RailItem to="/crosslinks" label="Related communities" Icon={IconTeam} active={location.pathname === '/crosslinks'} />
         <RailItem hash="#team" label="Team" Icon={IconTeam} />
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
