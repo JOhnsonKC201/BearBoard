@@ -19,6 +19,7 @@ function Stars({ value, size = '1rem' }) {
 }
 
 function ProfessorCard({ prof, onOpen, active }) {
+  const hasRating = prof.avg_rating != null && prof.rating_count > 0
   return (
     <button
       onClick={() => onOpen(prof)}
@@ -26,7 +27,7 @@ function ProfessorCard({ prof, onOpen, active }) {
         active ? 'border-gold' : 'border-lightgray hover:border-navy'
       }`}
     >
-      <div className="px-4 py-3.5 flex items-start gap-3">
+      <div className="px-4 py-3.5 flex items-center gap-3">
         <div className="w-11 h-11 rounded-full bg-navy text-gold flex items-center justify-center font-archivo font-black text-[0.78rem] shrink-0 ring-1 ring-black/5">
           {(prof.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')}
         </div>
@@ -35,15 +36,25 @@ function ProfessorCard({ prof, onOpen, active }) {
           <div className="text-[0.7rem] text-gray uppercase tracking-wide font-archivo font-bold mt-0.5 truncate">
             {prof.department || 'Department unknown'}
           </div>
-          <div className="mt-1.5 flex items-center gap-2 text-[0.75rem]">
-            <Stars value={prof.avg_rating} />
-            <span className="font-archivo font-extrabold text-ink">
-              {prof.avg_rating != null ? prof.avg_rating.toFixed(1) : '-'}
+        </div>
+        <div className="shrink-0 text-right">
+          {hasRating ? (
+            <>
+              <div className="flex items-center justify-end gap-1">
+                <span className="text-gold text-[0.95rem] leading-none">&#9733;</span>
+                <span className="font-archivo font-black text-navy text-[1.05rem] leading-none tabular-nums">
+                  {prof.avg_rating.toFixed(1)}
+                </span>
+              </div>
+              <div className="text-[0.64rem] text-gray uppercase tracking-wider font-archivo font-bold mt-1">
+                {prof.rating_count} {prof.rating_count === 1 ? 'review' : 'reviews'}
+              </div>
+            </>
+          ) : (
+            <span className="inline-block font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-offwhite text-gray border border-lightgray">
+              Not yet rated
             </span>
-            <span className="text-gray">
-              ({prof.rating_count} {prof.rating_count === 1 ? 'review' : 'reviews'})
-            </span>
-          </div>
+          )}
         </div>
       </div>
     </button>
@@ -331,11 +342,34 @@ function ProfessorDetail({ profId, onBack, reloadKey, onReload }) {
         </div>
       </div>
 
-      <div className="px-5 py-4 grid grid-cols-3 gap-3 border-b border-[#EAE7E0]">
-        <Stat label="Overall" value={data.avg_rating != null ? data.avg_rating.toFixed(1) : '-'} sub={<Stars value={data.avg_rating} />} />
-        <Stat label="Difficulty" value={data.avg_difficulty != null ? data.avg_difficulty.toFixed(1) : '-'} sub={<Stars value={data.avg_difficulty} />} />
-        <Stat label="Take again" value={data.would_take_again_pct != null ? `${data.would_take_again_pct}%` : '-'} />
-      </div>
+      {data.rating_count > 0 ? (
+        <div className="px-5 py-4 grid grid-cols-3 gap-3 border-b border-[#EAE7E0]">
+          <Stat
+            label="Overall"
+            value={data.avg_rating != null ? data.avg_rating.toFixed(1) : '-'}
+            sub={data.avg_rating != null ? <Stars value={data.avg_rating} /> : null}
+          />
+          <Stat
+            label="Difficulty"
+            value={data.avg_difficulty != null ? data.avg_difficulty.toFixed(1) : '-'}
+            sub={data.avg_difficulty != null ? <Stars value={data.avg_difficulty} /> : null}
+          />
+          <Stat
+            label="Take again"
+            value={data.would_take_again_pct != null ? `${data.would_take_again_pct}%` : '-'}
+          />
+        </div>
+      ) : (
+        <div className="px-5 py-8 border-b border-[#EAE7E0] flex flex-col items-center text-center">
+          <div className="text-lightgray text-[2.1rem] leading-none mb-2 tracking-[0.1em]" aria-hidden>
+            &#9734;&#9734;&#9734;&#9734;&#9734;
+          </div>
+          <div className="font-archivo font-black text-[1.05rem] text-navy">No ratings yet</div>
+          <div className="text-[0.82rem] text-gray mt-1 max-w-[360px]">
+            Be the first to share what this class was really like.
+          </div>
+        </div>
+      )}
 
       <div className="px-5 py-4">
         <div className="flex items-center justify-between mb-3">
@@ -368,11 +402,7 @@ function ProfessorDetail({ profId, onBack, reloadKey, onReload }) {
           </div>
         )}
 
-        {data.ratings.length === 0 ? (
-          <div className="text-[0.85rem] text-gray text-center py-6">
-            No reviews yet. Be the first.
-          </div>
-        ) : (
+        {data.ratings.length === 0 ? null : (
           <div className="space-y-3">
             {data.ratings.map((r) => (
               <div key={r.id} className="bg-offwhite border border-lightgray px-4 py-3">
