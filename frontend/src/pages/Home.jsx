@@ -422,68 +422,6 @@ function Home() {
 
         {/* Main column */}
         <div className="min-w-0">
-          {/* Upcoming Events Showcase */}
-          <section className="mb-8" id="events-showcase">
-            <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
-              <div>
-                <h2 className="font-archivo font-black text-[1.3rem] uppercase tracking-tight text-navy leading-none">
-                  Upcoming at <span className="text-gold">Morgan</span>
-                </h2>
-                <p className="text-[0.75rem] text-gray mt-1.5">
-                  Fresh from events.morgan.edu{sidebarLoading ? '' : events.length > 0 && ` · ${events.length} upcoming`}
-                </p>
-              </div>
-              <a
-                href="https://events.morgan.edu/"
-                target="_blank"
-                rel="noreferrer"
-                className="font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline flex items-center gap-1"
-              >
-                View full calendar <span aria-hidden="true">&rarr;</span>
-              </a>
-            </div>
-
-            {sidebarLoading ? (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-card border border-lightgray overflow-hidden"
-                    style={{ animationDelay: `${i * 90}ms` }}
-                  >
-                    <div
-                      className="aspect-[16/9] bg-gradient-to-br from-offwhite via-[#EBE7DE] to-offwhite bg-[length:200%_100%] animate-pulse"
-                      style={{ animationDelay: `${i * 90}ms` }}
-                    />
-                    <div className="p-4 space-y-2">
-                      <div className="h-[10px] bg-gold/20 rounded w-20 animate-pulse" style={{ animationDelay: `${i * 90 + 40}ms` }} />
-                      <div className="h-4 bg-offwhite rounded animate-pulse w-3/4" style={{ animationDelay: `${i * 90 + 80}ms` }} />
-                      <div className="h-3 bg-offwhite rounded animate-pulse w-1/2" style={{ animationDelay: `${i * 90 + 120}ms` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : events.length === 0 ? (
-              <div className="bg-card border border-lightgray px-4 py-8 text-center">
-                <div className="text-[0.82rem] text-gray">No upcoming events synced yet.</div>
-                <a
-                  href="https://events.morgan.edu/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block mt-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-wide text-navy hover:text-gold transition-colors no-underline border border-navy/20 hover:border-gold px-3 py-1.5"
-                >
-                  Open events.morgan.edu &rarr;
-                </a>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {events.slice(0, 6).map((ev) => (
-                  <EventShowcaseCard key={ev.id} ev={ev} />
-                ))}
-              </div>
-            )}
-          </section>
-
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-archivo font-extrabold text-[0.85rem] uppercase tracking-widest text-gray">Campus Feed</h2>
             <div className="flex gap-1 bg-offwhite border border-lightgray rounded-full p-1">
@@ -623,6 +561,61 @@ function Home() {
                 </div>
               </Link>
             ))}
+          </SideBox>
+
+          {/* Upcoming events - compact sidebar list */}
+          <SideBox title="Upcoming at Morgan" id="events-box">
+            {sidebarLoading ? (
+              <SidebarSkeleton count={4} />
+            ) : events.length === 0 ? (
+              <div className="px-4 py-3 text-[0.78rem] text-gray">
+                No upcoming events synced yet.
+              </div>
+            ) : (
+              events.slice(0, 5).map((ev) => {
+                const { month, day } = eventDateParts(ev.event_date)
+                const dateLabel = formatEventDateTime(ev.event_date, ev.start_time)
+                const Wrapper = ev.source_url ? 'a' : 'div'
+                const wrapperProps = ev.source_url
+                  ? { href: ev.source_url, target: '_blank', rel: 'noreferrer' }
+                  : {}
+                return (
+                  <Wrapper
+                    key={ev.id}
+                    {...wrapperProps}
+                    className="flex gap-3 items-start px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/event"
+                  >
+                    <div className="shrink-0 w-[38px] border border-lightgray rounded-sm overflow-hidden bg-white">
+                      <div className="bg-navy text-gold text-[0.5rem] uppercase tracking-wider font-archivo font-extrabold text-center py-[2px]">
+                        {month}
+                      </div>
+                      <div className="font-archivo font-black text-navy text-[1.05rem] leading-none text-center py-[3px]">
+                        {day}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[0.8rem] font-semibold leading-tight mb-1 group-hover/event:text-navy transition-colors line-clamp-2">
+                        {ev.title}
+                      </div>
+                      {dateLabel && (
+                        <div className="text-[0.68rem] text-gray truncate">{dateLabel}</div>
+                      )}
+                      {ev.location && (
+                        <div className="text-[0.68rem] text-gray truncate">{ev.location}</div>
+                      )}
+                    </div>
+                  </Wrapper>
+                )
+              })
+            )}
+            <a
+              href="https://events.morgan.edu/"
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center px-4 py-2.5 bg-offwhite border-t border-[#EAE7E0] text-[0.68rem] font-archivo font-extrabold uppercase tracking-[0.2em] text-navy hover:text-gold no-underline"
+            >
+              View full calendar &rarr;
+            </a>
           </SideBox>
 
           <SafetyBox onReportIncident={() => {
