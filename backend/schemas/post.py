@@ -93,6 +93,26 @@ class PostCreate(BaseModel):
                 raise ValueError("event_date is required for Event posts")
         return self
 
+class PostUpdate(BaseModel):
+    """Fields an author can edit on a post they already published. All
+    optional so the client can PATCH only what changed. Category edits
+    are disallowed because changing a post's flair mid-flight confuses
+    filters and notifications; if that's wrong, lift the restriction
+    here and re-test the resurface + SOS pipelines."""
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    body: Optional[str] = Field(default=None, min_length=1, max_length=10_000)
+    image_url: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("image_url")
+    @classmethod
+    def _check_image_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_public_image_url(v)
+
+
+class CommentUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=5_000)
+
+
 class AuthorInfo(BaseModel):
     id: int
     name: str

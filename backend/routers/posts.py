@@ -3,7 +3,20 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 from core.database import get_db
 from core.rate_limit import limiter
-from schemas.post import PostCreate, PostResponse, PostDetailResponse, VoteRequest, EventResponse, GroupResponse, ChatRequest, ChatResponse, CommentCreate, CommentResponse
+from schemas.post import (
+    PostCreate,
+    PostUpdate,
+    PostResponse,
+    PostDetailResponse,
+    VoteRequest,
+    EventResponse,
+    GroupResponse,
+    ChatRequest,
+    ChatResponse,
+    CommentCreate,
+    CommentUpdate,
+    CommentResponse,
+)
 from models.post import Post
 from models.vote import Vote
 from models.comment import Comment
@@ -185,6 +198,38 @@ def delete_post(
     return {"detail": "Post deleted", "by_mod": is_mod and post.author_id != current_user.id}
 
 
+@router.put("/{post_id}", response_model=PostResponse)
+@limiter.limit("20/hour")
+def update_post(
+    request: Request,
+    post_id: int,
+    patch: PostUpdate,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Edit an existing post. Author-only (moderators are intentionally
+    *not* allowed here: edits should preserve the author's voice; mods
+    can delete if content is rule-breaking). Only title/body/image_url
+    can change — category is locked because changing a post's flair
+    would rearrange filters, notifications, and leaderboard attribution
+    in ways the feed never renders cleanly."""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this post")
+    if patch.title is not None:
+        post.title = patch.title.strip()
+    if patch.body is not None:
+        post.body = patch.body.strip()
+    if patch.image_url is not None:
+        # Empty string clears the image; anything else is the already-validated URL.
+        post.image_url = patch.image_url.strip() or None
+    db.commit()
+    db.refresh(post)
+    return post
+
+
 @router.post("/{post_id}/resolve-sos")
 def resolve_sos(
     post_id: int,
@@ -285,3 +330,63 @@ def create_comment(
         .first()
     )
     return new_comment
+
+
+@router.put("/{post_id}/comments/{comment_id}", response_model=CommentResponse)
+@limiter.limit("30/minute")
+def update_comment(
+    request: Request,
+    post_id: int,
+    comment_id: int,
+    patch: CommentUpdate,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Author-only edit. Mods delete rather than edit (same reasoning
+    as posts: edits must preserve the author's voice)."""
+    c = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id, Comment.post_id == post_id)
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if c.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this comment")
+    body = patch.body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Comment body cannot be empty")
+    c.body = body
+    db.commit()
+    c = (
+        db.query(Comment)
+        .options(joinedload(Comment.author))
+        .filter(Comment.id == c.id)
+        .first()
+    )
+    return c
+
+
+@router.delete("/{post_id}/comments/{comment_id}")
+def delete_comment(
+    post_id: int,
+    comment_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Author OR moderator can delete. Unlike edit, moderation has
+    legitimate reasons to remove a comment (rule violation) even when
+    the author disagrees."""
+    c = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id, Comment.post_id == post_id)
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    is_mod = current_user.role in ("admin", "moderator")
+    if c.author_id != current_user.id and not is_mod:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
+    db.delete(c)
+    db.commit()
+    return {"detail": "Comment deleted", "by_mod": is_mod and c.author_id != current_user.id}

@@ -370,18 +370,30 @@ function Nameplate({ user, palette, avatarUrl, isSelf, onEdit, onPickAvatar, onC
                 Edit dossier
               </button>
             ) : (
+              // Follow and Message are on the roadmap but not yet wired to
+              // a backend. Rendering dead buttons erodes trust, so gate them
+              // behind disabled styling + a "soon" tag until the follow graph
+              // and DM endpoints land.
               <>
                 <button
                   type="button"
-                  className="bg-navy text-white hover:bg-[#132d4a] border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-widest cursor-pointer transition-colors min-h-[42px]"
+                  disabled
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="bg-navy/40 text-white/70 border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-widest cursor-not-allowed min-h-[42px] inline-flex items-center gap-1.5"
                 >
                   + Follow
+                  <span className="text-gold/80 text-[0.54rem] tracking-[0.2em]">SOON</span>
                 </button>
                 <button
                   type="button"
-                  className="bg-card border border-navy text-navy hover:bg-navy hover:text-white py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-widest cursor-pointer transition-colors min-h-[42px]"
+                  disabled
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="bg-card border border-lightgray text-gray py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-widest cursor-not-allowed min-h-[42px] inline-flex items-center gap-1.5"
                 >
                   Message
+                  <span className="text-gold/80 text-[0.54rem] tracking-[0.2em]">SOON</span>
                 </button>
               </>
             )}
