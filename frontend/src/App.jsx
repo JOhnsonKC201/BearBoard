@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import BottomNav from './components/BottomNav'
+import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -25,7 +26,10 @@ function WithNav({ children }) {
   return (
     <>
       <Navbar />
-      <div className="pb-[72px] lg:pb-0">{children}</div>
+      <div className="pb-[72px] lg:pb-0 min-h-[60vh] flex flex-col">
+        <div className="flex-1">{children}</div>
+        <Footer />
+      </div>
       <BottomNav />
     </>
   )
