@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Literal, Optional
 from datetime import datetime, date
+from urllib.parse import urlparse
+from ipaddress import ip_address
 
 # Server-side whitelist. Must match (lowercased) the categories the frontend
 # surfaces; keeping it centralized here means adding a new category requires
@@ -10,6 +12,49 @@ ALLOWED_CATEGORIES = {
     # legacy/backfill categories that exist in older rows:
     "recruiters", "social",
 }
+
+
+def _validate_public_image_url(raw: Optional[str]) -> Optional[str]:
+    """Constrain user-supplied image URLs so they can't be abused for SSRF,
+    javascript:-protocol XSS, or cloud-metadata exfiltration.
+
+    Returns the normalized URL (or None) or raises ValueError if unsafe.
+    """
+    if not raw:
+        return None
+    url = raw.strip()
+    if not url:
+        return None
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError("image_url must start with http:// or https://")
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise ValueError("image_url is missing a hostname")
+    # Block direct-IP addresses that point to private, loopback, link-local,
+    # or reserved ranges (AWS/GCP metadata service lives at 169.254.169.254).
+    try:
+        ip = ip_address(host)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError("image_url cannot point to a non-public address")
+    except ValueError as e:
+        # `ip_address` raises ValueError for non-IP hostnames, which is what
+        # we want to allow through. Re-raise only if the message is ours.
+        if "non-public" in str(e):
+            raise
+    # Block well-known local hostnames too (hostname-based bypass of the
+    # IP check above).
+    if host in {"localhost", "ip6-localhost", "ip6-loopback"}:
+        raise ValueError("image_url cannot point to a non-public address")
+    return url
 
 
 class PostCreate(BaseModel):
@@ -32,6 +77,11 @@ class PostCreate(BaseModel):
                 f"Unknown category. Allowed: {', '.join(sorted(ALLOWED_CATEGORIES))}"
             )
         return normalized
+
+    @field_validator("image_url")
+    @classmethod
+    def _check_image_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_public_image_url(v)
 
     @model_validator(mode="after")
     def _require_event_fields(self):
@@ -68,7 +118,10 @@ class PostResponse(BaseModel):
     title: str
     body: str
     category: str
-    author_id: int
+    # author_id is Optional so routes can null-it-out for anonymous posts
+    # before serialization. The DB column itself stays NOT NULL; this only
+    # controls what leaves the API.
+    author_id: Optional[int] = None
     author: Optional[AuthorInfo] = None
     upvotes: int
     downvotes: int

@@ -28,7 +28,14 @@ def _require_edu_email(email: str) -> str:
         )
     return normalized
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    # Pin the bcrypt cost factor rather than relying on passlib's default so
+    # the hashing difficulty is predictable across deploys and future passlib
+    # upgrades. 13 is a modern baseline (~0.3s on commodity hardware).
+    bcrypt__rounds=13,
+)
 
 
 def get_current_user(db: Session = Depends(get_db), token: str = None):
@@ -108,13 +115,13 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Pre-provisioned admin rows store '!pending' as the password hash.
-    # passlib.bcrypt.verify on that raises UnknownHashError; treat it as
-    # "you must register first to claim this account" instead of crashing.
+    # passlib.bcrypt.verify on that raises UnknownHashError; return a generic
+    # "Invalid credentials" instead of "reserved by an admin" so an attacker
+    # can't enumerate admin-reserved emails by probing the login form. The
+    # real user claims the account via the Register form, which already has
+    # logic to adopt a !pending row based on the email match.
     if not db_user.password_hash or db_user.password_hash.startswith("!"):
-        raise HTTPException(
-            status_code=401,
-            detail="This email is reserved by an admin. Use the Register form to claim it.",
-        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     try:
         valid = pwd_context.verify(user.password, db_user.password_hash)
