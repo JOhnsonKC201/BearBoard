@@ -13,12 +13,13 @@ import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { flairSlug, flairLabel } from '../utils/avatar'
 
 // Roles allowed to see internal messaging like the "Got a new idea?" banner.
 // General students should not see team/Trello chrome.
 const STAFF_ROLES = new Set(['developer', 'moderator', 'admin'])
 
-const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
+const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous', 'Memes', 'Advice', 'Lost & Found', 'Admissions']
 
 const AVATAR_PALETTE = [
   { bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)', tc: '#FFFFFF' },
@@ -158,6 +159,10 @@ const CAT_STYLES = {
   housing: 'bg-[#FCE8D2] text-[#8A4B16]',
   swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
   safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
+  memes: 'bg-[#F0E4FC] text-[#5B3A8C]',
+  advice: 'bg-[#D8E8F7] text-[#0F3F73]',
+  lostfound: 'bg-[#F5E6C4] text-[#6B4A0D]',
+  admissions: 'bg-[#D6EDD9] text-[#1E4B22]',
 }
 
 function Home() {
@@ -317,7 +322,9 @@ function Home() {
   }, [groupSearch])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortParam = activeSort === 'new' ? 'newest' : activeSort
-  const categoryParam = activeFilter === 'All' ? null : activeFilter.toLowerCase()
+  // Normalize via flairSlug so labels like "Lost & Found" survive the round-trip
+  // to the backend, which only knows the alphanumeric slug "lostfound".
+  const categoryParam = activeFilter === 'All' ? null : flairSlug(activeFilter)
 
   useEffect(() => {
     let cancelled = false
@@ -1028,7 +1035,7 @@ function PostCard({ post }) {
             </span>
           )}
           <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
-            {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
+            {flairLabel(post.category)}
           </span>
         </div>
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
