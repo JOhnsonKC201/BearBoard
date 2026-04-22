@@ -50,28 +50,57 @@ function ProfessorCard({ prof, onOpen, active }) {
   )
 }
 
-function StarPicker({ value, onChange, max = 5 }) {
+// Human-friendly labels for a 1-5 rating. The index-0 entry is the
+// placeholder shown before the student has hovered or selected anything.
+const RATING_ADJECTIVES = ['Tap to rate', 'Awful', 'Meh', 'Decent', 'Great', 'Exceptional']
+const DIFFICULTY_ADJECTIVES = ['Tap to rate', 'Easy', 'Manageable', 'Moderate', 'Challenging', 'Brutal']
+
+function StarPicker({ value, onChange, max = 5, labels, size = 'lg' }) {
   const [hover, setHover] = useState(0)
+  const shown = hover || value
+  const label = labels ? labels[shown] : ''
+  const starSize = size === 'sm' ? 'text-[1.25rem]' : 'text-[1.9rem] sm:text-[2.1rem]'
+  const btnPad = size === 'sm' ? 'p-0.5' : 'p-1 sm:p-1.5'
   return (
-    <div className="flex gap-1" onMouseLeave={() => setHover(0)}>
-      {Array.from({ length: max }).map((_, i) => {
-        const v = i + 1
-        const on = (hover || value) >= v
-        return (
-          <button
-            key={v}
-            type="button"
-            onMouseEnter={() => setHover(v)}
-            onClick={() => onChange(v)}
-            className={`bg-transparent border-none cursor-pointer text-[1.6rem] leading-none transition-colors ${
-              on ? 'text-gold' : 'text-lightgray hover:text-gold/60'
-            }`}
-            aria-label={`${v} ${v === 1 ? 'star' : 'stars'}`}
-          >
-            &#9733;
-          </button>
-        )
-      })}
+    <div>
+      <div
+        className="flex gap-1 items-center"
+        onMouseLeave={() => setHover(0)}
+        role="radiogroup"
+        aria-label={labels ? labels[0] : 'Rating'}
+      >
+        {Array.from({ length: max }).map((_, i) => {
+          const v = i + 1
+          const on = shown >= v
+          return (
+            <button
+              key={v}
+              type="button"
+              onMouseEnter={() => setHover(v)}
+              onFocus={() => setHover(v)}
+              onBlur={() => setHover(0)}
+              onClick={() => onChange(v)}
+              className={`bg-transparent border-none cursor-pointer leading-none transition-all ${btnPad} ${starSize} ${
+                on
+                  ? 'text-gold drop-shadow-[0_0_6px_rgba(212,150,42,0.35)] scale-[1.04]'
+                  : 'text-lightgray hover:text-gold/70'
+              } rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
+              role="radio"
+              aria-checked={value === v}
+              aria-label={`${v} ${v === 1 ? 'star' : 'stars'}${labels ? ` - ${labels[v]}` : ''}`}
+            >
+              <span aria-hidden>{on ? '★' : '☆'}</span>
+            </button>
+          )
+        })}
+        <span
+          className={`ml-2 font-archivo font-extrabold text-[0.66rem] uppercase tracking-[0.18em] transition-colors ${
+            shown ? 'text-navy' : 'text-gray/60'
+          }`}
+        >
+          {label}
+        </span>
+      </div>
     </div>
   )
 }
@@ -108,93 +137,131 @@ function RatingForm({ professor, onSubmitted, onCancel, existing }) {
     }
   }
 
+  const canSubmit = rating > 0 && !submitting
+
   return (
-    <form onSubmit={submit} className="bg-offwhite border border-lightgray px-4 py-4">
-      <div className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest text-navy mb-3">
-        {existing ? 'Update your review' : 'Write a review'}
-      </div>
-
-      <div className="mb-3">
-        <label className="block text-[0.72rem] font-archivo font-bold uppercase tracking-wide text-gray mb-1.5">
-          Overall
-        </label>
-        <StarPicker value={rating} onChange={setRating} />
-      </div>
-
-      <div className="mb-3">
-        <label className="block text-[0.72rem] font-archivo font-bold uppercase tracking-wide text-gray mb-1.5">
-          Difficulty
-        </label>
-        <StarPicker value={difficulty} onChange={setDifficulty} />
-      </div>
-
-      <div className="mb-3">
-        <label className="block text-[0.72rem] font-archivo font-bold uppercase tracking-wide text-gray mb-1.5">
-          Would take again?
-        </label>
-        <div className="flex gap-2">
-          {[
-            { label: 'Yes', v: true },
-            { label: 'No', v: false },
-            { label: 'Unsure', v: null },
-          ].map((opt) => (
-            <button
-              key={String(opt.v)}
-              type="button"
-              onClick={() => setWouldTake(opt.v)}
-              className={`text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide py-[6px] px-3 rounded-full border cursor-pointer transition-all ${
-                wouldTake === opt.v
-                  ? 'bg-navy border-navy text-white'
-                  : 'bg-card border-lightgray text-gray hover:border-navy'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+    <form onSubmit={submit} className="bg-card border border-lightgray p-5 sm:p-6 space-y-6">
+      <header className="border-b border-lightgray pb-3">
+        <div className="font-archivo font-extrabold text-[0.6rem] uppercase tracking-[0.24em] text-gold mb-1">
+          {existing ? 'Editing your review' : 'Rate this professor'}
         </div>
-      </div>
+        <h3 className="font-archivo font-black text-[1.15rem] text-navy leading-tight">
+          {professor.name}
+        </h3>
+        {professor.department && (
+          <div className="text-[0.75rem] text-gray mt-0.5 font-archivo font-bold uppercase tracking-wider">
+            {professor.department}
+          </div>
+        )}
+      </header>
 
-      <div className="mb-3">
-        <label className="block text-[0.72rem] font-archivo font-bold uppercase tracking-wide text-gray mb-1.5">
-          Course code (optional)
+      {/* Teaching quality — overall rating, renamed for clarity. */}
+      <section>
+        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
+          Teaching quality <span className="text-red">*</span>
+        </label>
+        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
+          How well did they explain material, run the class, and answer questions?
+        </div>
+        <StarPicker value={rating} onChange={setRating} labels={RATING_ADJECTIVES} />
+      </section>
+
+      {/* Effort required — stored as "difficulty" on the backend. */}
+      <section>
+        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
+          Effort required
+        </label>
+        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
+          How hard did you have to work for the grade? Reading load, assignment volume, exam prep.
+        </div>
+        <StarPicker value={difficulty} onChange={setDifficulty} labels={DIFFICULTY_ADJECTIVES} />
+      </section>
+
+      {/* Would take again — same yes/no/unsure pill set, bigger tap targets. */}
+      <section>
+        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-2">
+          Would you take them again?
+        </label>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { label: 'Yes',    v: true,  emoji: '👍' },
+            { label: 'No',     v: false, emoji: '👎' },
+            { label: 'Unsure', v: null,  emoji: '🤷' },
+          ].map((opt) => {
+            const active = wouldTake === opt.v
+            return (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => setWouldTake(opt.v)}
+                className={`inline-flex items-center gap-2 text-[0.78rem] font-archivo font-extrabold uppercase tracking-wide py-2.5 px-4 min-h-[44px] rounded-full border-2 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+                  active
+                    ? 'bg-navy border-navy text-gold shadow-[0_2px_8px_-2px_rgba(11,29,52,0.35)]'
+                    : 'bg-white border-lightgray text-ink/70 hover:border-navy hover:text-navy'
+                }`}
+                aria-pressed={active}
+              >
+                <span aria-hidden>{opt.emoji}</span>
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Course code — optional but useful for filtering later. */}
+      <section className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-2 sm:gap-3 sm:items-center">
+        <label className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy">
+          Course <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional)</span>
         </label>
         <input
           value={course}
           onChange={(e) => setCourse(e.target.value)}
-          placeholder="COSC 350"
+          placeholder="e.g. COSC 458"
           maxLength={30}
-          className="w-full bg-card border border-lightgray text-ink text-[0.85rem] py-2 px-3 outline-none focus:border-navy transition-colors"
+          className="w-full bg-white border border-lightgray text-ink text-[0.92rem] py-2.5 px-3.5 outline-none focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/30 transition-colors font-franklin"
         />
-      </div>
+      </section>
 
-      <div className="mb-3">
-        <label className="block text-[0.72rem] font-archivo font-bold uppercase tracking-wide text-gray mb-1.5">
-          Review (optional)
+      {/* Optional free-form comment — the place to say what the stars couldn't. */}
+      <section>
+        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
+          Anything else? <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional)</span>
         </label>
+        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
+          Tips future students should know, the best assignment, what you&rsquo;d do differently. Keep it honest and respectful.
+        </div>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
           maxLength={2000}
-          placeholder="What was the class like? Be honest, stay respectful."
-          className="w-full bg-card border border-lightgray text-ink text-[0.85rem] py-2 px-3 outline-none focus:border-navy transition-colors resize-y"
+          placeholder="Loved the Socratic style, hated the 8am lectures. Bring coffee."
+          className="w-full bg-white border border-lightgray text-ink text-[0.92rem] py-3 px-3.5 outline-none focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/30 transition-colors resize-y font-franklin leading-relaxed"
         />
-      </div>
+        <div className="text-right text-[0.68rem] text-gray/70 mt-1 tabular-nums">
+          {comment.length}/2000
+        </div>
+      </section>
 
-      {err && <div className="text-[0.75rem] text-[#8B1A1A] font-archivo font-bold mb-2">{err}</div>}
+      {err && (
+        <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold" role="alert">
+          {err}
+        </div>
+      )}
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2 border-t border-lightgray">
         <button
           type="submit"
-          disabled={submitting}
-          className="bg-gold text-navy border-none py-2 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60"
+          disabled={!canSubmit}
+          className="flex-1 sm:flex-none bg-gold text-navy border-none py-3 px-6 font-archivo text-[0.78rem] font-extrabold uppercase tracking-[0.16em] min-h-[48px] cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40"
         >
           {submitting ? 'Submitting…' : existing ? 'Update review' : 'Post review'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="bg-transparent border border-lightgray py-2 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide text-gray hover:text-ink cursor-pointer"
+          className="bg-transparent border border-lightgray py-3 px-5 min-h-[48px] font-archivo text-[0.78rem] font-extrabold uppercase tracking-[0.16em] text-gray hover:text-ink hover:border-navy cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40"
         >
           Cancel
         </button>

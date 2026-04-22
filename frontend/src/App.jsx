@@ -21,6 +21,7 @@ const Legal = lazy(() => import('./pages/Legal'))
 const Resources = lazy(() => import('./pages/Resources'))
 const Crosslinks = lazy(() => import('./pages/Crosslinks'))
 const Welcome = lazy(() => import('./pages/Welcome'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 
 function WithNav({ children }) {
   return (
@@ -67,6 +68,7 @@ function App() {
             <Route path="/anonymity" element={<WithNav><Legal slug="anonymity" /></WithNav>} />
             <Route path="/crosslinks" element={<WithNav><Crosslinks /></WithNav>} />
             <Route path="/welcome" element={<WithNav><Welcome /></WithNav>} />
+            <Route path="/leaderboard" element={<WithNav><Leaderboard /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>
