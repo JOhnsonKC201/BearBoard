@@ -166,6 +166,7 @@ function NavRail() {
       <RailSection title="Policies">
         <RailItem to="/rules" label="Community Rules" Icon={IconBook} active={location.pathname === '/rules'} />
         <RailItem to="/privacy" label="Privacy Policy" Icon={IconShield} active={location.pathname === '/privacy'} />
+        <RailItem to="/anonymity" label="Anonymity Guide" Icon={IconShield} active={location.pathname === '/anonymity'} />
         <RailItem to="/terms" label="Terms of Use" Icon={IconScroll} active={location.pathname === '/terms'} />
         <RailItem to="/accessibility" label="Accessibility" Icon={IconA11y} active={location.pathname === '/accessibility'} />
       </RailSection>

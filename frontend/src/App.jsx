@@ -56,6 +56,7 @@ function App() {
             <Route path="/privacy" element={<WithNav><Legal slug="privacy" /></WithNav>} />
             <Route path="/terms" element={<WithNav><Legal slug="terms" /></WithNav>} />
             <Route path="/accessibility" element={<WithNav><Legal slug="accessibility" /></WithNav>} />
+            <Route path="/anonymity" element={<WithNav><Legal slug="anonymity" /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>

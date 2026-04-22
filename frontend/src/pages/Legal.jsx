@@ -175,6 +175,50 @@ const DOCS = {
       },
     ],
   },
+
+  anonymity: {
+    title: 'Anonymity guide',
+    kicker: 'When to go anonymous, what stays private, what does not',
+    intro:
+      'BearBoard supports anonymous posts for topics where attaching your name could cost you - mental health, reporting harm, Title IX, housing conflicts, family trouble, financial strain. This page explains exactly what "Anonymous" means here, when to use it, and the short list of cases where your identity can still be recovered.',
+    sections: [
+      {
+        heading: 'What the Anonymous flair does',
+        body:
+          'When you post under the Anonymous flair, the author byline in the feed, post detail, and notifications all read "Anonymous" instead of your name. Your avatar is replaced with a neutral dark avatar so readers cannot correlate posts by color. Other students, including your friends, cannot see who wrote an anonymous post.',
+      },
+      {
+        heading: 'What it does NOT do',
+        body:
+          'Anonymous is not a secure mode. It hides your name from other students, not from the platform. Moderators and admins can see the author of an anonymous post when they are investigating a specific rules violation or a credible safety concern. No routine browsing of anonymous content - just case-by-case review when a report comes in.',
+      },
+      {
+        heading: 'When to use it',
+        body:
+          'Good fits: personal mental-health check-ins, Title IX questions, reporting that something felt wrong, asking for help when you do not want your dorm knowing, airing a grievance that needs to be discussed without naming someone first, asking about scholarships after a financial setback. If the post feels like it belongs in a private journal or a counselor\'s office, Anonymous is the right call.',
+      },
+      {
+        heading: 'When NOT to use it',
+        body:
+          'Do not hide behind Anonymous to insult a specific person, spread rumors, or post content that would get you in trouble under your name. Anonymity protects a vulnerability, not a grudge. Posts that violate the rules (see /rules) are still removed, and the author is still accountable under the moderator case-review process.',
+      },
+      {
+        heading: 'What we log for anonymous posts',
+        body:
+          'The same metadata as any other post: timestamp, flair, the content itself. We do NOT log your IP address, device fingerprint, or any identifier tied to the HTTP request. The only link back to you is the author_id column in the posts table, which the API never returns for anonymous posts.',
+      },
+      {
+        heading: 'If you are in crisis right now',
+        body:
+          'BearBoard is not a crisis service. If you need to talk to someone now, the Morgan State University Counseling Center is at (443) 885-3130 during business hours, and the 988 Suicide & Crisis Lifeline is 24/7 (call or text 988). The Trevor Project (LGBTQ youth) is 1-866-488-7386. RAINN (sexual assault) is 1-800-656-4673. These are free.',
+      },
+      {
+        heading: 'Our promise',
+        body:
+          'We will keep the anonymity guarantees on this page as strict as we reasonably can. If we ever have to change the policy - for a legal subpoena, or because a feature needs to surface more data - we will publish the change on this page before the code change lands, not after.',
+      },
+    ],
+  },
 }
 
 function Legal({ slug = 'rules' }) {

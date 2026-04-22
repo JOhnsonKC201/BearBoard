@@ -219,6 +219,26 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                   </button>
                 ))}
               </div>
+              {category === 'Anonymous' && (
+                <div className="mt-2 bg-offwhite border-l-[3px] border-navy px-3 py-2 text-[0.75rem] leading-relaxed text-ink/85">
+                  <strong className="font-archivo uppercase tracking-wider text-[0.62rem] text-navy">
+                    Anonymous — you&apos;re covered
+                  </strong>
+                  <div className="mt-1">
+                    Your name and avatar are hidden from other students. Moderators can
+                    still see the author when investigating a rules violation.{' '}
+                    <a
+                      href="/anonymity"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-navy underline underline-offset-2 hover:text-gold"
+                    >
+                      Read the full anonymity guide
+                    </a>
+                    .
+                  </div>
+                </div>
+              )}
             </Field>
 
             {isEvent && (
