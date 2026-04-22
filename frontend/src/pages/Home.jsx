@@ -11,14 +11,16 @@ import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
 import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { flairSlug, flairLabel } from '../utils/avatar'
 
 // Roles allowed to see internal messaging like the "Got a new idea?" banner.
 // General students should not see team/Trello chrome.
 const STAFF_ROLES = new Set(['developer', 'moderator', 'admin'])
 
-const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous']
+const FEED_FILTERS = ['All', 'General', 'Academic', 'Events', 'Housing', 'Swap', 'Safety', 'Anonymous', 'Memes', 'Advice', 'Lost & Found', 'Admissions']
 
 const AVATAR_PALETTE = [
   { bg: 'linear-gradient(135deg, #6B4AA0 0%, #3F2270 100%)', tc: '#FFFFFF' },
@@ -158,6 +160,10 @@ const CAT_STYLES = {
   housing: 'bg-[#FCE8D2] text-[#8A4B16]',
   swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
   safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
+  memes: 'bg-[#F0E4FC] text-[#5B3A8C]',
+  advice: 'bg-[#D8E8F7] text-[#0F3F73]',
+  lostfound: 'bg-[#F5E6C4] text-[#6B4A0D]',
+  admissions: 'bg-[#D6EDD9] text-[#1E4B22]',
 }
 
 function Home() {
@@ -217,6 +223,22 @@ function Home() {
       return hay.includes(searchQuery)
     })
   }, [posts, searchQuery])
+
+  // Megathreads float to the top of the feed. Recognized by a "Megathread:"
+  // title prefix (set by seed_megathreads.py). When a future schema change
+  // adds a real `is_pinned` column, swap the predicate here.
+  const { pinnedPosts, regularPosts } = useMemo(() => {
+    const pinned = []
+    const regular = []
+    for (const p of visiblePosts) {
+      if (typeof p.title === 'string' && p.title.trim().toLowerCase().startsWith('megathread:')) {
+        pinned.push(p)
+      } else {
+        regular.push(p)
+      }
+    }
+    return { pinnedPosts: pinned, regularPosts: regular }
+  }, [visiblePosts])
 
   useEffect(() => {
     let cancelled = false
@@ -317,7 +339,9 @@ function Home() {
   }, [groupSearch])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortParam = activeSort === 'new' ? 'newest' : activeSort
-  const categoryParam = activeFilter === 'All' ? null : activeFilter.toLowerCase()
+  // Normalize via flairSlug so labels like "Lost & Found" survive the round-trip
+  // to the backend, which only knows the alphanumeric slug "lostfound".
+  const categoryParam = activeFilter === 'All' ? null : flairSlug(activeFilter)
 
   useEffect(() => {
     let cancelled = false
@@ -535,20 +559,40 @@ function Home() {
               />
             )
           ) : (
-            <AnimatePresence initial={true}>
-              {visiblePosts.map((post, i) => (
-                <motion.div
-                  key={post.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
-                  transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
-                >
-                  <PostCard post={post} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            <>
+              {pinnedPosts.length > 0 && (
+                <div className="mb-3">
+                  <div className="bg-navy text-gold px-4 py-2 font-archivo font-black text-[0.62rem] uppercase tracking-[0.22em] flex items-center gap-2">
+                    <IconPin />
+                    <span>Pinned megathreads</span>
+                    <span className="ml-auto text-gold/60 font-franklin normal-case tracking-normal italic text-[0.72rem]">
+                      Permanent discussion homes
+                    </span>
+                  </div>
+                  <div className="border-l-[3px] border-l-gold">
+                    {pinnedPosts.map((post) => (
+                      <div key={post.id} className="border-b border-lightgray last:border-b-0 bg-gold/[0.04]">
+                        <PostCard post={post} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <AnimatePresence initial={true}>
+                {regularPosts.map((post, i) => (
+                  <motion.div
+                    key={post.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
+                    transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
+                  >
+                    <PostCard post={post} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </>
           )}
         </div>
 
@@ -585,6 +629,38 @@ function Home() {
             setPostPreset({ category: 'Safety', body: '' })
             setShowNewPost(true)
           }} />
+
+          {/* Campus resources shortcut. Full directory lives at /resources;
+              this sidebar card surfaces the 5 students ask about most. */}
+          <SideBox title="Campus resources" id="resources">
+            <ul className="divide-y divide-[#EAE7E0]">
+              {[
+                { label: 'Academic calendar', href: 'https://www.morgan.edu/academic-calendar' },
+                { label: 'Library', href: 'https://www.morgan.edu/library' },
+                { label: 'Registrar', href: 'https://www.morgan.edu/registrar' },
+                { label: 'Tutoring (CASA)', href: 'https://www.morgan.edu/casa' },
+                { label: 'Counseling', href: 'https://www.morgan.edu/counseling-center' },
+              ].map((r) => (
+                <li key={r.label}>
+                  <a
+                    href={r.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-4 py-2.5 text-[0.82rem] font-semibold text-ink no-underline hover:bg-offwhite hover:text-navy transition-colors"
+                  >
+                    {r.label}
+                    <span className="text-gold" aria-hidden>↗</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/resources"
+              className="block text-center px-4 py-2.5 bg-offwhite border-t border-[#EAE7E0] text-[0.68rem] font-archivo font-extrabold uppercase tracking-[0.2em] text-navy hover:text-gold no-underline"
+            >
+              Full directory →
+            </Link>
+          </SideBox>
 
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
@@ -1003,6 +1079,7 @@ function PostCard({ post }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>
+              {!isAnonymous && <VerifiedBadge user={post.author} size="sm" />}
               {!isAnonymous && <RoleBadge role={post.author?.role} />}
               <span className="text-gray/60 text-[0.72rem]">&middot;</span>
               <span className="text-[0.72rem] text-gray font-archivo">{formatRelativeTime(post.created_at)}</span>
@@ -1028,7 +1105,7 @@ function PostCard({ post }) {
             </span>
           )}
           <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
-            {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
+            {flairLabel(post.category)}
           </span>
         </div>
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">

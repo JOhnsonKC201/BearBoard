@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import EditProfileModal from '../components/EditProfileModal'
 import { useAuth } from '../context/AuthContext'
@@ -114,12 +115,14 @@ function Profile() {
                 <h1 className="font-archivo font-black text-[1.6rem] text-navy uppercase tracking-tight leading-none">
                   {user.name}
                 </h1>
+                <VerifiedBadge user={user} size="lg" />
                 <RoleBadge role={user.role} size="lg" />
               </div>
               <div className="text-[0.78rem] text-gray mt-1 flex items-center gap-2 flex-wrap">
                 <span className="font-archivo font-bold">u/{(user.name || '').split(/\s+/)[0]?.toLowerCase() || 'student'}</span>
                 {user.major && <><span>&middot;</span><span>{user.major}</span></>}
                 {user.graduation_year && <><span>&middot;</span><span>Class of {user.graduation_year}</span></>}
+                <VerifiedBadge user={user} size="sm" withLabel className="ml-1" />
               </div>
             </div>
             <div className="flex gap-2 mt-3 md:mt-0 md:pb-3">

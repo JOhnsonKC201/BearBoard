@@ -34,9 +34,42 @@ export const CAT_STYLES = {
   housing: 'bg-[#FCE8D2] text-[#8A4B16]',
   swap: 'bg-[#DDE6C5] text-[#4A5A1F]',
   safety: 'bg-[#F5D5D0] text-[#8B1A1A]',
+  // New flairs (2026-04-21 essentials pass)
+  memes: 'bg-[#F0E4FC] text-[#5B3A8C]',
+  advice: 'bg-[#D8E8F7] text-[#0F3F73]',
+  lostfound: 'bg-[#F5E6C4] text-[#6B4A0D]',
+  admissions: 'bg-[#D6EDD9] text-[#1E4B22]',
 }
 
 export function catClassFor(category) {
   const key = String(category || 'general').toLowerCase()
   return CAT_STYLES[key] || CAT_STYLES.general
+}
+
+// Single source of truth for flair labels shown in UI vs. slugs sent to
+// the backend. Needed because flairs like "Lost & Found" contain characters
+// the backend normalizer strips. Keep this array ordered — the order here
+// is what shows up in pickers and filter rails.
+export const FLAIRS = [
+  { slug: 'general',    label: 'General' },
+  { slug: 'academic',   label: 'Academic' },
+  { slug: 'events',     label: 'Events' },
+  { slug: 'housing',    label: 'Housing' },
+  { slug: 'swap',       label: 'Swap' },
+  { slug: 'safety',     label: 'Safety' },
+  { slug: 'anonymous',  label: 'Anonymous' },
+  { slug: 'memes',      label: 'Memes' },
+  { slug: 'advice',     label: 'Advice' },
+  { slug: 'lostfound',  label: 'Lost & Found' },
+  { slug: 'admissions', label: 'Admissions' },
+]
+
+const LABEL_BY_SLUG = Object.fromEntries(FLAIRS.map((f) => [f.slug, f.label]))
+const SLUG_BY_LABEL = Object.fromEntries(FLAIRS.map((f) => [f.label, f.slug]))
+
+export function flairLabel(slug) {
+  return LABEL_BY_SLUG[String(slug || '').toLowerCase()] || (slug ? String(slug) : 'General')
+}
+export function flairSlug(label) {
+  return SLUG_BY_LABEL[label] || String(label || '').toLowerCase()
 }
