@@ -11,6 +11,7 @@ import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
 import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -1003,6 +1004,7 @@ function PostCard({ post }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>
+              {!isAnonymous && <VerifiedBadge user={post.author} size="sm" />}
               {!isAnonymous && <RoleBadge role={post.author?.role} />}
               <span className="text-gray/60 text-[0.72rem]">&middot;</span>
               <span className="text-[0.72rem] text-gray font-archivo">{formatRelativeTime(post.created_at)}</span>
