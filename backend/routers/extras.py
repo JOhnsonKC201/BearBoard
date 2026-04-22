@@ -68,9 +68,15 @@ def sync_events(
     return sync_morgan_events(db)
 
 
+from core.memocache import ttl_cache
+
+
 @router.get("/stats")
+@ttl_cache(ttl_seconds=15)
 def public_stats(db: Session = Depends(get_db)):
-    """Public pitch metrics. No auth required. Shareable in demos/decks."""
+    """Public pitch metrics. No auth required. Shareable in demos/decks.
+    Cached for 15s — the seven aggregation queries below add up on
+    Render's free tier, and nobody notices a 15s delay on a stats board."""
     day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
