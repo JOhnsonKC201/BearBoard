@@ -586,6 +586,38 @@ function Home() {
             setShowNewPost(true)
           }} />
 
+          {/* Campus resources shortcut. Full directory lives at /resources;
+              this sidebar card surfaces the 5 students ask about most. */}
+          <SideBox title="Campus resources" id="resources">
+            <ul className="divide-y divide-[#EAE7E0]">
+              {[
+                { label: 'Academic calendar', href: 'https://www.morgan.edu/academic-calendar' },
+                { label: 'Library', href: 'https://www.morgan.edu/library' },
+                { label: 'Registrar', href: 'https://www.morgan.edu/registrar' },
+                { label: 'Tutoring (CASA)', href: 'https://www.morgan.edu/casa' },
+                { label: 'Counseling', href: 'https://www.morgan.edu/counseling-center' },
+              ].map((r) => (
+                <li key={r.label}>
+                  <a
+                    href={r.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-4 py-2.5 text-[0.82rem] font-semibold text-ink no-underline hover:bg-offwhite hover:text-navy transition-colors"
+                  >
+                    {r.label}
+                    <span className="text-gold" aria-hidden>↗</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/resources"
+              className="block text-center px-4 py-2.5 bg-offwhite border-t border-[#EAE7E0] text-[0.68rem] font-archivo font-extrabold uppercase tracking-[0.2em] text-navy hover:text-gold no-underline"
+            >
+              Full directory →
+            </Link>
+          </SideBox>
+
           {/* Groups */}
           <SideBox title="Your Groups" id="groups">
             <div className="px-3 py-2 border-b border-[#EAE7E0] bg-offwhite space-y-2">
