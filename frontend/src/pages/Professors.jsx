@@ -483,13 +483,17 @@ function Professors() {
 
       <div className="max-w-[1080px] mx-auto px-6 py-7 grid grid-cols-1 md:grid-cols-[360px_1fr] gap-6">
         <aside>
-          <div className="flex gap-2 mb-3">
+          <div className="mb-3">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name or department..."
-              className="flex-1 bg-card border border-lightgray text-ink text-[0.85rem] py-2.5 px-3.5 outline-none focus:border-navy transition-colors placeholder:text-gray"
+              placeholder="Name, department, or course (e.g. COSC 458)..."
+              className="w-full bg-card border border-lightgray text-ink text-[0.85rem] py-2.5 px-3.5 outline-none focus:border-navy transition-colors placeholder:text-gray"
             />
+            <div className="mt-1.5 text-[0.68rem] text-gray font-archivo leading-snug">
+              Try "Wang", "Computer Science", "Mathematics", or a course code
+              like "COSC 458".
+            </div>
           </div>
 
           <div className="flex gap-1 bg-offwhite border border-lightgray rounded-full p-1 mb-3 w-fit">
