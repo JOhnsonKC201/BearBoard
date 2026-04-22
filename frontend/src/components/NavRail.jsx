@@ -160,6 +160,7 @@ function NavRail() {
         <RailItem hash="#groups" label="Groups" Icon={IconPeople} />
         <RailItem to="/map" label="Campus Map" Icon={IconMap} active={location.pathname === '/map'} />
         <RailItem to="/professors" label="Professors" Icon={IconMortar} active={location.pathname === '/professors'} />
+        <RailItem to="/crosslinks" label="Related communities" Icon={IconTeam} active={location.pathname === '/crosslinks'} />
         <RailItem hash="#team" label="Team" Icon={IconTeam} />
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
@@ -167,6 +168,7 @@ function NavRail() {
         <RailItem to="/welcome" label="Welcome & FAQ" Icon={IconBook} active={location.pathname === '/welcome'} />
         <RailItem to="/rules" label="Community Rules" Icon={IconBook} active={location.pathname === '/rules'} />
         <RailItem to="/privacy" label="Privacy Policy" Icon={IconShield} active={location.pathname === '/privacy'} />
+        <RailItem to="/anonymity" label="Anonymity Guide" Icon={IconShield} active={location.pathname === '/anonymity'} />
         <RailItem to="/terms" label="Terms of Use" Icon={IconScroll} active={location.pathname === '/terms'} />
         <RailItem to="/accessibility" label="Accessibility" Icon={IconA11y} active={location.pathname === '/accessibility'} />
       </RailSection>
