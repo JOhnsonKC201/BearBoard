@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { catClassFor } from '../utils/avatar'
 import { formatRelativeShort as formatRelative } from '../utils/format'
+import { VerifiedBadge } from './VerifiedBadge'
 import {
   IconCaretUp,
   IconCaretDown,
@@ -146,8 +147,11 @@ function MobilePostCard({ post }) {
               {post.category}
             </span>
           )}
-          <span className="text-[0.66rem] text-gray font-archivo font-bold uppercase tracking-wider truncate">
-            {post.author?.name || 'Anon'} <span className="text-ink/25">·</span> {formatRelative(post.created_at)}
+          <span className="text-[0.66rem] text-gray font-archivo font-bold uppercase tracking-wider truncate inline-flex items-center gap-1">
+            {post.author?.name || 'Anon'}
+            <VerifiedBadge user={post.author} size="sm" />
+            <span className="text-ink/25">·</span>
+            {formatRelative(post.created_at)}
           </span>
         </div>
         <h3 className="font-archivo font-bold text-[1.05rem] leading-[1.22] tracking-tight line-clamp-3">
