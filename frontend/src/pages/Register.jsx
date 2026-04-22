@@ -57,7 +57,10 @@ function Register() {
         graduation_year: formData.graduation_year ? parseInt(formData.graduation_year, 10) : null,
       }
       await register(payload)
-      navigate('/')
+      // Drop new students on /welcome once they first sign up -- the FAQ +
+      // first-five-things checklist answers the "wait how does this work?"
+      // questions before they hit the feed.
+      navigate('/welcome')
     } catch (err) {
       setSubmitError(err.message || 'Registration failed')
     } finally {
