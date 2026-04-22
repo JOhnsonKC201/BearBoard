@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import HealthDot from './HealthDot'
@@ -9,16 +9,43 @@ function initialsFor(name) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
 }
 
+// Primary top-nav items. Hash entries route to /#<hash> so they navigate
+// to Home first when the user is on another page (Home.jsx handles the
+// scroll-to-hash on mount via ScrollToTop / native hash support).
+const PRIMARY_LINKS = [
+  { to: '/',             label: 'Feed' },
+  { to: '/#groups',      label: 'Groups',      hash: 'groups' },
+  { to: '/#events-showcase', label: 'Events', hash: 'events-showcase' },
+  { to: '/map',          label: 'Map' },
+  { to: '/professors',   label: 'Profs' },
+  { to: '/leaderboard',  label: 'Board' },
+  { to: '/#team',        label: 'Team',        hash: 'team' },
+]
+
+// Items tucked into a "More" dropdown so the top bar doesn't get crowded
+// but every content page is still reachable from the header.
+const MORE_LINKS = [
+  { to: '/welcome',    label: 'Welcome & FAQ' },
+  { to: '/stats',      label: 'Site stats' },
+  { to: '/resources',  label: 'Campus resources' },
+  { to: '/crosslinks', label: 'Related communities' },
+  { to: '/rules',      label: 'House rules' },
+  { to: '/anonymity',  label: 'Anonymity guide' },
+]
+
+
 function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, isAuthed, logout } = useAuth()
   const [searchOpen, setSearchOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchDraft, setSearchDraft] = useState(searchParams.get('q') || '')
+  const moreRef = useRef(null)
 
-  // Push the search into the URL after a short debounce so Home.jsx picks it
-  // up without a fetch on every keystroke.
+  // Debounced search → URL param so Home picks it up without firing a
+  // fetch on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => {
       const current = searchParams.get('q') || ''
@@ -31,26 +58,33 @@ function Navbar() {
     return () => clearTimeout(id)
   }, [searchDraft])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Close "More" on outside click or Esc.
+  useEffect(() => {
+    if (!moreOpen) return
+    const onClick = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setMoreOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [moreOpen])
+
+  // Close "More" automatically when the user navigates.
+  useEffect(() => { setMoreOpen(false) }, [location.pathname])
+
   const onSearchSubmit = (e) => {
     e.preventDefault()
-    // If the user is on another route, jump to the feed so they see the match.
     if (location.pathname !== '/' && location.pathname !== '/feed') navigate('/')
   }
 
-  const navLinks = [
-    { to: '/', label: 'Feed', hash: '#feed' },
-    { to: '/', label: 'Groups', hash: '#groups' },
-    { to: '/', label: 'Events', hash: '#events' },
-    { to: '/map', label: 'Map' },
-    { to: '/professors', label: 'Profs' },
-    { to: '/', label: 'Team', hash: '#team' },
-  ]
-
-  const isActive = (label) => {
-    if (label === 'Feed' && location.pathname === '/') return true
-    if (label === 'Map' && location.pathname === '/map') return true
-    if (label === 'Profs' && location.pathname === '/professors') return true
-    return false
+  const isActive = (link) => {
+    if (link.hash) return false // hash links don't light up based on pathname
+    if (link.to === '/' && (location.pathname === '/' || location.pathname === '/feed')) return true
+    return location.pathname === link.to
   }
 
   const handleLogout = () => {
@@ -60,31 +94,67 @@ function Navbar() {
 
   return (
     <nav className="bg-navy h-[52px] flex items-center justify-between px-6 sticky top-0 z-[100]">
-      <Link to="/" className="font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase">
+      <Link
+        to="/"
+        className="font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+      >
         BEAR<span className="text-gold">BOARD</span>
       </Link>
 
-      {/* Desktop nav links (shown on lg+; bottom nav covers smaller screens) */}
-      <div className="hidden lg:flex gap-[2px]">
-        {navLinks.map((link) => {
-          const className = `text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors ${
-            isActive(link.label)
+      {/* Desktop nav links (lg+; bottom nav covers smaller screens) */}
+      <div className="hidden lg:flex items-center gap-[2px]">
+        {PRIMARY_LINKS.map((link) => {
+          const baseCls = `text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+            isActive(link)
               ? 'text-gold bg-white/[0.06]'
-              : 'text-white/55 hover:text-white'
+              : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
           }`
-          if (link.hash) {
-            return (
-              <a key={link.label} href={link.hash} className={className}>
-                {link.label}
-              </a>
-            )
-          }
+          // Hash links use react-router <Link to="/#target"> — this both
+          // navigates to / and sets location.hash so Home.jsx can scroll.
           return (
-            <Link key={link.label} to={link.to} className={className}>
+            <Link key={link.label} to={link.to} className={baseCls}>
               {link.label}
             </Link>
           )
         })}
+
+        {/* More dropdown — holds every page that doesn't fit the primary row. */}
+        <div className="relative" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            className={`text-[0.78rem] font-semibold px-3 py-1.5 rounded no-underline uppercase tracking-wide transition-colors bg-transparent border-none cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+              moreOpen
+                ? 'text-gold bg-white/[0.06]'
+                : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
+            }`}
+          >
+            More
+            <svg width="9" height="9" viewBox="0 0 10 10" className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} aria-hidden>
+              <path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
+          {moreOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-[calc(100%+6px)] w-[220px] bg-navy border border-gold/25 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] overflow-hidden z-[110]"
+            >
+              <div className="h-[2px] bg-gold w-full" aria-hidden />
+              {MORE_LINKS.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  role="menuitem"
+                  className="block px-4 py-2.5 text-[0.78rem] font-archivo font-semibold text-white/75 hover:text-gold hover:bg-white/[0.05] no-underline transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
