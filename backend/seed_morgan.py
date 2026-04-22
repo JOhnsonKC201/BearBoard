@@ -256,7 +256,10 @@ def ensure_team_users(db) -> list[User]:
             users.append(existing)
     if created:
         db.commit()
-        print(f"Created {created} team user(s). Dev password: {DEV_PASSWORD!r}")
+        # Intentionally don't print the dev password — log aggregators (Render,
+        # Supabase, CI) would otherwise archive it. The value is still a
+        # top-of-file constant so local devs can grep for it if needed.
+        print(f"Created {created} team user(s).")
     else:
         print("Team users already exist; skipping user creation.")
     return users
