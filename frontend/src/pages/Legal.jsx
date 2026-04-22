@@ -22,37 +22,47 @@ const DOCS = {
       'BearBoard is built for Morgan State students, by Morgan State students. The rules below are the minimum bar for keeping the feed useful and the community respectful. Moderators can remove posts or suspend accounts that break them.',
     sections: [
       {
-        heading: '1. Be kind',
+        heading: '1. Be civil',
         body:
-          'Classmates first. Disagree with ideas, never attack the person. No slurs, harassment, doxxing, or threats. This applies to posts, comments, DMs, and anything anonymous.',
+          'Classmates first. Disagree with ideas, never attack the person. Be civil in every exchange - posts, comments, DMs, and anything anonymous. Sarcasm is fine; cruelty is not.',
       },
       {
-        heading: '2. Keep it Morgan',
+        heading: '2. No doxxing',
+        body:
+          'Do not post another person’s full name, phone number, address, schedule, Instagram handle, license plate, or photos without their consent. Do not share screenshots of private DMs. This applies to students, professors, and staff alike. Even hints ("y’all know who I mean") count if a reader can figure it out.',
+      },
+      {
+        heading: '3. No harassment',
+        body:
+          'No targeted campaigns, pile-ons, slurs, threats, or sexual harassment. No racism, misogyny, homophobia, transphobia, antisemitism, Islamophobia, or ableism. First offense = post removed + warning. Second offense = suspension. Hate speech and doxxing skip straight to a permanent ban.',
+      },
+      {
+        heading: '4. No selling answers or cheating',
+        body:
+          'BearBoard is not a cheating marketplace. No selling, trading, or soliciting exam questions, test banks, completed homework, essays, lab reports, or AI-written assignments submitted as your own. No "who has the Physics 203 midterm from last year?" posts. Study groups, honest tutoring, and discussing concepts after a test is graded are all fine - crossing into academic dishonesty is not. Violations are forwarded to the Office of Academic Integrity.',
+      },
+      {
+        heading: '5. Keep it Morgan',
         body:
           'Posts should be relevant to the Morgan State community - campus events, academics, housing, swaps, jobs, or student life. General-web spam, off-campus resale, and crypto shilling get removed.',
       },
       {
-        heading: '3. Use categories honestly',
+        heading: '6. Use flairs honestly',
         body:
-          'Pick the category that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) - not for avoiding accountability for low-effort posts. SOS is for real help requests.',
+          'Pick the flair that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) - not for avoiding accountability for low-effort posts. SOS is for real help requests.',
       },
       {
-        heading: '4. No harassment, hate speech, or targeted attacks',
-        body:
-          'Racism, misogyny, homophobia, transphobia, antisemitism, Islamophobia, ableism, and any targeted campaign against a student, group, or staff member are not tolerated. Immediate suspension, no warning.',
-      },
-      {
-        heading: '5. No explicit content',
+        heading: '7. No explicit content',
         body:
           'BearBoard is a student platform, not a social network for NSFW material. Nudity, sexual content, or graphic violence will be removed and the account flagged for review.',
       },
       {
-        heading: '6. Protect privacy',
+        heading: '8. Protect privacy',
         body:
           'Do not post other people\u2019s full names, phone numbers, addresses, or photos without consent. Do not screenshot private DMs. This includes professors, staff, and fellow students.',
       },
       {
-        heading: '7. Report, don\u2019t retaliate',
+        heading: '9. Report, don\u2019t retaliate',
         body:
           'If a post breaks the rules, use the report button or contact a moderator. Responding with another rule-breaking post gets both accounts sanctioned.',
       },
