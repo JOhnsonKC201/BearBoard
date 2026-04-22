@@ -21,6 +21,30 @@ SOS_NOTIFICATION_KIND = "sos"
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 
+def _anonymize_if_needed(post: Post) -> Post:
+    """Strip author identity from anonymous-category posts before returning.
+
+    The Post row always keeps author_id so moderators can investigate abuse
+    at the DB layer, but the API response for anonymous posts must not
+    leak the author — otherwise the 'Anonymous' label is cosmetic only.
+    SQLAlchemy doesn't let us assign None to a non-nullable column, so we
+    attach a shadow attribute that Pydantic picks up via from_attributes
+    (author_id exists on the model as int, but we expose it as Optional
+    in the response schema).
+    """
+    if post and (post.category or "").lower() == "anonymous":
+        # Shadow attributes override the ORM values only for the serialization pass.
+        post.author_id = None
+        post.author = None
+    return post
+
+
+def _anonymize_list(posts: list[Post]) -> list[Post]:
+    for p in posts:
+        _anonymize_if_needed(p)
+    return posts
+
+
 @router.get("/", response_model=list[PostResponse])
 def get_posts(
     sort: str = Query("newest", regex="^(newest|popular|trending)$"),
@@ -62,7 +86,7 @@ def get_posts(
         for p in posts:
             p.comment_count = counts.get(p.id, 0)
 
-    return posts
+    return _anonymize_list(posts)
 
 
 SOS_RECENT_LIMIT = 1
@@ -137,6 +161,8 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         .filter(Post.id == post_id)
         .first()
     )
+    if post:
+        _anonymize_if_needed(post)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
@@ -181,7 +207,9 @@ def resolve_sos(
 
 
 @router.post("/{post_id}/vote")
+@limiter.limit("60/minute")
 def vote_post(
+    request: Request,
     post_id: int,
     vote: VoteRequest,
     current_user: User = Depends(get_current_user_dep),
@@ -226,7 +254,9 @@ def vote_post(
 
 
 @router.post("/{post_id}/comments", response_model=CommentResponse)
+@limiter.limit("30/minute")
 def create_comment(
+    request: Request,
     post_id: int,
     comment: CommentCreate,
     current_user: User = Depends(get_current_user_dep),

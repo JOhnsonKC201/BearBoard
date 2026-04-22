@@ -22,37 +22,47 @@ const DOCS = {
       'BearBoard is built for Morgan State students, by Morgan State students. The rules below are the minimum bar for keeping the feed useful and the community respectful. Moderators can remove posts or suspend accounts that break them.',
     sections: [
       {
-        heading: '1. Be kind',
+        heading: '1. Be civil',
         body:
-          'Classmates first. Disagree with ideas, never attack the person. No slurs, harassment, doxxing, or threats. This applies to posts, comments, DMs, and anything anonymous.',
+          'Classmates first. Disagree with ideas, never attack the person. Be civil in every exchange - posts, comments, DMs, and anything anonymous. Sarcasm is fine; cruelty is not.',
       },
       {
-        heading: '2. Keep it Morgan',
+        heading: '2. No doxxing',
+        body:
+          'Do not post another person’s full name, phone number, address, schedule, Instagram handle, license plate, or photos without their consent. Do not share screenshots of private DMs. This applies to students, professors, and staff alike. Even hints ("y’all know who I mean") count if a reader can figure it out.',
+      },
+      {
+        heading: '3. No harassment',
+        body:
+          'No targeted campaigns, pile-ons, slurs, threats, or sexual harassment. No racism, misogyny, homophobia, transphobia, antisemitism, Islamophobia, or ableism. First offense = post removed + warning. Second offense = suspension. Hate speech and doxxing skip straight to a permanent ban.',
+      },
+      {
+        heading: '4. No selling answers or cheating',
+        body:
+          'BearBoard is not a cheating marketplace. No selling, trading, or soliciting exam questions, test banks, completed homework, essays, lab reports, or AI-written assignments submitted as your own. No "who has the Physics 203 midterm from last year?" posts. Study groups, honest tutoring, and discussing concepts after a test is graded are all fine - crossing into academic dishonesty is not. Violations are forwarded to the Office of Academic Integrity.',
+      },
+      {
+        heading: '5. Keep it Morgan',
         body:
           'Posts should be relevant to the Morgan State community - campus events, academics, housing, swaps, jobs, or student life. General-web spam, off-campus resale, and crypto shilling get removed.',
       },
       {
-        heading: '3. Use categories honestly',
+        heading: '6. Use flairs honestly',
         body:
-          'Pick the category that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) - not for avoiding accountability for low-effort posts. SOS is for real help requests.',
+          'Pick the flair that matches your post. Anonymous is for sensitive topics (mental health, Title IX, roommate issues) - not for avoiding accountability for low-effort posts. SOS is for real help requests.',
       },
       {
-        heading: '4. No harassment, hate speech, or targeted attacks',
-        body:
-          'Racism, misogyny, homophobia, transphobia, antisemitism, Islamophobia, ableism, and any targeted campaign against a student, group, or staff member are not tolerated. Immediate suspension, no warning.',
-      },
-      {
-        heading: '5. No explicit content',
+        heading: '7. No explicit content',
         body:
           'BearBoard is a student platform, not a social network for NSFW material. Nudity, sexual content, or graphic violence will be removed and the account flagged for review.',
       },
       {
-        heading: '6. Protect privacy',
+        heading: '8. Protect privacy',
         body:
           'Do not post other people\u2019s full names, phone numbers, addresses, or photos without consent. Do not screenshot private DMs. This includes professors, staff, and fellow students.',
       },
       {
-        heading: '7. Report, don\u2019t retaliate',
+        heading: '9. Report, don\u2019t retaliate',
         body:
           'If a post breaks the rules, use the report button or contact a moderator. Responding with another rule-breaking post gets both accounts sanctioned.',
       },
@@ -162,6 +172,50 @@ const DOCS = {
         heading: 'How to report a problem',
         body:
           'If anything blocks you from using BearBoard with a keyboard, screen reader, or reduced-motion setting, contact the team (see Team on the home page). Label the message \u201CAccessibility\u201D in the subject line and we\u2019ll prioritize a fix.',
+      },
+    ],
+  },
+
+  anonymity: {
+    title: 'Anonymity guide',
+    kicker: 'When to go anonymous, what stays private, what does not',
+    intro:
+      'BearBoard supports anonymous posts for topics where attaching your name could cost you - mental health, reporting harm, Title IX, housing conflicts, family trouble, financial strain. This page explains exactly what "Anonymous" means here, when to use it, and the short list of cases where your identity can still be recovered.',
+    sections: [
+      {
+        heading: 'What the Anonymous flair does',
+        body:
+          'When you post under the Anonymous flair, the author byline in the feed, post detail, and notifications all read "Anonymous" instead of your name. Your avatar is replaced with a neutral dark avatar so readers cannot correlate posts by color. Other students, including your friends, cannot see who wrote an anonymous post.',
+      },
+      {
+        heading: 'What it does NOT do',
+        body:
+          'Anonymous is not a secure mode. It hides your name from other students, not from the platform. Moderators and admins can see the author of an anonymous post when they are investigating a specific rules violation or a credible safety concern. No routine browsing of anonymous content - just case-by-case review when a report comes in.',
+      },
+      {
+        heading: 'When to use it',
+        body:
+          'Good fits: personal mental-health check-ins, Title IX questions, reporting that something felt wrong, asking for help when you do not want your dorm knowing, airing a grievance that needs to be discussed without naming someone first, asking about scholarships after a financial setback. If the post feels like it belongs in a private journal or a counselor\'s office, Anonymous is the right call.',
+      },
+      {
+        heading: 'When NOT to use it',
+        body:
+          'Do not hide behind Anonymous to insult a specific person, spread rumors, or post content that would get you in trouble under your name. Anonymity protects a vulnerability, not a grudge. Posts that violate the rules (see /rules) are still removed, and the author is still accountable under the moderator case-review process.',
+      },
+      {
+        heading: 'What we log for anonymous posts',
+        body:
+          'The same metadata as any other post: timestamp, flair, the content itself. We do NOT log your IP address, device fingerprint, or any identifier tied to the HTTP request. The only link back to you is the author_id column in the posts table, which the API never returns for anonymous posts.',
+      },
+      {
+        heading: 'If you are in crisis right now',
+        body:
+          'BearBoard is not a crisis service. If you need to talk to someone now, the Morgan State University Counseling Center is at (443) 885-3130 during business hours, and the 988 Suicide & Crisis Lifeline is 24/7 (call or text 988). The Trevor Project (LGBTQ youth) is 1-866-488-7386. RAINN (sexual assault) is 1-800-656-4673. These are free.',
+      },
+      {
+        heading: 'Our promise',
+        body:
+          'We will keep the anonymity guarantees on this page as strict as we reasonably can. If we ever have to change the policy - for a legal subpoena, or because a feature needs to surface more data - we will publish the change on this page before the code change lands, not after.',
       },
     ],
   },

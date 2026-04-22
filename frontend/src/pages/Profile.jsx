@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
 import RoleBadge from '../components/RoleBadge'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import EditProfileModal from '../components/EditProfileModal'
 import { useAuth } from '../context/AuthContext'
@@ -319,6 +320,7 @@ function Nameplate({ user, palette, avatarUrl, isSelf, onEdit, onPickAvatar, onC
               </span>
               <span className="text-gold">•</span>
               <RoleBadge role={user.role} size="lg" />
+              <VerifiedBadge user={user} size="lg" />
             </div>
 
             <h1

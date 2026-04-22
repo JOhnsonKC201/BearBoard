@@ -14,6 +14,11 @@ from core.rate_limit import limiter
 from routers import auth, posts, users, extras, ai, notifications, admin, professors
 from services.resurface import run_resurface
 from services.morgan_events import sync_morgan_events
+from services.weekly_threads import (
+    run_freshman_friday,
+    run_class_registration_help,
+    run_food_on_campus,
+)
 
 logger = logging.getLogger("bearboard.scheduler")
 
@@ -36,6 +41,17 @@ def _morgan_events_job():
         logger.exception("morgan_events sync failed")
 
 
+def _safe(job_name: str, fn):
+    """Wrap a weekly-thread job so its exceptions don't kill the
+    APScheduler worker thread. Logged + swallowed."""
+    def runner():
+        try:
+            fn()
+        except Exception:
+            logger.exception("weekly thread '%s' failed", job_name)
+    return runner
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
@@ -46,6 +62,25 @@ async def lifespan(app: FastAPI):
         id="morgan_events",
         replace_existing=True,
         next_run_time=datetime.now(),
+    )
+    # Weekly community threads. Cron trigger fires once per week on the
+    # designated day/hour. Times are in the app process's local tz; on
+    # Render that's UTC unless overridden. For a Morgan-local feel, pick
+    # hours that read reasonably both in UTC and ET.
+    scheduler.add_job(
+        _safe("freshman_friday", run_freshman_friday),
+        "cron", day_of_week="fri", hour=13, minute=0,
+        id="freshman_friday", replace_existing=True,
+    )
+    scheduler.add_job(
+        _safe("class_registration_help", run_class_registration_help),
+        "cron", day_of_week="mon", hour=13, minute=0,
+        id="class_registration_help", replace_existing=True,
+    )
+    scheduler.add_job(
+        _safe("food_on_campus", run_food_on_campus),
+        "cron", day_of_week="wed", hour=16, minute=0,
+        id="food_on_campus", replace_existing=True,
     )
     scheduler.start()
     try:
