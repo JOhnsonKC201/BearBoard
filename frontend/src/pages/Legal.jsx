@@ -225,28 +225,36 @@ function Legal({ slug = 'rules' }) {
   const doc = DOCS[slug] || DOCS.rules
   return (
     <div className="min-h-screen bg-offwhite">
-      <div className="max-w-[760px] mx-auto px-5 sm:px-6 py-6">
-        {/* Breadcrumbs */}
-        <nav aria-label="Breadcrumb" className="text-[0.72rem] font-archivo font-bold text-gray uppercase tracking-[0.12em] mb-4">
-          <Link to="/" className="hover:text-navy no-underline text-gray">Home</Link>
-          <span className="mx-2 text-ink/30" aria-hidden>/</span>
-          <span className="text-ink/60">Policies</span>
-          <span className="mx-2 text-ink/30" aria-hidden>/</span>
-          <span className="text-ink">{doc.title}</span>
-        </nav>
-
-        {/* Masthead */}
-        <header className="border-t-[3px] border-gold pt-5 mb-6">
-          <span className="font-archivo font-extrabold text-[0.66rem] uppercase tracking-[0.2em] text-gold">
+      {/* Navy hero — matches /resources, /crosslinks, /welcome so every
+           content page in this family shares a visual lead-in. */}
+      <div className="bg-navy relative overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{ backgroundImage: 'repeating-linear-gradient(135deg, #D4962A 0 1px, transparent 1px 14px)' }}
+        />
+        <div className="max-w-[960px] mx-auto px-5 sm:px-8 py-10 relative">
+          <nav aria-label="Breadcrumb" className="text-[0.66rem] font-archivo font-extrabold text-gold/75 uppercase tracking-[0.22em] mb-4">
+            <Link to="/" className="hover:text-gold no-underline text-gold/75 focus-visible:outline-none focus-visible:text-gold focus-visible:underline underline-offset-4">Home</Link>
+            <span className="mx-2 text-white/30" aria-hidden>/</span>
+            <span className="text-white/60">Policies</span>
+            <span className="mx-2 text-white/30" aria-hidden>/</span>
+            <span className="text-white">{doc.title}</span>
+          </nav>
+          <div className="font-archivo font-extrabold text-[0.62rem] uppercase tracking-[0.26em] text-gold mb-2">
             BearBoard policies
-          </span>
-          <h1 className="font-archivo font-black text-[2rem] sm:text-[2.3rem] leading-[1.05] tracking-tight text-ink mt-2 uppercase">
+          </div>
+          <h1 className="font-archivo font-black text-white text-[2.1rem] sm:text-[2.6rem] leading-[1.02] tracking-tight uppercase">
             {doc.title}
           </h1>
-          <p className="text-gray text-[0.92rem] mt-2 leading-relaxed max-w-[60ch]">
+          <p className="text-white/70 text-[0.94rem] mt-3 leading-relaxed max-w-[60ch]">
             {doc.kicker}
           </p>
-        </header>
+        </div>
+      </div>
+      <hr className="h-[3px] bg-gold border-none m-0" />
+
+      <div className="max-w-[760px] mx-auto px-5 sm:px-6 py-8">
 
         {/* Policies sub-nav */}
         <nav aria-label="Policies" className="mb-7 flex flex-wrap gap-1.5 border-y border-divider py-3">
