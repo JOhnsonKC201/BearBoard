@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
@@ -27,11 +29,50 @@ from routers.auth import get_current_user_dep
 from services.streak import bump_streak
 from services.resurface import find_relevant_recipients
 from models.notification import Notification
+from agents import moderation
 from datetime import datetime, timedelta, timezone
 
 SOS_NOTIFICATION_KIND = "sos"
 
+logger = logging.getLogger("bearboard.posts")
+
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+
+def _guard_content(content: str, kind: str, author_id: int) -> None:
+    """Run user-submitted text through the moderation agent and hard-block
+    anything with a `block` verdict.
+
+    Sprint 1 posture:
+    - `block` → HTTP 400 with the model's reason (client surfaces it).
+    - `flag`  → allow the write, just log a warning so moderators can review.
+    - `allow` → silent.
+
+    `moderate()` never raises (it degrades to a keyword heuristic when the
+    LLM is unreachable), so a broad catch here is belt-and-suspenders: we
+    never want a moderation hiccup to prevent a student from posting.
+
+    `kind` is one of "post" | "comment". `author_id` only lands in the log
+    line; we do not attach moderation state to the DB row in this sprint
+    because that requires a model change Johnson owns.
+    """
+    try:
+        result = moderation.moderate(content or "")
+    except Exception:
+        logger.exception("moderation call failed for %s by user=%s; allowing write", kind, author_id)
+        return
+
+    if result.verdict == "block":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Content blocked by moderation: {result.reason or 'policy violation'}",
+        )
+
+    if result.verdict == "flag":
+        logger.warning(
+            "moderation flagged %s by user=%s categories=%s reason=%s provider=%s",
+            kind, author_id, result.categories, result.reason, result.provider,
+        )
 
 
 def _anonymize_if_needed(post: Post) -> Post:
@@ -135,6 +176,9 @@ def create_post(
                 status_code=429,
                 detail=f"SOS limit reached: {SOS_RECENT_LIMIT} per {SOS_RECENT_WINDOW_HOURS}h.",
             )
+
+    _guard_content(f"{post.title or ''}\n\n{post.body or ''}", kind="post", author_id=current_user.id)
+
     db_post = Post(
         title=post.title,
         body=post.body,
@@ -314,6 +358,8 @@ def create_comment(
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+
+    _guard_content(body, kind="comment", author_id=current_user.id)
 
     new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
     db.add(new_comment)
