@@ -118,6 +118,10 @@ class AuthorInfo(BaseModel):
     name: str
     major: Optional[str] = None
     role: str = "student"
+    # Inline base64 data URL or empty string. Surfaces on every post/comment
+    # so author chips across the site (feed, detail page, comments, navbar)
+    # can render the real photo instead of falling back to initials.
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

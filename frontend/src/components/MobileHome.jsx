@@ -38,13 +38,29 @@ const MONTH_LONG = [
 // Small UI primitives used within this file only
 // -----------------------------------------------------------------------------
 
-function Avatar({ seed, name, size = 40, ring = false }) {
+function Avatar({ seed, name, avatarUrl, size = 40, ring = false }) {
   const pal = paletteFor(seed)
+  const ringClass = ring ? 'ring-2 ring-gold ring-offset-[3px] ring-offset-navy' : ''
+  if (avatarUrl) {
+    return (
+      <div
+        className={`rounded-full overflow-hidden shrink-0 ${ringClass}`}
+        style={{ width: size, height: size, background: pal.bg }}
+      >
+        <img
+          src={avatarUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          className="w-full h-full object-cover block"
+        />
+      </div>
+    )
+  }
   return (
     <div
-      className={`rounded-full flex items-center justify-center font-archivo font-extrabold shrink-0 ${
-        ring ? 'ring-2 ring-gold ring-offset-[3px] ring-offset-navy' : ''
-      }`}
+      className={`rounded-full flex items-center justify-center font-archivo font-extrabold shrink-0 ${ringClass}`}
       style={{
         width: size,
         height: size,
@@ -269,7 +285,7 @@ function MobileHome({
                 className="no-underline shrink-0 mt-1"
                 aria-label="Open your profile"
               >
-                <Avatar seed={user?.id} name={user?.name} size={52} ring />
+                <Avatar seed={user?.id} name={user?.name} avatarUrl={user?.avatar_url} size={52} ring />
               </Link>
             ) : (
               <Link
@@ -692,7 +708,7 @@ function TopStoryCard({ story, index, total }) {
 
           <div className="mt-auto pt-5 flex items-end justify-between gap-3 border-t border-white/20">
             <div className="flex items-center gap-2.5 min-w-0 pt-3">
-              <Avatar seed={story.author?.id ?? story.id} name={story.author?.name} size={32} />
+              <Avatar seed={story.author?.id ?? story.id} name={story.author?.name} avatarUrl={story.author?.avatar_url} size={32} />
               <div className="min-w-0">
                 <div className="font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.18em] text-white/55 leading-none">
                   By
