@@ -102,27 +102,45 @@ function AdminDashboard() {
           <div className="px-5 py-4 text-[0.82rem] text-[#8B1A1A] font-archivo font-bold">{error}</div>
         ) : users.length === 0 ? (
           <div className="px-5 py-4 text-[0.82rem] text-gray">No users yet.</div>
-        ) : users.map((u) => (
-          <div key={u.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#EAE7E0] last:border-b-0">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <div className="text-[0.85rem] font-semibold truncate">{u.name}</div>
-                <RoleBadge role={u.role} />
+        ) : users.map((u) => {
+          const canRevoke = u.role && u.role !== 'student'
+          const revoke = () => {
+            if (!confirm(`Revoke ${u.role.toUpperCase()} role from ${u.name}?`)) return
+            setRole(u.email, 'student')
+          }
+          return (
+            <div key={u.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#EAE7E0] last:border-b-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <div className="text-[0.85rem] font-semibold truncate">{u.name}</div>
+                  <RoleBadge role={u.role} />
+                </div>
+                <div className="text-[0.7rem] text-gray truncate">{u.email}</div>
               </div>
-              <div className="text-[0.7rem] text-gray truncate">{u.email}</div>
+              <select
+                value={u.role}
+                onChange={(e) => setRole(u.email, e.target.value)}
+                disabled={submitting}
+                className="border border-lightgray bg-white px-2 py-1 text-[0.72rem] font-archivo font-bold uppercase tracking-wide focus:border-navy focus:outline-none"
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              {canRevoke && (
+                <button
+                  type="button"
+                  onClick={revoke}
+                  disabled={submitting}
+                  title={`Revoke ${u.role} role`}
+                  className="border border-[#8B1A1A]/30 bg-white text-[#8B1A1A] hover:bg-[#8B1A1A] hover:text-white disabled:opacity-60 disabled:cursor-not-allowed py-1 px-2.5 font-archivo text-[0.65rem] font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
+                >
+                  Revoke
+                </button>
+              )}
             </div>
-            <select
-              value={u.role}
-              onChange={(e) => setRole(u.email, e.target.value)}
-              disabled={submitting}
-              className="border border-lightgray bg-white px-2 py-1 text-[0.72rem] font-archivo font-bold uppercase tracking-wide focus:border-navy focus:outline-none"
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
