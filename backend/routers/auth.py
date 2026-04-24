@@ -1,15 +1,23 @@
+import hashlib
 import re
+import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.rate_limit import limiter
 from schemas.user import UserCreate, UserLogin, UserResponse
 from models.user import User
+from models.password_reset import PasswordResetToken
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from core.config import (
+    SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
+    RESET_TOKEN_EXPIRE_MINUTES, FRONTEND_URL,
+)
 from datetime import datetime, timedelta, timezone
+from services.email import send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -141,3 +149,86 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user_dep)):
     return current_user
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+def _hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+@router.post("/forgot-password", status_code=200)
+@limiter.limit("5/hour")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    email = (body.email or "").strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+
+    # Always return 200 so attackers can't enumerate registered emails.
+    if not user or not user.password_hash or user.password_hash.startswith("!"):
+        return {"detail": "If that email is registered you'll receive a reset link shortly."}
+
+    # Invalidate any existing unused tokens for this user.
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used == False,  # noqa: E712
+    ).update({"used": True})
+    db.flush()
+
+    raw_token = secrets.token_urlsafe(32)
+    expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    db.add(PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_token(raw_token),
+        expires_at=expires,
+    ))
+    db.commit()
+
+    reset_link = f"{FRONTEND_URL}/reset-password?token={raw_token}"
+    background_tasks.add_task(send_password_reset_email, email, reset_link)
+
+    return {"detail": "If that email is registered you'll receive a reset link shortly."}
+
+
+@router.post("/reset-password", status_code=200)
+@limiter.limit("10/hour")
+def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    if not body.token or len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Invalid request.")
+
+    token_hash = _hash_token(body.token.strip())
+    now = datetime.now(timezone.utc)
+
+    record = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used == False,  # noqa: E712
+        PasswordResetToken.expires_at > now,
+    ).first()
+
+    if not record:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+
+    user.password_hash = pwd_context.hash(body.password)
+    record.used = True
+    db.commit()
+
+    return {"detail": "Password updated. You can now sign in with your new password."}

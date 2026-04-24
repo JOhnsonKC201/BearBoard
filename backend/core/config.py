@@ -23,6 +23,18 @@ if not SECRET_KEY or SECRET_KEY == _INSECURE_DEFAULT:
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
+RESET_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+
+# SMTP settings for password-reset emails. All optional; if SMTP_USER /
+# SMTP_PASSWORD are unset the server logs the reset link instead of emailing.
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "") or SMTP_USER
+
+# Base URL of the frontend (used to build the password-reset link in emails).
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 # Explicit CORS allow-list. Override in prod via ALLOWED_ORIGINS env var
 # (comma-separated). Accepts bare hostnames ("bearboard.onrender.com") too;

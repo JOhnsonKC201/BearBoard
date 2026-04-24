@@ -8,6 +8,8 @@ import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 // Lazy-load rarely-visited pages so they aren't in the initial bundle.
 // Home, Login, Register stay eagerly loaded because those are the most
@@ -53,6 +55,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<WithNav><Home /></WithNav>} />
             <Route path="/feed" element={<WithNav><Home /></WithNav>} />
             <Route path="/profile/:id" element={<WithNav><Profile /></WithNav>} />

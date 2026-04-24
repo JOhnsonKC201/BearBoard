@@ -54,7 +54,10 @@ function Login() {
           {errors.email && <p className="text-danger text-[0.72rem] mt-1 font-archivo font-bold">{errors.email}</p>}
         </div>
         <div>
-          <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Password</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray">Password</label>
+            <Link to="/forgot-password" className="text-gray text-[0.72rem] font-archivo hover:text-navy no-underline">Forgot password?</Link>
+          </div>
           <input
             type="password"
             value={password}
