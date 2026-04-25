@@ -50,6 +50,7 @@ function ImageUploader({ value, onChange, disabled }) {
   const [error, setError] = useState(null)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
+  const [dragOver, setDragOver] = useState(false)
 
   const commitUrlDraft = () => {
     const v = urlDraft.trim()
@@ -64,9 +65,7 @@ function ImageUploader({ value, onChange, disabled }) {
     fileInputRef.current?.click()
   }
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = '' // allow re-picking the same file after removal
+  const ingestFile = async (file) => {
     if (!file) return
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setError('Use a JPG, PNG, WEBP, or GIF')
@@ -87,6 +86,36 @@ function ImageUploader({ value, onChange, disabled }) {
     } finally {
       setUploading(false)
     }
+  }
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file after removal
+    await ingestFile(file)
+  }
+
+  // Drag-and-drop handlers. We block the default browser behavior (which
+  // would otherwise navigate to the dropped image) and surface a visual
+  // hover state via `dragOver`. Multi-file drops take only the first file
+  // since posts carry a single image.
+  const onDragOver = (e) => {
+    if (disabled || uploading) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (!dragOver) setDragOver(true)
+  }
+  const onDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+  }
+  const onDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    if (disabled || uploading) return
+    const file = e.dataTransfer?.files?.[0]
+    await ingestFile(file)
   }
 
   const clear = () => {
@@ -124,11 +153,23 @@ function ImageUploader({ value, onChange, disabled }) {
           <button
             type="button"
             onClick={pickFile}
+            onDragOver={onDragOver}
+            onDragEnter={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
             disabled={disabled || uploading}
-            className="w-full border border-dashed border-lightgray bg-offwhite hover:border-navy hover:bg-white px-4 py-5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex flex-col items-center gap-1"
+            className={`w-full border border-dashed px-4 py-5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex flex-col items-center gap-1 ${
+              dragOver
+                ? 'border-navy bg-gold-pale/40 ring-2 ring-navy/20'
+                : 'border-lightgray bg-offwhite hover:border-navy hover:bg-white'
+            }`}
           >
             <span className="font-archivo font-extrabold text-[0.78rem] text-ink">
-              {uploading ? `Uploading… ${progress}%` : 'Click to upload an image'}
+              {uploading
+                ? `Uploading… ${progress}%`
+                : dragOver
+                ? 'Drop to upload'
+                : 'Click or drag an image here'}
             </span>
             <span className="text-[0.68rem] text-gray font-franklin">
               JPG, PNG, WEBP, or GIF · up to 10 MB

@@ -18,6 +18,7 @@ const MobileHome = lazy(() => import('../components/MobileHome'))
 const ChatWidget = lazy(() => import('../components/ChatWidget'))
 const NewPostModal = lazy(() => import('../components/NewPostModal'))
 const CreateGroupModal = lazy(() => import('../components/CreateGroupModal'))
+const PostAuthorMenu = lazy(() => import('../components/PostAuthorMenu'))
 
 // Roles allowed to see internal messaging like the "Got a new idea?" banner.
 // General students should not see team/Trello chrome.
@@ -181,6 +182,16 @@ function Home() {
   const [posts, setPosts] = useState([])
   const [postsLoading, setPostsLoading] = useState(true)
   const [postsError, setPostsError] = useState(null)
+
+  // Inline edit/delete handlers for the kebab menu on each card. Patches
+  // local state so the feed stays in sync without a refetch.
+  const handlePostUpdated = (updated) => {
+    if (!updated?.id) return
+    setPosts((cur) => cur.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)))
+  }
+  const handlePostDeleted = (id) => {
+    setPosts((cur) => cur.filter((p) => p.id !== id))
+  }
   const [reloadKey, setReloadKey] = useState(0)
   const [trending, setTrending] = useState([])
   const [events, setEvents] = useState([])
@@ -388,6 +399,8 @@ function Home() {
             myGroupIds={myGroupIds}
             onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
             onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
+            onPostUpdated={handlePostUpdated}
+            onPostDeleted={handlePostDeleted}
             loading={postsLoading || sidebarLoading}
           />
         </Suspense>
@@ -534,7 +547,7 @@ function Home() {
                   <div className="border-l-[3px] border-l-gold">
                     {pinnedPosts.map((post) => (
                       <div key={post.id} className="border-b border-lightgray last:border-b-0 bg-gold/[0.04]">
-                        <PostCard post={post} />
+                        <PostCard post={post} onUpdated={handlePostUpdated} onDeleted={handlePostDeleted} />
                       </div>
                     ))}
                   </div>
@@ -546,7 +559,7 @@ function Home() {
                   className="feed-card-in"
                   style={{ '--feed-delay': `${Math.min(i * 40, 320)}ms` }}
                 >
-                  <PostCard post={post} />
+                  <PostCard post={post} onUpdated={handlePostUpdated} onDeleted={handlePostDeleted} />
                 </div>
               ))}
             </>
@@ -956,7 +969,7 @@ function SideBox({ title, children, id }) {
   )
 }
 
-function PostCard({ post }) {
+function PostCard({ post, onUpdated, onDeleted }) {
   const categoryKey = (post.category || 'general').toLowerCase()
   const catClass = CAT_STYLES[categoryKey] || CAT_STYLES.general
   const isAnonymous = categoryKey === 'anonymous'
@@ -1135,6 +1148,13 @@ function PostCard({ post }) {
           <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
             {flairLabel(post.category)}
           </span>
+          <Suspense fallback={null}>
+            <PostAuthorMenu
+              post={post}
+              onUpdated={onUpdated}
+              onDeleted={onDeleted}
+            />
+          </Suspense>
         </div>
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
           <h3 className="font-archivo font-bold text-[1.15rem] leading-[1.25] mb-1 tracking-tight group-hover/title:text-navy transition-colors">

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { catClassFor } from '../utils/avatar'
 import { formatRelativeShort as formatRelative } from '../utils/format'
 import { VerifiedBadge } from './VerifiedBadge'
+import PostAuthorMenu from './PostAuthorMenu'
 import {
   IconCaretUp,
   IconCaretDown,
@@ -27,7 +28,7 @@ import {
 //   - save → localStorage toggle (shared with desktop PostCard)
 //   - share → Web Share API or clipboard
 
-function MobilePostCard({ post }) {
+function MobilePostCard({ post, onUpdated, onDeleted }) {
   const { isAuthed } = useAuth()
   const navigate = useNavigate()
   const hasImage = Boolean(post.image_url)
@@ -135,11 +136,16 @@ function MobilePostCard({ post }) {
   const downActive = userVote === 'down'
 
   return (
-    <article className="bg-card border-t border-ink/10 first:border-t-0">
+    <article className="bg-card border-t border-ink/10 first:border-t-0 relative">
+      {/* Kebab — sits above the tappable header Link. PostAuthorMenu only
+          renders for the author or moderators, so non-authors see nothing. */}
+      <div className="absolute top-2 right-2 z-10">
+        <PostAuthorMenu post={post} onUpdated={onUpdated} onDeleted={onDeleted} />
+      </div>
       {/* Metadata + title - tappable to post detail */}
       <Link
         to={`/post/${post.id}`}
-        className="block px-4 pt-4 pb-3 no-underline text-ink"
+        className="block px-4 pt-4 pb-3 pr-12 no-underline text-ink"
       >
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {post.category && (
