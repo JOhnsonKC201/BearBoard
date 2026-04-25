@@ -66,8 +66,8 @@ function EditPostModal({ post, onClose, onSaved }) {
       aria-modal="true"
       aria-labelledby="edit-post-title"
     >
-      <div className="bg-card w-full max-w-[560px] max-h-[92vh] overflow-y-auto border border-lightgray">
-        <header className="flex items-center justify-between px-5 py-4 border-b border-divider bg-offwhite sticky top-0 z-[1]">
+      <div className="bg-card w-full max-w-[560px] max-h-[100dvh] sm:max-h-[92vh] flex flex-col overflow-hidden border border-lightgray">
+        <header className="flex items-center justify-between px-5 py-4 border-b border-divider bg-offwhite shrink-0">
           <h2 id="edit-post-title" className="font-archivo font-black text-[1.05rem] tracking-tight">
             Edit post
           </h2>
@@ -75,12 +75,13 @@ function EditPostModal({ post, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-9 h-9 flex items-center justify-center bg-transparent border-none text-gray hover:text-ink cursor-pointer text-xl leading-none"
+            className="w-11 h-11 flex items-center justify-center bg-transparent border-none text-gray hover:text-ink cursor-pointer text-xl leading-none"
           >
             &times;
           </button>
         </header>
-        <form onSubmit={submit} className="px-5 py-5 space-y-4">
+        <form onSubmit={submit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">
               Title <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 tabular-nums">({title.length}/{TITLE_MAX})</span>
@@ -127,27 +128,32 @@ function EditPostModal({ post, onClose, onSaved }) {
           <div className="text-[0.74rem] text-gray italic bg-offwhite border-l-[3px] border-navy px-3 py-2">
             Category / flair cannot be changed after posting. If the flair is wrong, delete and repost.
           </div>
-          {err && (
-            <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold" role="alert">
-              {err}
+          </div>
+          {/* Sticky action footer — stays above the iOS keyboard so the
+              Save button never hides when the body textarea is focused. */}
+          <div className="shrink-0 border-t border-divider bg-card px-5 py-3">
+            {err && (
+              <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold mb-2" role="alert">
+                {err}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 px-4 min-h-[44px] border border-lightgray bg-white hover:bg-offwhite cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 bg-navy text-gold font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 min-h-[44px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
+              >
+                {submitting ? 'Saving...' : 'Save changes'}
+              </button>
             </div>
-          )}
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 px-4 min-h-[42px] border border-lightgray bg-white hover:bg-offwhite cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-navy text-gold font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 min-h-[42px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
-            >
-              {submitting ? 'Saving...' : 'Save changes'}
-            </button>
           </div>
         </form>
       </div>

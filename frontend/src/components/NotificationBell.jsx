@@ -114,7 +114,7 @@ function NotificationBell() {
       <button
         onClick={togglePanel}
         aria-label="Notifications"
-        className="relative w-[30px] h-[30px] bg-white/[0.08] hover:bg-white/[0.16] text-white rounded flex items-center justify-center text-[0.95rem] transition-colors"
+        className="relative w-10 h-10 bg-white/[0.08] hover:bg-white/[0.16] text-white rounded flex items-center justify-center text-[1rem] transition-colors"
       >
         <span aria-hidden="true">&#128276;</span>
         {unread > 0 && (
