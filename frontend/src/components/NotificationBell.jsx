@@ -128,7 +128,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[40px] w-[320px] max-h-[420px] overflow-y-auto bg-card border border-lightgray shadow-lg z-[300]">
+        <div className="absolute right-0 top-[40px] w-[320px] max-w-[calc(100vw-16px)] max-h-[420px] overflow-y-auto bg-card border border-lightgray shadow-lg z-[300]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE7E0] bg-offwhite sticky top-0">
             <h3 className="font-archivo font-extrabold text-[0.78rem] uppercase tracking-tight">Notifications</h3>
             {unread > 0 && (
