@@ -1132,7 +1132,15 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
       </div>
 
       {(replies.length > 0 || replying) && (
-        <div className="border-t border-divider bg-offwhite/40 px-4 sm:px-5 pl-12 sm:pl-[60px] py-3">
+        <div className="relative border-t border-divider bg-offwhite/40 px-4 sm:px-5 pl-12 sm:pl-[60px] py-3">
+          {/* Reddit-style vertical thread line — runs through the indent
+              gutter so the eye can trace parent → children visually. The
+              left offset is tuned to fall roughly under the parent comment's
+              avatar center. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-3 bottom-3 left-[26px] sm:left-[30px] w-px bg-lightgray/80"
+          />
           {hiddenCount > 0 && !showAllReplies && (
             <button
               type="button"
