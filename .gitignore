@@ -23,3 +23,11 @@ backend/node_modules/
 .DS_Store
 Thumbs.db
 backend/.venv/
+
+# Local-only files at repo root (build artifacts, mailmap drafts, ad-hoc
+# bundles) that have been showing up in git status. If you ever need to
+# track one of these intentionally, use `git add -f`.
+.zip
+*.zip
+mailmap.txt
+.claude/
