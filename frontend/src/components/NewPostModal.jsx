@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { FLAIRS, flairSlug } from '../utils/avatar'
 import ImageUploader from './ImageUploader'
+import EmojiPickerButton, { insertAtCursor } from './EmojiPickerButton'
 
 // Picker labels. Order mirrors FLAIRS so the UI matches the feed filter rail.
 const CATEGORIES = FLAIRS.map((f) => f.label)
@@ -27,6 +28,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const titleInputRef = useRef(null)
+  const bodyRef = useRef(null)
 
   // Esc-to-close + lock body scroll while the modal is open. Also autofocus
   // the title field so keyboard users can start typing immediately.
@@ -318,6 +320,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
 
             <Field label="Body" error={errors.body}>
               <textarea
+                ref={bodyRef}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 disabled={submitting}
@@ -326,7 +329,14 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                 className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin resize-y focus:border-navy focus:outline-none"
                 placeholder="Share the details…"
               />
-              <CharCount value={body} max={BODY_MAX} />
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <EmojiPickerButton
+                  align="left"
+                  disabled={submitting}
+                  onPick={(e) => insertAtCursor(bodyRef, body, setBody, e)}
+                />
+                <CharCount value={body} max={BODY_MAX} />
+              </div>
             </Field>
 
             {submitError && (
