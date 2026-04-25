@@ -83,7 +83,7 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
         aria-expanded={open}
         aria-label="Post actions"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); setConfirm(false) }}
-        className={`w-8 h-8 flex items-center justify-center rounded-full border-none bg-transparent cursor-pointer transition-colors ${variant === 'dark' ? darkBtn : lightBtn} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
+        className={`w-10 h-10 flex items-center justify-center rounded-full border-none bg-transparent cursor-pointer transition-colors ${variant === 'dark' ? darkBtn : lightBtn} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <circle cx="5" cy="12" r="1.8" />

@@ -197,7 +197,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
             aria-label="Upvote"
             aria-pressed={upActive}
             disabled={pending}
-            className={`flex items-center justify-center w-10 h-9 rounded-l-full bg-transparent border-none cursor-pointer disabled:cursor-wait ${
+            className={`flex items-center justify-center w-11 h-11 rounded-l-full bg-transparent border-none cursor-pointer disabled:cursor-wait ${
               upActive ? 'text-gold' : 'text-gray'
             }`}
           >
@@ -216,7 +216,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
             aria-label="Downvote"
             aria-pressed={downActive}
             disabled={pending}
-            className={`flex items-center justify-center w-10 h-9 rounded-r-full bg-transparent border-none cursor-pointer disabled:cursor-wait ${
+            className={`flex items-center justify-center w-11 h-11 rounded-r-full bg-transparent border-none cursor-pointer disabled:cursor-wait ${
               downActive ? 'text-danger' : 'text-gray'
             }`}
           >
@@ -242,7 +242,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
           onClick={toggleSave}
           aria-pressed={saved}
           aria-label={saved ? 'Remove from saved' : 'Save post'}
-          className={`flex items-center justify-center w-10 h-9 rounded-full border-none cursor-pointer ${
+          className={`flex items-center justify-center w-11 h-11 rounded-full border-none cursor-pointer ${
             saved ? 'bg-gold/15 text-warning' : 'bg-offwhite text-gray'
           }`}
         >
@@ -254,7 +254,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
           type="button"
           onClick={doShare}
           aria-label="Share post"
-          className={`flex items-center justify-center w-10 h-9 rounded-full border-none cursor-pointer ${
+          className={`flex items-center justify-center w-11 h-11 rounded-full border-none cursor-pointer ${
             shareState === 'copied'
               ? 'bg-success-bg text-success'
               : shareState === 'failed'
