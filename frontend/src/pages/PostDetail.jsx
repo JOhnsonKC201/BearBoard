@@ -264,7 +264,7 @@ function PostDetail() {
                 {/* Drop-cap on the first letter of long posts */}
                 {(post.body || '').length > 240 ? (
                   <>
-                    <span className="float-left font-editorial font-black text-[3.4rem] leading-[0.85] mr-2 mt-1 text-navy">
+                    <span className="float-left font-editorial font-black text-[2.4rem] sm:text-[3.4rem] leading-[0.85] mr-2 mt-1 text-navy">
                       {post.body.charAt(0)}
                     </span>
                     {post.body.slice(1)}
