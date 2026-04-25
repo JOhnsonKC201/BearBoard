@@ -577,23 +577,7 @@ function Home() {
             ) : trending.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No trending posts yet.</div>
             ) : trending.map((t, i) => (
-              <Link
-                key={t.id}
-                to={`/post/${t.id}`}
-                className="flex gap-3 items-start px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/trend"
-              >
-                <div className="font-archivo font-black text-[1.6rem] text-gold leading-none w-[26px] tracking-tighter shrink-0">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[0.82rem] font-semibold leading-tight mb-1 group-hover/trend:text-navy transition-colors line-clamp-2">{t.title}</div>
-                  <div className="text-[0.68rem] text-gray flex items-center gap-2">
-                    <span className="flex items-center gap-[3px]"><span className="text-gold">&#9650;</span>{(t.upvotes ?? 0) - (t.downvotes ?? 0)}</span>
-                    <span className="opacity-40">&middot;</span>
-                    <span>{t.comment_count ?? 0} comments</span>
-                  </div>
-                </div>
-              </Link>
+              <TrendingItem key={t.id} post={t} rank={i + 1} featured={i === 0} />
             ))}
           </SideBox>
 
@@ -998,6 +982,83 @@ function SideBox({ title, children, id }) {
       </div>
       {children}
     </div>
+  )
+}
+
+/* ----------------------------------------------------------------------- */
+/*  TrendingItem — sidebar widget row.                                     */
+/*                                                                         */
+/*  Editorial-voice redesign over the old "rank · title · score · comments"*/
+/*  list. Adds a momentum tag (Hot/Rising/New) computed from score + age   */
+/*  so the widget tells the reader why something is here, not just that it */
+/*  is. Top-ranked item gets a featured treatment (slightly larger title + */
+/*  gold accent rule). Hover reveals a left-edge gold bar — the standard   */
+/*  "this is interactive" cue used elsewhere on the page.                  */
+/* ----------------------------------------------------------------------- */
+function TrendingItem({ post, rank, featured = false }) {
+  const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+  const replies = post.comment_count ?? 0
+  const ageH = (() => {
+    if (!post.created_at) return Infinity
+    const ms = Date.now() - new Date(post.created_at).getTime()
+    return Number.isFinite(ms) ? ms / 36e5 : Infinity
+  })()
+
+  // Heuristic momentum tag — surfaces *why* the item is trending.
+  // Tuned for a small campus board; thresholds are deliberately low
+  // because absolute scores here are an order of magnitude smaller
+  // than on a major site.
+  let tag = null
+  if (score >= 5 && ageH <= 6) tag = { label: 'Hot', cls: 'bg-danger/15 text-danger' }
+  else if (score >= 1 && ageH <= 24) tag = { label: 'Rising', cls: 'bg-gold/20 text-warning' }
+  else if (ageH <= 6) tag = { label: 'New', cls: 'bg-navy/10 text-navy' }
+
+  return (
+    <Link
+      to={`/post/${post.id}`}
+      className={`relative flex gap-3 items-start px-4 ${featured ? 'py-3.5' : 'py-3'} border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/trend`}
+    >
+      {/* Hover accent — gold bar slides in on the left edge */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-2 bottom-2 w-[3px] bg-gold scale-y-0 group-hover/trend:scale-y-100 origin-center transition-transform"
+      />
+      <div
+        className={`font-editorial italic font-black leading-[0.9] tracking-tight text-gold shrink-0 tabular-nums ${
+          featured ? 'text-[2rem] w-[34px]' : 'text-[1.5rem] w-[28px]'
+        }`}
+      >
+        {rank}
+      </div>
+      <div className="flex-1 min-w-0">
+        {tag && (
+          <span className={`inline-block text-[0.55rem] font-archivo font-extrabold uppercase tracking-[0.16em] px-1.5 py-[2px] rounded-sm mb-1 ${tag.cls}`}>
+            {tag.label}
+          </span>
+        )}
+        <div
+          className={`font-editorial font-black leading-[1.18] tracking-tight text-ink mb-1.5 group-hover/trend:text-navy transition-colors line-clamp-2 ${
+            featured ? 'text-[0.98rem]' : 'text-[0.88rem]'
+          }`}
+        >
+          {post.title}
+        </div>
+        <div className="text-[0.66rem] text-gray font-archivo uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center gap-[3px] text-ink/70">
+            <span className="text-gold">&#9650;</span>
+            <span className="tabular-nums">{score}</span>
+          </span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{replies} {replies === 1 ? 'reply' : 'replies'}</span>
+          {Number.isFinite(ageH) && (
+            <>
+              <span aria-hidden className="text-lightgray">/</span>
+              <span className="tabular-nums">{formatRelativeTime(post.created_at)}</span>
+            </>
+          )}
+        </div>
+      </div>
+    </Link>
   )
 }
 
