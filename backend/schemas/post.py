@@ -128,12 +128,17 @@ class AuthorInfo(BaseModel):
 
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=5_000)
+    # Optional: when set, this comment is a reply to another comment under
+    # the same post. The route enforces depth-1 (parents must be top-level)
+    # so replies-of-replies flatten under the original parent.
+    parent_id: Optional[int] = None
 
 class CommentResponse(BaseModel):
     id: int
     body: str
     author_id: int
     post_id: int
+    parent_id: Optional[int] = None
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
 
