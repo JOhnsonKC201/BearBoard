@@ -241,7 +241,11 @@ function CampusMap() {
         <div className="order-1 md:order-2">
           <div
             ref={mapEl}
-            className="w-full h-[620px] border border-lightgray bg-offwhite"
+            // Viewport-relative on mobile so the map fits above the
+            // BottomNav (56px) without forcing the user to scroll past
+            // hidden Leaflet pan controls. Fixed height returns at md+
+            // where the BottomNav doesn't dominate the viewport.
+            className="w-full h-[60vh] min-h-[360px] md:h-[620px] border border-lightgray bg-offwhite"
             aria-label="Morgan State campus map"
           />
           <div className="mt-2 text-[0.68rem] text-gray font-archivo">
