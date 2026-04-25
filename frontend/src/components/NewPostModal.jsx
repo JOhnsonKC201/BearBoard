@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { FLAIRS, flairSlug } from '../utils/avatar'
+import ImageUploader from './ImageUploader'
 
 // Picker labels. Order mirrors FLAIRS so the UI matches the feed filter rail.
 const CATEGORIES = FLAIRS.map((f) => f.label)
@@ -264,25 +265,12 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
               </div>
             )}
 
-            <Field label="Image URL (optional)" error={null}>
-              <input
-                type="url"
+            <Field label="Image (optional)" error={null}>
+              <ImageUploader
                 value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                onChange={setImageUrl}
                 disabled={submitting}
-                placeholder="https://... (paste a direct image link)"
-                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
               />
-              {imageUrl.trim() && (
-                <div className="mt-2 border border-lightgray bg-offwhite overflow-hidden max-h-[180px]">
-                  <img
-                    src={imageUrl.trim()}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
-                  />
-                </div>
-              )}
             </Field>
 
             {isListing && (
