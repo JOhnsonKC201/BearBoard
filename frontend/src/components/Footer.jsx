@@ -32,7 +32,9 @@ const BROWSE_LINKS = [
   { to: '/', label: 'Feed' },
   { to: '/?sort=popular', label: 'Popular' },
   { to: '/?sort=trending', label: 'Trending' },
-  { to: '/#events', label: 'Events' },
+  // Hash targets must match real ids on the home page (see Home.jsx
+  // SideBox calls + the team section). ScrollToTop handles scroll-on-mount.
+  { to: '/#events-box', label: 'Events' },
   { to: '/#groups', label: 'Groups' },
   { to: '/map', label: 'Campus Map' },
   { to: '/professors', label: 'Professors' },

@@ -106,18 +106,15 @@ function IconA11y() {
   )
 }
 
-function RailItem({ to, hash, label, Icon, active }) {
+function RailItem({ to, label, Icon, active }) {
   const cls = `flex items-center gap-2.5 px-3 py-2 no-underline text-[0.82rem] font-archivo font-semibold rounded-sm transition-colors ${
     active ? 'bg-offwhite text-navy' : 'text-ink/80 hover:bg-offwhite hover:text-navy'
   }`
-  if (hash) {
-    return (
-      <a href={hash} className={cls}>
-        <Icon />
-        <span>{label}</span>
-      </a>
-    )
-  }
+  // Hash-only links (e.g. "#events") only work on the page that hosts the
+  // anchor — from /map a bare "#events" just changes the fragment without
+  // navigating. Always route through the home path so the home-page hash
+  // sections resolve regardless of where the user clicked from. The
+  // ScrollToTop helper handles the scroll once Home mounts.
   return (
     <Link to={to} className={cls}>
       <Icon />
@@ -156,12 +153,12 @@ function NavRail() {
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
       <RailSection title="Browse">
-        <RailItem hash="#events" label="Events" Icon={IconCal} />
-        <RailItem hash="#groups" label="Groups" Icon={IconPeople} />
+        <RailItem to="/#events-box" label="Events" Icon={IconCal} />
+        <RailItem to="/#groups" label="Groups" Icon={IconPeople} />
         <RailItem to="/map" label="Campus Map" Icon={IconMap} active={location.pathname === '/map'} />
         <RailItem to="/professors" label="Professors" Icon={IconMortar} active={location.pathname === '/professors'} />
-        <RailItem to="/crosslinks" label="Related communities" Icon={IconTeam} active={location.pathname === '/crosslinks'} />
-        <RailItem hash="#team" label="Team" Icon={IconTeam} />
+        <RailItem to="/crosslinks" label="Related communities" Icon={IconMap} active={location.pathname === '/crosslinks'} />
+        <RailItem to="/#team" label="Team" Icon={IconTeam} />
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
       <RailSection title="Policies">
