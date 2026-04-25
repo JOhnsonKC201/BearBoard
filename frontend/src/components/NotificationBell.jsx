@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 
 const POLL_MS = 60000
@@ -118,20 +117,14 @@ function NotificationBell() {
         className="relative w-[30px] h-[30px] bg-white/[0.08] hover:bg-white/[0.16] text-white rounded flex items-center justify-center text-[0.95rem] transition-colors"
       >
         <span aria-hidden="true">&#128276;</span>
-        <AnimatePresence>
-          {unread > 0 && (
-            <motion.span
-              key={unread}
-              className="absolute -top-1 -right-1 bg-gold text-navy text-[0.55rem] font-archivo font-black rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center leading-none"
-              initial={{ scale: 0, rotate: -25 }}
-              animate={{ scale: [1.25, 1], rotate: 0 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ duration: 0.35, times: [0, 1], ease: [0.34, 1.56, 0.64, 1] }}
-            >
-              {unread > 9 ? '9+' : unread}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {unread > 0 && (
+          <span
+            key={unread}
+            className="badge-pop absolute -top-1 -right-1 bg-gold text-navy text-[0.55rem] font-archivo font-black rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center leading-none"
+          >
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
       </button>
 
       {open && (

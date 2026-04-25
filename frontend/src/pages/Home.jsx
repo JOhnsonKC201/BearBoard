@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import ChatWidget from '../components/ChatWidget'
-import MobileHome from '../components/MobileHome'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
-import NewPostModal from '../components/NewPostModal'
-import CreateGroupModal from '../components/CreateGroupModal'
+
+// Lazy: these only mount on explicit user action (button click, >=lg viewport).
+// Splitting them out keeps the first-paint bundle lean.
+const MobileHome = lazy(() => import('../components/MobileHome'))
+const ChatWidget = lazy(() => import('../components/ChatWidget'))
+const NewPostModal = lazy(() => import('../components/NewPostModal'))
+const CreateGroupModal = lazy(() => import('../components/CreateGroupModal'))
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
@@ -195,6 +197,21 @@ function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
 
+  // Render only the layout that matches the viewport, instead of mounting both
+  // trees and hiding one with CSS. Synchronous init reads matchMedia during the
+  // first render so there's no flash of the wrong layout.
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 1024px)').matches
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e) => setIsDesktop(e.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
   // BottomNav's + tab navigates here with ?new=1. Open the modal and strip the
   // param so a refresh doesn't re-open it.
   useEffect(() => {
@@ -358,20 +375,26 @@ function Home() {
 
   return (
     <div>
-      {/* Mobile + tablet dashboard (shown below lg). */}
-      <MobileHome
-        posts={visiblePosts}
-        trending={trending}
-        events={events}
-        groups={groups}
-        myGroupIds={myGroupIds}
-        onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
-        onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
-        loading={postsLoading || sidebarLoading}
-      />
+      {/* Mobile + tablet dashboard (shown below lg). Lazy + viewport-gated so
+          desktop users never download or execute this tree. */}
+      {!isDesktop && (
+        <Suspense fallback={null}>
+          <MobileHome
+            posts={visiblePosts}
+            trending={trending}
+            events={events}
+            groups={groups}
+            myGroupIds={myGroupIds}
+            onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
+            onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
+            loading={postsLoading || sidebarLoading}
+          />
+        </Suspense>
+      )}
 
       {/* Desktop layout (lg+) */}
-      <div className="hidden lg:block">
+      {isDesktop && (
+      <div className="block">
       {/* Header - broadsheet masthead. Matches the mobile campus-broadsheet
           direction: gold flag line at top, date eyebrow, dynamic greeting
           if authed, a subtle diagonal stripe + corner glow for atmosphere,
@@ -516,20 +539,15 @@ function Home() {
                   </div>
                 </div>
               )}
-              <AnimatePresence initial={true}>
-                {regularPosts.map((post, i) => (
-                  <motion.div
-                    key={post.id}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
-                    transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
-                  >
-                    <PostCard post={post} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              {regularPosts.map((post, i) => (
+                <div
+                  key={post.id}
+                  className="feed-card-in"
+                  style={{ '--feed-delay': `${Math.min(i * 40, 320)}ms` }}
+                >
+                  <PostCard post={post} />
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -776,33 +794,51 @@ function Home() {
           Trello
         </a>
       </footer>
-      </div> {/* /desktop layout (lg+) */}
+      </div>
+      )}
+      {/* /desktop layout (lg+) */}
 
       {/* New Post FAB - desktop only; mobile uses the + tab in BottomNav. */}
-      <button
-        onClick={() => { setPostPreset(null); setShowNewPost(true) }}
-        className="hidden lg:flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
-      >
-        + New Post
-      </button>
+      {isDesktop && (
+        <button
+          onClick={() => { setPostPreset(null); setShowNewPost(true) }}
+          className="flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
+        >
+          + New Post
+        </button>
+      )}
 
-      <NewPostModal
-        open={showNewPost}
-        preset={postPreset}
-        onClose={() => { setShowNewPost(false); setPostPreset(null) }}
-        onCreated={() => setReloadKey((k) => k + 1)}
-      />
+      {/* Modals + chat widget are lazy: only fetched once the user actually
+          opens them. Suspense fallback is null because they're invisible
+          until `open` anyway. */}
+      {showNewPost && (
+        <Suspense fallback={null}>
+          <NewPostModal
+            open={showNewPost}
+            preset={postPreset}
+            onClose={() => { setShowNewPost(false); setPostPreset(null) }}
+            onCreated={() => setReloadKey((k) => k + 1)}
+          />
+        </Suspense>
+      )}
 
-      <CreateGroupModal
-        open={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreate={createGroup}
-      />
+      {showCreateGroup && (
+        <Suspense fallback={null}>
+          <CreateGroupModal
+            open={showCreateGroup}
+            onClose={() => setShowCreateGroup(false)}
+            onCreate={createGroup}
+          />
+        </Suspense>
+      )}
 
-      {/* Chat Widget - desktop only on small screens it would collide with BottomNav. */}
-      <div className="hidden lg:block">
-        <ChatWidget />
-      </div>
+      {/* Chat Widget - desktop only (on small screens it would collide with
+          BottomNav). Lazy-loaded so it never competes with first-paint. */}
+      {isDesktop && (
+        <Suspense fallback={null}>
+          <ChatWidget />
+        </Suspense>
+      )}
     </div>
   )
 }

@@ -15,13 +15,34 @@
 
     <!-- Font loading: preconnect warms the TCP handshake, the stylesheet
          link kicks off font fetches, and display=swap keeps text visible
-         while the custom fonts arrive so we don't flash invisible text. -->
+         while the custom fonts arrive so we don't flash invisible text.
+
+         Archivo + Libre Franklin are the hot-path fonts (Home, Navbar,
+         most components) - loaded render-blocking.
+
+         Fraunces is the editorial serif used only on Profile, Leaderboard,
+         and the Footer. We request just the weights we actually use
+         (drops the opsz 9..144 variable axis that was pulling ~100KB) and
+         load the stylesheet non-blocking via the print->all swap so Home's
+         first paint isn't gated on it. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Libre+Franklin:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Libre+Franklin:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
