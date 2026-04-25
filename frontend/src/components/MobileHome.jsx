@@ -263,10 +263,10 @@ function MobileHome({
           </div>
 
           {/* Greeting + avatar */}
-          <div className="mt-3 flex items-start justify-between gap-4">
+          <div className="mt-3 flex items-start justify-between gap-3">
             <h1
-              className="font-archivo font-black uppercase tracking-[-0.02em] leading-[0.92] max-w-[80%]"
-              style={{ fontSize: 'clamp(2rem, 8.5vw, 2.55rem)' }}
+              className="font-archivo font-black uppercase tracking-[-0.02em] leading-[0.92] min-w-0 flex-1"
+              style={{ fontSize: 'clamp(1.85rem, 8.5vw, 2.55rem)' }}
             >
               {isAuthed && masthead.firstName ? (
                 <>

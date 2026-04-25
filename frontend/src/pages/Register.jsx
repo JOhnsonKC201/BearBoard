@@ -91,7 +91,7 @@ function Register() {
           <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={inputClass} autoComplete="new-password" />
           {errors.confirmPassword && <p className="text-danger text-[0.72rem] mt-1 font-archivo font-bold">{errors.confirmPassword}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Major</label>
             <input type="text" name="major" value={formData.major} onChange={handleChange} className={inputClass} placeholder="e.g. CS" />

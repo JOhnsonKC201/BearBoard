@@ -155,7 +155,7 @@ function CampusMap() {
       <div className="bg-navy px-6 pt-10 pb-9">
         <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
           <div className="max-w-[560px]">
-            <h1 className="font-archivo font-black text-[2.4rem] md:text-[2.4rem] text-white leading-[1.05] tracking-tight uppercase">
+            <h1 className="font-archivo font-black text-[1.85rem] sm:text-[2.4rem] text-white leading-[1.05] tracking-tight uppercase">
               Find a spot <span className="text-gold block">on campus</span>
             </h1>
             <p className="text-white/50 text-[0.92rem] mt-3 leading-relaxed max-w-[420px]">

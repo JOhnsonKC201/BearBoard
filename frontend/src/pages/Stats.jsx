@@ -72,7 +72,7 @@ function Stats() {
               const value = raw === null || raw === undefined ? '-' : `${raw}${c.suffix || ''}`
               return (
                 <div key={c.key} className="bg-card border border-lightgray p-5 transition-all hover:border-navy hover:-translate-y-[1px] hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)]">
-                  <div className="font-archivo font-black text-[2rem] text-navy leading-none tracking-tight">{value}</div>
+                  <div className="font-archivo font-black text-[1.65rem] sm:text-[2rem] text-navy leading-none tracking-tight tabular-nums truncate">{value}</div>
                   <div className="font-archivo font-extrabold text-[0.65rem] uppercase tracking-widest text-ink mt-3">{c.label}</div>
                   <div className="text-[0.72rem] text-gray mt-[2px]">{c.hint}</div>
                 </div>
