@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
 import ImageUploader from './ImageUploader'
+import EmojiPickerButton, { insertAtCursor } from './EmojiPickerButton'
 
 /**
  * EditPostModal — lets the author edit title, body, and image URL on an
@@ -20,6 +21,7 @@ function EditPostModal({ post, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState(null)
   const titleRef = useRef(null)
+  const bodyRef = useRef(null)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -97,12 +99,20 @@ function EditPostModal({ post, onClose, onSaved }) {
               Body <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 tabular-nums">({body.length}/{BODY_MAX})</span>
             </label>
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
               disabled={submitting}
               rows={7}
               className="w-full border border-lightgray bg-white px-3.5 py-2.5 text-[0.92rem] font-franklin resize-y focus:border-navy focus:ring-2 focus:ring-navy/20 outline-none transition-colors leading-relaxed"
             />
+            <div className="mt-1">
+              <EmojiPickerButton
+                align="left"
+                disabled={submitting}
+                onPick={(e) => insertAtCursor(bodyRef, body, setBody, e)}
+              />
+            </div>
           </div>
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">

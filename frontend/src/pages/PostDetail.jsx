@@ -10,6 +10,7 @@ import PostAuthorMenu from '../components/PostAuthorMenu'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import AuthorAvatar from '../components/AuthorAvatar'
+import EmojiPickerButton, { insertAtCursor } from '../components/EmojiPickerButton'
 
 function PostDetail() {
   const { id } = useParams()
@@ -270,9 +271,18 @@ function PostDetail() {
                 </div>
               )}
               <div className="flex items-center justify-between mt-2 gap-2">
-                <span className="text-2xs text-gray font-archivo uppercase tracking-wider">
-                  {commentBody.length > 0 ? `${commentBody.length} chars` : 'Be respectful. Be specific.'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isAuthed && (
+                    <EmojiPickerButton
+                      align="left"
+                      disabled={submitting}
+                      onPick={(e) => insertAtCursor(composerRef, commentBody, setCommentBody, e)}
+                    />
+                  )}
+                  <span className="text-2xs text-gray font-archivo uppercase tracking-wider">
+                    {commentBody.length > 0 ? `${commentBody.length} chars` : 'Be respectful. Be specific.'}
+                  </span>
+                </div>
                 {isAuthed ? (
                   <button
                     type="submit"
@@ -700,6 +710,7 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
   const [draft, setDraft] = useState(comment.body)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+  const draftRef = useRef(null)
 
   const isAuthor = currentUser && comment.author_id === currentUser.id
   const isMod = currentUser && (currentUser.role === 'moderator' || currentUser.role === 'admin')
@@ -763,6 +774,7 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
             {editing ? (
               <form onSubmit={save} className="mt-1">
                 <textarea
+                  ref={draftRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   rows={3}
@@ -770,7 +782,12 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
                   className="w-full border border-lightgray bg-offwhite/50 focus:bg-card focus:border-navy px-3 py-2 text-[0.92rem] font-franklin leading-relaxed resize-y outline-none transition-colors"
                 />
                 {err && <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider">{err}</div>}
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 items-center">
+                  <EmojiPickerButton
+                    align="left"
+                    disabled={busy}
+                    onPick={(e) => insertAtCursor(draftRef, draft, setDraft, e)}
+                  />
                   <button
                     type="submit"
                     disabled={busy}
