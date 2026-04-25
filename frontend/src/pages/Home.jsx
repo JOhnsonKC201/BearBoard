@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ChatWidget from '../components/ChatWidget'
 import MobileHome from '../components/MobileHome'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
+import AuthorAvatar from '../components/AuthorAvatar'
 import NewPostModal from '../components/NewPostModal'
 import CreateGroupModal from '../components/CreateGroupModal'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
@@ -927,8 +928,6 @@ function PostCard({ post }) {
 
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const authorMajor = isAnonymous ? '' : (post.author?.major || '')
-  const avatar = paletteFor(isAnonymous ? -1 : post.author?.id ?? post.id)
-  const initials = isAnonymous ? '?' : initialsFor(authorName)
   const eventLabel = isEvent ? formatEventDateTime(post.event_date, post.event_time) : ''
 
   const initialScore = (post.upvotes ?? 0) - (post.downvotes ?? 0)
@@ -1063,12 +1062,12 @@ function PostCard({ post }) {
           </div>
         )}
         <div className="flex items-center gap-2.5 mb-2.5">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-black text-[0.65rem] shrink-0 ring-1 ring-black/5"
-            style={{ background: avatar.bg, color: avatar.tc }}
-          >
-            {initials}
-          </div>
+          <AuthorAvatar
+            author={post.author}
+            anonymous={isAnonymous}
+            size="sm"
+            seedFallback={post.id}
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>

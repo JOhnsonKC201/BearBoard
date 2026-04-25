@@ -9,6 +9,7 @@ import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconChec
 import PostAuthorMenu from '../components/PostAuthorMenu'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
+import AuthorAvatar from '../components/AuthorAvatar'
 
 function PostDetail() {
   const { id } = useParams()
@@ -104,8 +105,6 @@ function PostDetail() {
   const isAnonymous = categoryKey === 'anonymous'
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const authorMajor = isAnonymous ? '' : (post.author?.major || '')
-  const avatar = paletteFor(isAnonymous ? -1 : post.author?.id ?? post.id)
-  const initials = isAnonymous ? '?' : initialsFor(authorName)
   const commentCount = (post.comments || []).length
 
   const focusComposer = (e) => {
@@ -166,13 +165,12 @@ function PostDetail() {
 
               {/* Byline strip */}
               <div className="flex items-center gap-3 pt-3 border-t border-divider">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center font-archivo font-black text-mini shrink-0 ring-1 ring-black/5"
-                  style={{ background: avatar.bg, color: avatar.tc }}
-                  aria-hidden
-                >
-                  {initials}
-                </div>
+                <AuthorAvatar
+                  author={post.author}
+                  anonymous={isAnonymous}
+                  size="md"
+                  seedFallback={post.id}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <strong className="text-[0.88rem] font-semibold leading-tight">{authorName}</strong>
@@ -328,8 +326,6 @@ function PostDetail() {
               post={post}
               issueDate={issueDate}
               authorName={authorName}
-              avatar={avatar}
-              initials={initials}
               commentCount={commentCount}
               onJumpToReply={focusComposer}
               isAnonymous={isAnonymous}
@@ -623,7 +619,7 @@ function RelatedPostCard({ post }) {
 /*  Renders only from data already on `post`, so the page costs no extra      */
 /*  network calls beyond the existing /api/posts/{id} fetch.                  */
 /* -------------------------------------------------------------------------- */
-function ThreadMetaCard({ post, issueDate, authorName, avatar, initials, commentCount, onJumpToReply, isAnonymous }) {
+function ThreadMetaCard({ post, issueDate, authorName, commentCount, onJumpToReply, isAnonymous }) {
   const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
   const total = (post.upvotes ?? 0) + (post.downvotes ?? 0)
   const ratio = total > 0 ? Math.round((post.upvotes / total) * 100) : null
@@ -660,13 +656,7 @@ function ThreadMetaCard({ post, issueDate, authorName, avatar, initials, comment
         {!isAnonymous && (
           <MetaRow label="Byline">
             <span className="inline-flex items-center gap-2">
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center font-archivo font-black text-[0.55rem] ring-1 ring-black/5"
-                style={{ background: avatar.bg, color: avatar.tc }}
-                aria-hidden
-              >
-                {initials}
-              </span>
+              <AuthorAvatar author={post.author} size="xs" seedFallback={post.id} />
               <span className="font-semibold text-ink truncate">{authorName}</span>
             </span>
           </MetaRow>
@@ -717,8 +707,6 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
   const canDelete = isAuthor || isMod
 
   const authorName = comment.author?.name || 'Unknown'
-  const avatar = paletteFor(comment.author?.id ?? comment.id)
-  const initials = initialsFor(authorName)
 
   const save = async (e) => {
     e.preventDefault()
@@ -754,13 +742,7 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
     <li className="bg-card border border-lightgray hover:border-gold/40 transition-colors group/letter">
       <div className="px-4 sm:px-5 py-4">
         <div className="flex items-start gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-black text-[0.62rem] shrink-0 ring-1 ring-black/5"
-            style={{ background: avatar.bg, color: avatar.tc }}
-            aria-hidden
-          >
-            {initials}
-          </div>
+          <AuthorAvatar author={comment.author} size="sm" seedFallback={comment.id} />
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap mb-1">
               <strong className="text-[0.84rem] font-semibold text-ink truncate">{authorName}</strong>
