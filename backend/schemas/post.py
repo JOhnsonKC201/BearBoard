@@ -139,6 +139,8 @@ class CommentResponse(BaseModel):
     author_id: int
     post_id: int
     parent_id: Optional[int] = None
+    upvotes: int = 0
+    downvotes: int = 0
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
 

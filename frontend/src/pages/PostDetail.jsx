@@ -96,6 +96,22 @@ function PostDetail() {
     load()
   }
 
+  // POSTs a vote on a comment. Returns the fresh {upvotes, downvotes} so
+  // CommentRow / ReplyRow can reconcile their optimistic state instead of
+  // re-fetching the whole post for one number.
+  const submitCommentVote = async (commentId, voteType) => {
+    return apiFetch(`/api/posts/${id}/comments/${commentId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ vote_type: voteType }),
+    })
+  }
+
+  // "Best" sorts top-level threads by score with newest as the tiebreaker
+  // (matches Reddit's default). "New" / "Old" sort purely by created_at.
+  // Replies under a thread always stay chronological so the conversation
+  // reads top-down regardless of which sort is active.
+  const [commentSort, setCommentSort] = useState('best')
+
   // Group flat comments into a top-level/replies tree. Backend caps depth at
   // 1 (replies-of-replies still attach to the original parent), so we only
   // need a shallow two-level grouping here.
@@ -111,8 +127,20 @@ function PostDetail() {
         repliesByParent.get(c.parent_id).push(c)
       }
     }
+    const score = (c) => (c.upvotes ?? 0) - (c.downvotes ?? 0)
+    const ts = (c) => {
+      const t = c.created_at ? new Date(c.created_at).getTime() : 0
+      return Number.isNaN(t) ? 0 : t
+    }
+    if (commentSort === 'best') {
+      tops.sort((a, b) => score(b) - score(a) || ts(b) - ts(a))
+    } else if (commentSort === 'new') {
+      tops.sort((a, b) => ts(b) - ts(a))
+    } else if (commentSort === 'old') {
+      tops.sort((a, b) => ts(a) - ts(b))
+    }
     return tops.map((t) => ({ ...t, replies: repliesByParent.get(t.id) || [] }))
-  }, [post?.comments])
+  }, [post?.comments, commentSort])
 
   if (loading) {
     return <PostDetailSkeleton />
@@ -340,21 +368,25 @@ function PostDetail() {
                 </p>
               </div>
             ) : (
-              <ol className="list-none p-0 m-0 space-y-2">
-                {commentTree.map((c, idx) => (
-                  <CommentRow
-                    key={c.id}
-                    comment={c}
-                    replies={c.replies}
-                    index={idx + 1}
-                    postId={post.id}
-                    currentUser={currentUser}
-                    isAuthed={isAuthed}
-                    onChange={load}
-                    onReply={(body) => submitReply(c.id, body)}
-                  />
-                ))}
-              </ol>
+              <>
+                <CommentSortBar value={commentSort} onChange={setCommentSort} count={commentCount} />
+                <ol className="list-none p-0 m-0 space-y-2">
+                  {commentTree.map((c, idx) => (
+                    <CommentRow
+                      key={c.id}
+                      comment={c}
+                      replies={c.replies}
+                      index={idx + 1}
+                      postId={post.id}
+                      currentUser={currentUser}
+                      isAuthed={isAuthed}
+                      onChange={load}
+                      onReply={(body) => submitReply(c.id, body)}
+                      onVote={submitCommentVote}
+                    />
+                  ))}
+                </ol>
+              </>
             )}
           </section>
         </main>
@@ -732,11 +764,145 @@ function MetaRow({ label, children }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  CommentSortBar — Reddit-style sort selector that sits above the threads. */
+/*  Mounted only when the comment list is non-empty.                          */
+/* -------------------------------------------------------------------------- */
+function CommentSortBar({ value, onChange, count }) {
+  const options = [
+    { key: 'best', label: 'Best' },
+    { key: 'new', label: 'New' },
+    { key: 'old', label: 'Old' },
+  ]
+  return (
+    <div className="flex items-center gap-1 mb-3 px-1">
+      <span className="text-2xs font-archivo font-extrabold uppercase tracking-[0.18em] text-gray mr-1">
+        Sort
+      </span>
+      <div className="inline-flex bg-offwhite border border-lightgray rounded-full p-0.5">
+        {options.map((o) => {
+          const active = value === o.key
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => onChange(o.key)}
+              aria-pressed={active}
+              className={`text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] px-2.5 py-1 rounded-full border-none cursor-pointer transition-colors ${
+                active ? 'bg-navy text-gold' : 'bg-transparent text-gray hover:text-ink'
+              }`}
+            >
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+      <span className="ml-auto text-2xs font-archivo uppercase tracking-wider text-gray tabular-nums">
+        {count} total
+      </span>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  CommentVotePill — caret-up / score / caret-down for a single comment.     */
+/*                                                                            */
+/*  Optimistic update + rollback on failure mirrors the post vote rail. The   */
+/*  parent owns the persisted score (CommentResponse.upvotes/downvotes) and   */
+/*  passes onVote(commentId, voteType) which returns {upvotes, downvotes}.    */
+/*  We track the user's vote locally — the API doesn't currently surface      */
+/*  per-user vote state on read, so a hard refresh forgets your previous      */
+/*  click. Same UX as the post rail.                                          */
+/* -------------------------------------------------------------------------- */
+function CommentVotePill({ commentId, upvotes = 0, downvotes = 0, onVote, isAuthed, compact = false }) {
+  const navigate = useNavigate()
+  const [score, setScore] = useState((upvotes ?? 0) - (downvotes ?? 0))
+  const [userVote, setUserVote] = useState(null)
+  const [pending, setPending] = useState(false)
+
+  // If the parent re-fetches and sends fresh counts, re-sync our local score.
+  useEffect(() => {
+    setScore((upvotes ?? 0) - (downvotes ?? 0))
+  }, [upvotes, downvotes])
+
+  const apply = async (dir) => {
+    if (pending) return
+    if (!isAuthed) { navigate('/login'); return }
+    const prevScore = score
+    const prevVote = userVote
+    let nextScore = score
+    let nextVote = userVote
+    if (userVote === dir) {
+      nextScore += dir === 'up' ? -1 : 1
+      nextVote = null
+    } else if (userVote === null) {
+      nextScore += dir === 'up' ? 1 : -1
+      nextVote = dir
+    } else {
+      nextScore += dir === 'up' ? 2 : -2
+      nextVote = dir
+    }
+    setScore(nextScore); setUserVote(nextVote); setPending(true)
+    try {
+      const res = await onVote(commentId, dir)
+      if (res && typeof res.upvotes === 'number' && typeof res.downvotes === 'number') {
+        setScore(res.upvotes - res.downvotes)
+      }
+    } catch (e) {
+      setScore(prevScore); setUserVote(prevVote)
+      if (e?.status === 401 || e?.status === 403) navigate('/login')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const upActive = userVote === 'up'
+  const downActive = userVote === 'down'
+  const sizeBtn = compact ? 'w-6 h-6' : 'w-7 h-7'
+  const sizeText = compact ? 'text-[0.7rem] min-w-[20px]' : 'text-[0.78rem] min-w-[22px]'
+
+  return (
+    <div className="inline-flex items-center bg-offwhite border border-lightgray rounded-full">
+      <button
+        type="button"
+        onClick={() => apply('up')}
+        disabled={pending}
+        aria-label="Upvote comment"
+        aria-pressed={upActive}
+        className={`flex items-center justify-center ${sizeBtn} rounded-l-full bg-transparent border-none cursor-pointer transition-colors ${
+          upActive ? 'text-gold' : 'text-gray hover:text-navy'
+        }`}
+      >
+        <IconCaretUp filled={upActive} />
+      </button>
+      <span
+        className={`font-archivo font-extrabold ${sizeText} text-center tabular-nums ${
+          upActive ? 'text-gold' : downActive ? 'text-danger' : 'text-ink'
+        }`}
+      >
+        {score}
+      </span>
+      <button
+        type="button"
+        onClick={() => apply('down')}
+        disabled={pending}
+        aria-label="Downvote comment"
+        aria-pressed={downActive}
+        className={`flex items-center justify-center ${sizeBtn} rounded-r-full bg-transparent border-none cursor-pointer transition-colors ${
+          downActive ? 'text-danger' : 'text-gray hover:text-navy'
+        }`}
+      >
+        <IconCaretDown filled={downActive} />
+      </button>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*  CommentRow — one top-level "letter to the editor" with author chip,       */
 /*  broadsheet numbering, inline edit/delete, and a Facebook-style threaded   */
 /*  replies section underneath (indented, with inline reply composer).        */
 /* -------------------------------------------------------------------------- */
-function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthed, onChange, onReply }) {
+function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthed, onChange, onReply, onVote }) {
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [draft, setDraft] = useState(comment.body)
@@ -891,7 +1057,14 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
             )}
 
             {!editing && (
-              <div className="flex items-center gap-1 mt-2 flex-wrap">
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <CommentVotePill
+                  commentId={comment.id}
+                  upvotes={comment.upvotes}
+                  downvotes={comment.downvotes}
+                  onVote={onVote}
+                  isAuthed={isAuthed}
+                />
                 {isAuthed && (
                   <button
                     type="button"
@@ -980,6 +1153,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
                 isAuthed={isAuthed}
                 onChange={onChange}
                 onReplyToReply={(name) => openReply(name)}
+                onVote={onVote}
               />
             ))}
           </ul>
@@ -1049,7 +1223,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
 /*  parent's composer with `@authorName ` prefilled so context survives the   */
 /*  depth-1 flattening enforced by the API.                                   */
 /* -------------------------------------------------------------------------- */
-function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToReply }) {
+function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToReply, onVote }) {
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [draft, setDraft] = useState(reply.body)
@@ -1152,7 +1326,15 @@ function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToRep
           )}
 
           {!editing && (
-            <div className="flex items-center gap-1 mt-1 flex-wrap">
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <CommentVotePill
+                commentId={reply.id}
+                upvotes={reply.upvotes}
+                downvotes={reply.downvotes}
+                onVote={onVote}
+                isAuthed={isAuthed}
+                compact
+              />
               {isAuthed && (
                 <button
                   type="button"

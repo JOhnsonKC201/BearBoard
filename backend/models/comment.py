@@ -15,6 +15,12 @@ class Comment(Base):
     # UI never needs to render arbitrarily nested walls. Nullable for
     # top-level comments.
     parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Denormalized vote counts. Updated by the vote route on every up/down
+    # toggle so the feed and detail page can sort + render scores without
+    # joining the comment_votes table on every read. Mirrors the same
+    # pattern Post uses for its upvotes/downvotes columns.
+    upvotes = Column(Integer, nullable=False, default=0, server_default="0")
+    downvotes = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, server_default=func.now())
 
     author = relationship("User", back_populates="comments")
@@ -23,6 +29,12 @@ class Comment(Base):
     replies = relationship(
         "Comment",
         back_populates="parent",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    votes = relationship(
+        "CommentVote",
+        back_populates="comment",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
