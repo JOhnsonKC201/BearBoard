@@ -205,9 +205,22 @@ function Navbar() {
                 className="flex items-center gap-2 pl-1 pr-2 py-1 rounded hover:bg-white/[0.08] transition-colors no-underline"
                 aria-label={`Open ${user.name || 'your'} profile`}
               >
-                <span className="w-9 h-9 lg:w-8 lg:h-8 bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.72rem] lg:text-[0.68rem]">
-                  {initialsFor(user?.name)}
-                </span>
+                {user.avatar_url ? (
+                  <span className="w-9 h-9 lg:w-8 lg:h-8 rounded-full overflow-hidden ring-1 ring-gold/40 bg-gold/20 block">
+                    <img
+                      src={user.avatar_url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                      className="w-full h-full object-cover block"
+                    />
+                  </span>
+                ) : (
+                  <span className="w-9 h-9 lg:w-8 lg:h-8 bg-gold text-navy rounded-full flex items-center justify-center font-archivo font-extrabold text-[0.72rem] lg:text-[0.68rem]">
+                    {initialsFor(user?.name)}
+                  </span>
+                )}
                 <span className="hidden lg:inline text-white font-archivo font-bold text-[0.78rem] tracking-tight max-w-[140px] truncate">
                   {user.name}
                 </span>

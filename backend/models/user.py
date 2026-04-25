@@ -1,7 +1,14 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Date
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
+
+
+# Profile photos are stored as base64 data URLs inline. MySQL's plain TEXT
+# tops out at 64 KB which clips most photos; MEDIUMTEXT gives us 16 MB.
+# Other dialects (SQLite/Postgres) get plain Text, which is unbounded.
+AvatarURLType = Text().with_variant(MEDIUMTEXT(), "mysql")
 
 class User(Base):
     __tablename__ = "users"
@@ -12,7 +19,7 @@ class User(Base):
     name = Column(String(100))
     major = Column(String(100))
     graduation_year = Column(Integer)
-    avatar_url = Column(String(500), default="")
+    avatar_url = Column(AvatarURLType, nullable=True)
     bio = Column(Text, nullable=True)
     karma = Column(Integer, default=0)
     streak_count = Column(Integer, default=0, nullable=False)

@@ -9,6 +9,7 @@ import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconChec
 import PostAuthorMenu from '../components/PostAuthorMenu'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
+import AuthorAvatar from '../components/AuthorAvatar'
 
 function PostDetail() {
   const { id } = useParams()
@@ -20,6 +21,7 @@ function PostDetail() {
   const [commentBody, setCommentBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [commentError, setCommentError] = useState(null)
+  const [related, setRelated] = useState([])
   const composerRef = useRef(null)
 
   const issueDate = useMemo(() => {
@@ -43,6 +45,26 @@ function PostDetail() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Fetch a few posts from the same section for the "More from…" rail.
+  // Runs after the post resolves so we know which category to query.
+  useEffect(() => {
+    if (!post?.category) { setRelated([]); return }
+    let cancelled = false
+    const params = new URLSearchParams({
+      category: post.category,
+      sort: 'newest',
+      limit: '6',
+    })
+    apiFetch(`/api/posts/?${params.toString()}`)
+      .then((rows) => {
+        if (cancelled) return
+        const filtered = (rows || []).filter((p) => p.id !== post.id).slice(0, 3)
+        setRelated(filtered)
+      })
+      .catch(() => { if (!cancelled) setRelated([]) })
+    return () => { cancelled = true }
+  }, [post?.id, post?.category])
 
   const submitComment = async (e) => {
     e.preventDefault()
@@ -83,8 +105,6 @@ function PostDetail() {
   const isAnonymous = categoryKey === 'anonymous'
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const authorMajor = isAnonymous ? '' : (post.author?.major || '')
-  const avatar = paletteFor(isAnonymous ? -1 : post.author?.id ?? post.id)
-  const initials = isAnonymous ? '?' : initialsFor(authorName)
   const commentCount = (post.comments || []).length
 
   const focusComposer = (e) => {
@@ -145,13 +165,12 @@ function PostDetail() {
 
               {/* Byline strip */}
               <div className="flex items-center gap-3 pt-3 border-t border-divider">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center font-archivo font-black text-mini shrink-0 ring-1 ring-black/5"
-                  style={{ background: avatar.bg, color: avatar.tc }}
-                  aria-hidden
-                >
-                  {initials}
-                </div>
+                <AuthorAvatar
+                  author={post.author}
+                  anonymous={isAnonymous}
+                  size="md"
+                  seedFallback={post.id}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <strong className="text-[0.88rem] font-semibold leading-tight">{authorName}</strong>
@@ -204,6 +223,10 @@ function PostDetail() {
               <ActionButtons post={post} onJumpToReply={focusComposer} commentCount={commentCount} />
             </div>
           </article>
+
+          {related.length > 0 && (
+            <RelatedPosts items={related} category={post.category} />
+          )}
 
           {/* Letters to the Editor — comments section */}
           <section className="mt-10" aria-labelledby="comments-heading">
@@ -303,8 +326,6 @@ function PostDetail() {
               post={post}
               issueDate={issueDate}
               authorName={authorName}
-              avatar={avatar}
-              initials={initials}
               commentCount={commentCount}
               onJumpToReply={focusComposer}
               isAnonymous={isAnonymous}
@@ -535,12 +556,70 @@ function ActionButtons({ post, onJumpToReply, commentCount }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  RelatedPosts — "More from [Section]" strip placed between the article    */
+/*  and the comments. Renders up to three same-category posts as compact     */
+/*  broadsheet-style cards.                                                   */
+/* -------------------------------------------------------------------------- */
+function RelatedPosts({ items, category }) {
+  return (
+    <section className="mt-10" aria-labelledby="related-heading">
+      <div className="flex items-baseline gap-3 mb-4">
+        <h2
+          id="related-heading"
+          className="font-editorial font-black text-[1.35rem] sm:text-[1.5rem] tracking-tight leading-none text-ink"
+        >
+          More from <span className="italic">{flairLabel(category)}</span>
+        </h2>
+        <span className="h-px flex-1 bg-lightgray" aria-hidden />
+        <span className="text-2xs font-archivo font-extrabold uppercase tracking-[0.22em] text-gray tabular-nums">
+          {items.length} {items.length === 1 ? 'piece' : 'pieces'}
+        </span>
+      </div>
+      <ol className="list-none p-0 m-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((p) => (
+          <RelatedPostCard key={p.id} post={p} />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function RelatedPostCard({ post }) {
+  const isAnonymous = (post.category || '').toLowerCase() === 'anonymous'
+  const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
+  const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+  const replies = post.comment_count ?? 0
+  return (
+    <li className="bg-card border border-lightgray border-l-[3px] border-l-gold/70 hover:border-l-gold hover:border-navy/30 transition-colors">
+      <Link
+        to={`/post/${post.id}`}
+        className="block px-4 py-3 no-underline text-ink h-full"
+      >
+        <div className="text-2xs font-archivo font-extrabold uppercase tracking-[0.2em] text-gray mb-1.5">
+          {formatRelative(post.created_at)}
+        </div>
+        <h3 className="font-editorial font-black text-[1.05rem] leading-[1.15] tracking-tight text-ink mb-1.5 line-clamp-3">
+          {post.title}
+        </h3>
+        <div className="flex items-center gap-2 text-2xs font-archivo uppercase tracking-wider text-gray">
+          <span className="truncate">{authorName}</span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{score} pts</span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{replies} {replies === 1 ? 'reply' : 'replies'}</span>
+        </div>
+      </Link>
+    </li>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*  ThreadMetaCard — broadsheet-style "about this dispatch" sidebar.          */
 /*                                                                            */
 /*  Renders only from data already on `post`, so the page costs no extra      */
 /*  network calls beyond the existing /api/posts/{id} fetch.                  */
 /* -------------------------------------------------------------------------- */
-function ThreadMetaCard({ post, issueDate, authorName, avatar, initials, commentCount, onJumpToReply, isAnonymous }) {
+function ThreadMetaCard({ post, issueDate, authorName, commentCount, onJumpToReply, isAnonymous }) {
   const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
   const total = (post.upvotes ?? 0) + (post.downvotes ?? 0)
   const ratio = total > 0 ? Math.round((post.upvotes / total) * 100) : null
@@ -577,13 +656,7 @@ function ThreadMetaCard({ post, issueDate, authorName, avatar, initials, comment
         {!isAnonymous && (
           <MetaRow label="Byline">
             <span className="inline-flex items-center gap-2">
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center font-archivo font-black text-[0.55rem] ring-1 ring-black/5"
-                style={{ background: avatar.bg, color: avatar.tc }}
-                aria-hidden
-              >
-                {initials}
-              </span>
+              <AuthorAvatar author={post.author} size="xs" seedFallback={post.id} />
               <span className="font-semibold text-ink truncate">{authorName}</span>
             </span>
           </MetaRow>
@@ -634,8 +707,6 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
   const canDelete = isAuthor || isMod
 
   const authorName = comment.author?.name || 'Unknown'
-  const avatar = paletteFor(comment.author?.id ?? comment.id)
-  const initials = initialsFor(authorName)
 
   const save = async (e) => {
     e.preventDefault()
@@ -671,13 +742,7 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
     <li className="bg-card border border-lightgray hover:border-gold/40 transition-colors group/letter">
       <div className="px-4 sm:px-5 py-4">
         <div className="flex items-start gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-black text-[0.62rem] shrink-0 ring-1 ring-black/5"
-            style={{ background: avatar.bg, color: avatar.tc }}
-            aria-hidden
-          >
-            {initials}
-          </div>
+          <AuthorAvatar author={comment.author} size="sm" seedFallback={comment.id} />
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap mb-1">
               <strong className="text-[0.84rem] font-semibold text-ink truncate">{authorName}</strong>
