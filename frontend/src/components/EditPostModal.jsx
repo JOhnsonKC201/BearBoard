@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
+import ImageUploader from './ImageUploader'
 
 /**
  * EditPostModal — lets the author edit title, body, and image URL on an
@@ -105,15 +106,12 @@ function EditPostModal({ post, onClose, onSaved }) {
           </div>
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">
-              Image URL <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional — clear to remove)</span>
+              Image <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional — remove to clear)</span>
             </label>
-            <input
-              type="url"
+            <ImageUploader
               value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value.slice(0, 500))}
+              onChange={setImageUrl}
               disabled={submitting}
-              placeholder="https://..."
-              className="w-full border border-lightgray bg-white px-3.5 py-2.5 text-[0.88rem] font-franklin focus:border-navy focus:ring-2 focus:ring-navy/20 outline-none transition-colors"
             />
           </div>
           <div className="text-[0.74rem] text-gray italic bg-offwhite border-l-[3px] border-navy px-3 py-2">
