@@ -160,6 +160,8 @@ function MobileHome({
   myGroupIds,
   onToggleMembership,
   onCreateGroup,
+  onPostUpdated,
+  onPostDeleted,
   loading = false,
 }) {
   const { user, isAuthed } = useAuth()
@@ -459,7 +461,12 @@ function MobileHome({
         ) : (
           <div className="bg-card">
             {moreOnBoard.map((post) => (
-              <MobilePostCard key={post.id} post={post} />
+              <MobilePostCard
+                key={post.id}
+                post={post}
+                onUpdated={onPostUpdated}
+                onDeleted={onPostDeleted}
+              />
             ))}
           </div>
         )}
