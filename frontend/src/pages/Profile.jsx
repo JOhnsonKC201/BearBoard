@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
@@ -730,8 +730,16 @@ function SiteAnalyticsCard({ siteStats }) {
  * Page.
  * ========================================================================= */
 function Profile() {
-  const { id } = useParams()
+  const { id: rawId } = useParams()
   const { user: currentUser, setUser: setAuthUser } = useAuth()
+  // The Welcome page links to /profile/me so the "Fill in your profile"
+  // card works without knowing the current user's id at render time.
+  // Substitute the real id here, or bounce to /login if there's no user.
+  if (rawId === 'me') {
+    if (!currentUser?.id) return <Navigate to="/login" replace />
+    return <Navigate to={`/profile/${currentUser.id}`} replace />
+  }
+  const id = rawId
   const [user, setUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
