@@ -917,6 +917,10 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
   // FB convention: when more than 2 replies exist, collapse the older ones
   // and surface a "view earlier" button. Keeps long threads scannable.
   const [showAllReplies, setShowAllReplies] = useState(false)
+  // Reddit-style whole-thread collapse. Toggling hides the body, action
+  // row, and entire reply chain — leaving just a one-liner stub so a
+  // long noisy thread doesn't dominate the page.
+  const [collapsed, setCollapsed] = useState(false)
   const replyTaRef = useRef(null)
 
   const isAuthor = currentUser && comment.author_id === currentUser.id
@@ -996,12 +1000,26 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
 
   return (
     <li className="bg-card border border-lightgray hover:border-gold/40 transition-colors group/letter">
-      <div className="px-4 sm:px-5 py-4">
-        <div className="flex items-start gap-3">
-          <AuthorAvatar author={comment.author} size="sm" seedFallback={comment.id} />
+      <div className={`px-4 sm:px-5 ${collapsed ? 'py-2.5' : 'py-4'}`}>
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? 'Expand thread' : 'Collapse thread'}
+            aria-expanded={!collapsed}
+            className="w-5 h-5 mt-1 flex items-center justify-center bg-transparent border border-lightgray text-gray hover:text-navy hover:border-navy rounded-sm cursor-pointer leading-none text-[0.78rem] font-archivo font-extrabold shrink-0 transition-colors"
+            title={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? '+' : '−'}
+          </button>
+          <AuthorAvatar
+            author={comment.author}
+            size={collapsed ? 'xs' : 'sm'}
+            seedFallback={comment.id}
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap mb-1">
-              <strong className="text-[0.84rem] font-semibold text-ink truncate">{authorName}</strong>
+              <strong className={`font-semibold text-ink truncate ${collapsed ? 'text-[0.78rem]' : 'text-[0.84rem]'}`}>{authorName}</strong>
               {isAuthor && (
                 <span className="text-2xs font-archivo font-extrabold uppercase tracking-wider text-gold">
                   You
@@ -1011,11 +1029,20 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
               <span className="text-2xs text-gray font-archivo uppercase tracking-wider">
                 {formatRelative(comment.created_at)}
               </span>
+              {collapsed && (
+                <span className="text-2xs text-navy/70 font-archivo italic">
+                  {replies.length > 0
+                    ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'} hidden`
+                    : 'collapsed'}
+                </span>
+              )}
               <span className="ml-auto text-2xs font-archivo font-black tracking-wider text-lightgray tabular-nums" aria-hidden>
                 №{String(index).padStart(2, '0')}
               </span>
             </div>
 
+            {!collapsed && (
+            <>
             {editing ? (
               <form onSubmit={save} className="mt-1">
                 <textarea
@@ -1127,11 +1154,13 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
             {err && !editing && (
               <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider">{err}</div>
             )}
+            </>
+            )}
           </div>
         </div>
       </div>
 
-      {(replies.length > 0 || replying) && (
+      {!collapsed && (replies.length > 0 || replying) && (
         <div className="relative border-t border-divider bg-offwhite/40 px-4 sm:px-5 pl-12 sm:pl-[60px] py-3">
           {/* Reddit-style vertical thread line — runs through the indent
               gutter so the eye can trace parent → children visually. The
