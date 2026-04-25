@@ -26,10 +26,13 @@ const Welcome = lazy(() => import('./pages/Welcome'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 
 function WithNav({ children }) {
+  // Bottom padding clears the fixed mobile BottomNav (56px tall) plus the
+  // iOS home-indicator safe-area inset on notched devices, plus a small
+  // visual gap. Removed at lg+ where the BottomNav doesn't render.
   return (
     <>
       <Navbar />
-      <div className="pb-[72px] lg:pb-0 min-h-[60vh] flex flex-col">
+      <div className="pb-[calc(56px+env(safe-area-inset-bottom)+16px)] lg:pb-0 min-h-[60vh] flex flex-col">
         <div className="flex-1">{children}</div>
         <Footer />
       </div>
@@ -63,7 +66,7 @@ function App() {
             <Route path="/post/:id" element={<WithNav><PostDetail /></WithNav>} />
             <Route path="/map" element={<WithNav><CampusMap /></WithNav>} />
             <Route path="/professors" element={<WithNav><Professors /></WithNav>} />
-            <Route path="/stats" element={<Stats />} />
+            <Route path="/stats" element={<WithNav><Stats /></WithNav>} />
             <Route path="/resources" element={<WithNav><Resources /></WithNav>} />
             <Route path="/rules" element={<WithNav><Legal slug="rules" /></WithNav>} />
             <Route path="/privacy" element={<WithNav><Legal slug="privacy" /></WithNav>} />
