@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import AuthorAvatar from '../components/AuthorAvatar'
@@ -427,16 +427,18 @@ function Home() {
         />
 
         <div className="relative max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-5 pb-8 xl:pt-7 xl:pb-10">
-          <HeroFlag stats={stats} />
+          <div className="masthead-rise" style={{ '--mh-delay': '0ms' }}>
+            <HeroFlag stats={stats} />
+          </div>
 
           <div className="mt-5 xl:mt-7 flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
-            <div className="max-w-[580px]">
+            <div className="masthead-rise max-w-[580px]" style={{ '--mh-delay': '90ms' }}>
               <HeroGreeting user={authedUser} />
               <p className="text-white/55 text-[0.92rem] xl:text-[0.98rem] mt-3 leading-relaxed max-w-[440px] font-franklin">
                 Posts, study groups, events, and opportunities. All in one place, by students, for students.
               </p>
             </div>
-            <dl className="flex gap-6 xl:gap-10 border-l border-white/10 pl-6 xl:pl-10">
+            <dl className="masthead-rise flex gap-6 xl:gap-10 border-l border-white/10 pl-6 xl:pl-10" style={{ '--mh-delay': '180ms' }}>
               <HeroStat value={stats?.users} label="Students" />
               <HeroStat value={stats?.groups} label="Groups" />
               <HeroStat value={stats?.posts_last_24h} label="Today" highlight />
@@ -899,6 +901,31 @@ function HeroFlag({ stats }) {
   )
 }
 
+// Eased number tween — used by HeroStat to count up from 0 to the real
+// stat value once it lands. Cubic ease-out so the motion settles
+// gracefully on the final number rather than ticking to a hard stop.
+function useCountUp(value, duration = 900) {
+  const [n, setN] = useState(value == null ? 0 : 0)
+  const startedFor = useRef(null)
+  useEffect(() => {
+    if (value == null) return
+    // Avoid restarting the tween on cosmetic re-renders that pass the same value.
+    if (startedFor.current === value) return
+    startedFor.current = value
+    const start = performance.now()
+    let raf
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setN(Math.round(value * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+  return n
+}
+
 function HeroGreeting({ user }) {
   // Dynamic headline. Logged-in students get a time-of-day greeting; anyone
   // else sees the evergreen "What's happening at Morgan State" billboard.
@@ -912,7 +939,11 @@ function HeroGreeting({ user }) {
           Campus edition &middot; {greet}
         </div>
         <h1 className="font-archivo font-black text-white text-[2.25rem] xl:text-[2.95rem] leading-[1.02] tracking-[-0.01em] uppercase">
-          Hey, <span className="text-gold">{first}</span>
+          Hey,{' '}
+          <span className="relative inline-block text-gold">
+            {first}
+            <span aria-hidden className="masthead-underline absolute left-0 right-0 -bottom-1 h-[3px] bg-gold rounded-full" />
+          </span>
           <span className="block">what's happening</span>
           <span className="block text-white/40 text-[1.35rem] xl:text-[1.65rem] font-extrabold tracking-tight normal-case mt-2">
             at Morgan State today?
@@ -935,8 +966,9 @@ function HeroGreeting({ user }) {
 }
 
 function HeroStat({ value, label, highlight = false }) {
+  const animated = useCountUp(value)
   const display =
-    value == null ? '-' : value >= 1000 ? value.toLocaleString() : String(value)
+    value == null ? '-' : animated >= 1000 ? animated.toLocaleString() : String(animated)
   return (
     <div className="text-right">
       <dt className="sr-only">{label}</dt>
