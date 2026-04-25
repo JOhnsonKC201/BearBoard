@@ -128,7 +128,7 @@ function EmojiPickerButton({ onPick, disabled, align = 'right' }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.12, ease: 'easeOut' }}
-            className={`absolute z-[210] top-full mt-2 ${align === 'left' ? 'left-0' : 'right-0'} w-[320px] bg-card border border-lightgray rounded-lg shadow-[0_8px_24px_-8px_rgba(11,29,52,0.22)]`}
+            className={`absolute z-[210] top-full mt-2 ${align === 'left' ? 'left-0' : 'right-0'} w-[320px] max-w-[calc(100vw-16px)] bg-card border border-lightgray rounded-lg shadow-[0_8px_24px_-8px_rgba(11,29,52,0.22)]`}
             role="dialog"
             aria-label="Emoji picker"
           >

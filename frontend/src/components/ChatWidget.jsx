@@ -91,10 +91,12 @@ function ChatWidget() {
 
   return (
     <>
-      {/* Chat bubble */}
+      {/* Chat bubble — pushed above the mobile BottomNav (56px tall) on
+          <lg so the bubble doesn't overlap the bottom-tab buttons. Returns
+          to bottom-6 on lg+ where BottomNav doesn't render. */}
       <div
         onClick={toggle}
-        className="fixed bottom-6 right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold flex items-center justify-center cursor-pointer z-[150] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
+        className="fixed bottom-[88px] right-4 lg:bottom-6 lg:right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold flex items-center justify-center cursor-pointer z-[160] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
         aria-label={open ? 'Close chat' : 'Open BearBoard chat'}
       >
         {open ? (
@@ -118,7 +120,7 @@ function ChatWidget() {
 
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-[84px] right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[160] flex flex-col overflow-hidden rounded-2xl shadow-2xl max-[768px]:w-[calc(100%-16px)] max-[768px]:right-2 max-[768px]:h-[420px]">
+        <div className="fixed bottom-[152px] right-4 lg:bottom-[84px] lg:right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[170] flex flex-col overflow-hidden rounded-2xl shadow-2xl max-[768px]:w-[calc(100vw-16px)] max-[768px]:right-2 max-[768px]:h-[60dvh] max-[768px]:max-h-[480px]">
           {/* Header */}
           <div className="bg-navy px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
