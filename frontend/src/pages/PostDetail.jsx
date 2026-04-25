@@ -86,6 +86,34 @@ function PostDetail() {
     }
   }
 
+  // Posts a threaded reply attached to a top-level comment. Throws on
+  // failure so the inline reply form can surface the error to the user.
+  const submitReply = async (parentId, body) => {
+    await apiFetch(`/api/posts/${id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body: body.trim(), parent_id: parentId }),
+    })
+    load()
+  }
+
+  // Group flat comments into a top-level/replies tree. Backend caps depth at
+  // 1 (replies-of-replies still attach to the original parent), so we only
+  // need a shallow two-level grouping here.
+  const commentTree = useMemo(() => {
+    const list = post?.comments || []
+    const repliesByParent = new Map()
+    const tops = []
+    for (const c of list) {
+      if (c.parent_id == null) {
+        tops.push(c)
+      } else {
+        if (!repliesByParent.has(c.parent_id)) repliesByParent.set(c.parent_id, [])
+        repliesByParent.get(c.parent_id).push(c)
+      }
+    }
+    return tops.map((t) => ({ ...t, replies: repliesByParent.get(t.id) || [] }))
+  }, [post?.comments])
+
   if (loading) {
     return <PostDetailSkeleton />
   }
@@ -313,14 +341,17 @@ function PostDetail() {
               </div>
             ) : (
               <ol className="list-none p-0 m-0 space-y-2">
-                {post.comments.map((c, idx) => (
+                {commentTree.map((c, idx) => (
                   <CommentRow
                     key={c.id}
                     comment={c}
+                    replies={c.replies}
                     index={idx + 1}
                     postId={post.id}
                     currentUser={currentUser}
+                    isAuthed={isAuthed}
                     onChange={load}
+                    onReply={(body) => submitReply(c.id, body)}
                   />
                 ))}
               </ol>
@@ -701,16 +732,26 @@ function MetaRow({ label, children }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  CommentRow — one "letter to the editor" with author chip, broadsheet     */
-/*  numbering, and inline edit/delete for the author or moderators.           */
+/*  CommentRow — one top-level "letter to the editor" with author chip,       */
+/*  broadsheet numbering, inline edit/delete, and a Facebook-style threaded   */
+/*  replies section underneath (indented, with inline reply composer).        */
 /* -------------------------------------------------------------------------- */
-function CommentRow({ comment, index, postId, currentUser, onChange }) {
+function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthed, onChange, onReply }) {
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [draft, setDraft] = useState(comment.body)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   const draftRef = useRef(null)
+
+  const [replying, setReplying] = useState(false)
+  const [replyDraft, setReplyDraft] = useState('')
+  const [replyBusy, setReplyBusy] = useState(false)
+  const [replyErr, setReplyErr] = useState(null)
+  // FB convention: when more than 2 replies exist, collapse the older ones
+  // and surface a "view earlier" button. Keeps long threads scannable.
+  const [showAllReplies, setShowAllReplies] = useState(false)
+  const replyTaRef = useRef(null)
 
   const isAuthor = currentUser && comment.author_id === currentUser.id
   const isMod = currentUser && (currentUser.role === 'moderator' || currentUser.role === 'admin')
@@ -748,6 +789,44 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
       setBusy(false)
     }
   }
+
+  // Open the inline reply composer. `mention` is set when the user clicked
+  // Reply on a sub-reply — we prefill `@author ` so context is preserved
+  // even though the API flattens the new reply onto the same top-level
+  // parent (depth-1 cap).
+  const openReply = (mention) => {
+    setReplying(true)
+    setShowAllReplies(true)
+    if (mention) {
+      setReplyDraft((d) => (d && d.length > 0 ? d : `@${mention} `))
+    }
+    setTimeout(() => {
+      replyTaRef.current?.focus()
+      try {
+        const len = replyTaRef.current?.value?.length ?? 0
+        replyTaRef.current?.setSelectionRange(len, len)
+      } catch { /* ignore */ }
+    }, 50)
+  }
+
+  const submitInlineReply = async (e) => {
+    e.preventDefault()
+    const body = replyDraft.trim()
+    if (!body) return
+    setReplyBusy(true); setReplyErr(null)
+    try {
+      await onReply(body)
+      setReplyDraft('')
+      setReplying(false)
+    } catch (e2) {
+      setReplyErr(e2?.status === 401 ? 'Log in to reply' : (e2?.message || 'Failed to post reply'))
+    } finally {
+      setReplyBusy(false)
+    }
+  }
+
+  const visibleReplies = showAllReplies || replies.length <= 2 ? replies : replies.slice(-2)
+  const hiddenCount = replies.length - visibleReplies.length
 
   return (
     <li className="bg-card border border-lightgray hover:border-gold/40 transition-colors group/letter">
@@ -811,45 +890,64 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
               </blockquote>
             )}
 
-            {!editing && (canEdit || canDelete) && (
-              <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/letter:opacity-100 focus-within:opacity-100 transition-opacity">
-                {canEdit && (
+            {!editing && (
+              <div className="flex items-center gap-1 mt-2 flex-wrap">
+                {isAuthed && (
                   <button
                     type="button"
-                    onClick={() => { setEditing(true); setDraft(comment.body); setErr(null) }}
-                    className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-navy px-1.5 py-1 bg-transparent border-none cursor-pointer"
+                    onClick={() => openReply(null)}
+                    className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-navy hover:text-gold px-1.5 py-1 bg-transparent border-none cursor-pointer"
                   >
-                    Edit
+                    Reply
                   </button>
                 )}
-                {canDelete && !confirm && (
-                  <button
-                    type="button"
-                    onClick={() => setConfirm(true)}
-                    className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-danger px-1.5 py-1 bg-transparent border-none cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                )}
-                {canDelete && confirm && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={del}
-                      disabled={busy}
-                      className="text-2xs font-archivo font-extrabold uppercase tracking-wider text-white bg-danger hover:bg-[#6a1313] px-2 py-1 border-none cursor-pointer disabled:opacity-60"
-                    >
-                      {busy ? '…' : 'Confirm'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirm(false)}
-                      disabled={busy}
-                      className="text-2xs font-archivo font-extrabold uppercase tracking-wider text-gray hover:text-ink px-1.5 py-1 bg-transparent border-none cursor-pointer"
-                    >
-                      Cancel
-                    </button>
+                {(canEdit || canDelete) && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover/letter:opacity-100 focus-within:opacity-100 transition-opacity">
+                    {isAuthed && <span aria-hidden className="text-lightgray text-2xs px-1">/</span>}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditing(true); setDraft(comment.body); setErr(null) }}
+                        className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-navy px-1.5 py-1 bg-transparent border-none cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && !confirm && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirm(true)}
+                        className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-danger px-1.5 py-1 bg-transparent border-none cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    {canDelete && confirm && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={del}
+                          disabled={busy}
+                          className="text-2xs font-archivo font-extrabold uppercase tracking-wider text-white bg-danger hover:bg-[#6a1313] px-2 py-1 border-none cursor-pointer disabled:opacity-60"
+                        >
+                          {busy ? '…' : 'Confirm'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirm(false)}
+                          disabled={busy}
+                          className="text-2xs font-archivo font-extrabold uppercase tracking-wider text-gray hover:text-ink px-1.5 py-1 bg-transparent border-none cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
+                )}
+                {replies.length > 0 && (
+                  <span className="ml-auto text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-gray tabular-nums">
+                    {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                  </span>
                 )}
               </div>
             )}
@@ -857,6 +955,261 @@ function CommentRow({ comment, index, postId, currentUser, onChange }) {
               <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider">{err}</div>
             )}
           </div>
+        </div>
+      </div>
+
+      {(replies.length > 0 || replying) && (
+        <div className="border-t border-divider bg-offwhite/40 px-4 sm:px-5 pl-12 sm:pl-[60px] py-3">
+          {hiddenCount > 0 && !showAllReplies && (
+            <button
+              type="button"
+              onClick={() => setShowAllReplies(true)}
+              className="text-2xs font-archivo font-extrabold uppercase tracking-[0.16em] text-navy hover:text-gold mb-2.5 bg-transparent border-none cursor-pointer p-0 inline-flex items-center gap-1.5"
+            >
+              <span aria-hidden className="inline-block w-5 h-px bg-navy/40" />
+              View {hiddenCount} earlier {hiddenCount === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+          <ul className="list-none p-0 m-0 space-y-2">
+            {visibleReplies.map((r) => (
+              <ReplyRow
+                key={r.id}
+                reply={r}
+                postId={postId}
+                currentUser={currentUser}
+                isAuthed={isAuthed}
+                onChange={onChange}
+                onReplyToReply={(name) => openReply(name)}
+              />
+            ))}
+          </ul>
+          {replying && (
+            <form onSubmit={submitInlineReply} className="mt-2.5 pt-2.5 border-t border-divider/70">
+              <div className="flex items-start gap-2">
+                <AuthorAvatar author={currentUser} size="xs" seedFallback={comment.id + 'me'} />
+                <div className="flex-1 min-w-0">
+                  <textarea
+                    ref={replyTaRef}
+                    value={replyDraft}
+                    onChange={(e) => setReplyDraft(e.target.value)}
+                    disabled={replyBusy}
+                    rows={2}
+                    placeholder={`Reply to ${authorName}…`}
+                    className="w-full bg-card border border-lightgray focus:border-navy px-2.5 py-1.5 text-[0.9rem] font-franklin leading-relaxed resize-y outline-none transition-colors disabled:opacity-60"
+                  />
+                  {replyErr && (
+                    <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider" role="alert">
+                      {replyErr}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 mt-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <EmojiPickerButton
+                        align="left"
+                        disabled={replyBusy}
+                        onPick={(e) => insertAtCursor(replyTaRef, replyDraft, setReplyDraft, e)}
+                      />
+                      <span className="text-2xs text-gray font-archivo uppercase tracking-wider tabular-nums">
+                        {replyDraft.length} chars
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        disabled={replyBusy}
+                        onClick={() => { setReplying(false); setReplyDraft(''); setReplyErr(null) }}
+                        className="bg-transparent border border-lightgray py-1.5 px-3 font-archivo text-2xs font-extrabold uppercase tracking-wider text-gray hover:text-ink cursor-pointer disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={replyBusy || !replyDraft.trim()}
+                        className="bg-navy text-gold border-none py-1.5 px-3 font-archivo text-2xs font-extrabold uppercase tracking-wider cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
+                      >
+                        {replyBusy ? 'Posting…' : 'Reply'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  ReplyRow — depth-1 reply rendered inside its parent CommentRow.           */
+/*                                                                            */
+/*  Smaller avatar + tighter type than the top-level row to signal            */
+/*  hierarchy. Edit/delete behave identically; "Reply" bubbles up to the     */
+/*  parent's composer with `@authorName ` prefilled so context survives the   */
+/*  depth-1 flattening enforced by the API.                                   */
+/* -------------------------------------------------------------------------- */
+function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToReply }) {
+  const [editing, setEditing] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  const [draft, setDraft] = useState(reply.body)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const draftRef = useRef(null)
+
+  const isAuthor = currentUser && reply.author_id === currentUser.id
+  const isMod = currentUser && (currentUser.role === 'moderator' || currentUser.role === 'admin')
+  const canEdit = isAuthor
+  const canDelete = isAuthor || isMod
+  const authorName = reply.author?.name || 'Unknown'
+
+  const save = async (e) => {
+    e.preventDefault()
+    const body = draft.trim()
+    if (!body) { setErr('Reply cannot be empty'); return }
+    setBusy(true); setErr(null)
+    try {
+      await apiFetch(`/api/posts/${postId}/comments/${reply.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ body }),
+      })
+      setEditing(false)
+      onChange?.()
+    } catch (e2) {
+      setErr(e2?.message || 'Save failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const del = async () => {
+    setBusy(true); setErr(null)
+    try {
+      await apiFetch(`/api/posts/${postId}/comments/${reply.id}`, { method: 'DELETE' })
+      onChange?.()
+    } catch (e2) {
+      setErr(e2?.message || 'Delete failed')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li className="group/reply">
+      <div className="flex items-start gap-2">
+        <AuthorAvatar author={reply.author} size="xs" seedFallback={reply.id} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
+            <strong className="text-[0.78rem] font-semibold text-ink truncate">{authorName}</strong>
+            {isAuthor && (
+              <span className="text-[0.55rem] font-archivo font-extrabold uppercase tracking-wider text-gold">
+                You
+              </span>
+            )}
+            <span className="text-gray/50 text-[0.55rem]" aria-hidden>&bull;</span>
+            <span className="text-[0.6rem] text-gray font-archivo uppercase tracking-wider">
+              {formatRelative(reply.created_at)}
+            </span>
+          </div>
+
+          {editing ? (
+            <form onSubmit={save} className="mt-1">
+              <textarea
+                ref={draftRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                disabled={busy}
+                className="w-full border border-lightgray bg-card focus:border-navy px-2.5 py-1.5 text-[0.85rem] font-franklin leading-relaxed resize-y outline-none transition-colors"
+              />
+              {err && <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider">{err}</div>}
+              <div className="flex gap-1.5 mt-1.5 items-center">
+                <EmojiPickerButton
+                  align="left"
+                  disabled={busy}
+                  onPick={(e) => insertAtCursor(draftRef, draft, setDraft, e)}
+                />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="bg-navy text-gold border-none py-1 px-2.5 font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
+                >
+                  {busy ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => { setEditing(false); setDraft(reply.body); setErr(null) }}
+                  className="bg-transparent border border-lightgray py-1 px-2.5 font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider text-gray hover:text-ink cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-[0.86rem] text-ink font-franklin leading-[1.55] whitespace-pre-wrap m-0">
+              {reply.body}
+            </p>
+          )}
+
+          {!editing && (
+            <div className="flex items-center gap-1 mt-1 flex-wrap">
+              {isAuthed && (
+                <button
+                  type="button"
+                  onClick={() => onReplyToReply?.(authorName)}
+                  className="text-[0.6rem] font-archivo font-extrabold uppercase tracking-[0.16em] text-navy hover:text-gold px-1 py-0.5 bg-transparent border-none cursor-pointer"
+                >
+                  Reply
+                </button>
+              )}
+              {(canEdit || canDelete) && (
+                <div className="flex items-center gap-1 opacity-0 group-hover/reply:opacity-100 focus-within:opacity-100 transition-opacity">
+                  {isAuthed && <span aria-hidden className="text-lightgray text-[0.6rem] px-0.5">/</span>}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => { setEditing(true); setDraft(reply.body); setErr(null) }}
+                      className="text-[0.6rem] font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-navy px-1 py-0.5 bg-transparent border-none cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {canDelete && !confirm && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirm(true)}
+                      className="text-[0.6rem] font-archivo font-extrabold uppercase tracking-[0.16em] text-gray hover:text-danger px-1 py-0.5 bg-transparent border-none cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  {canDelete && confirm && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={del}
+                        disabled={busy}
+                        className="text-[0.6rem] font-archivo font-extrabold uppercase tracking-wider text-white bg-danger hover:bg-[#6a1313] px-1.5 py-0.5 border-none cursor-pointer disabled:opacity-60"
+                      >
+                        {busy ? '…' : 'Confirm'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirm(false)}
+                        disabled={busy}
+                        className="text-[0.6rem] font-archivo font-extrabold uppercase tracking-wider text-gray hover:text-ink px-1 py-0.5 bg-transparent border-none cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {err && !editing && (
+            <div className="text-2xs text-danger font-archivo font-bold mt-1 uppercase tracking-wider">{err}</div>
+          )}
         </div>
       </div>
     </li>

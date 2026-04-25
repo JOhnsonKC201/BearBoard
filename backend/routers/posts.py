@@ -359,9 +359,30 @@ def create_comment(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    # Validate threaded reply: parent must exist on the same post and itself
+    # be a top-level comment. Depth-1 cap mirrors Facebook — replies-of-replies
+    # are still attached to the original parent so the UI never has to render
+    # arbitrarily nested walls.
+    parent_id = comment.parent_id
+    if parent_id is not None:
+        parent = (
+            db.query(Comment)
+            .filter(Comment.id == parent_id, Comment.post_id == post_id)
+            .first()
+        )
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+        if parent.parent_id is not None:
+            parent_id = parent.parent_id
+
     _guard_content(body, kind="comment", author_id=current_user.id)
 
-    new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
+    new_comment = Comment(
+        body=body,
+        author_id=current_user.id,
+        post_id=post_id,
+        parent_id=parent_id,
+    )
     db.add(new_comment)
     bump_streak(db, current_user)
     if post.is_sos and not post.sos_resolved:
@@ -433,6 +454,12 @@ def delete_comment(
     is_mod = current_user.role in ("admin", "moderator")
     if c.author_id != current_user.id and not is_mod:
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
+    # Cascade replies in application code so SQLite (which ignores
+    # ON DELETE CASCADE unless PRAGMA foreign_keys=ON) behaves the same as
+    # Postgres. Only top-level deletes can have replies — depth-1 cap.
+    by_mod = is_mod and c.author_id != current_user.id
+    if c.parent_id is None:
+        db.query(Comment).filter(Comment.parent_id == c.id).delete(synchronize_session=False)
     db.delete(c)
     db.commit()
-    return {"detail": "Comment deleted", "by_mod": is_mod and c.author_id != current_user.id}
+    return {"detail": "Comment deleted", "by_mod": by_mod}
