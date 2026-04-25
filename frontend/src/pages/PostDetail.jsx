@@ -20,6 +20,7 @@ function PostDetail() {
   const [commentBody, setCommentBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [commentError, setCommentError] = useState(null)
+  const [related, setRelated] = useState([])
   const composerRef = useRef(null)
 
   const issueDate = useMemo(() => {
@@ -43,6 +44,26 @@ function PostDetail() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Fetch a few posts from the same section for the "More from…" rail.
+  // Runs after the post resolves so we know which category to query.
+  useEffect(() => {
+    if (!post?.category) { setRelated([]); return }
+    let cancelled = false
+    const params = new URLSearchParams({
+      category: post.category,
+      sort: 'newest',
+      limit: '6',
+    })
+    apiFetch(`/api/posts/?${params.toString()}`)
+      .then((rows) => {
+        if (cancelled) return
+        const filtered = (rows || []).filter((p) => p.id !== post.id).slice(0, 3)
+        setRelated(filtered)
+      })
+      .catch(() => { if (!cancelled) setRelated([]) })
+    return () => { cancelled = true }
+  }, [post?.id, post?.category])
 
   const submitComment = async (e) => {
     e.preventDefault()
@@ -204,6 +225,10 @@ function PostDetail() {
               <ActionButtons post={post} onJumpToReply={focusComposer} commentCount={commentCount} />
             </div>
           </article>
+
+          {related.length > 0 && (
+            <RelatedPosts items={related} category={post.category} />
+          )}
 
           {/* Letters to the Editor — comments section */}
           <section className="mt-10" aria-labelledby="comments-heading">
@@ -531,6 +556,64 @@ function ActionButtons({ post, onJumpToReply, commentCount }) {
         <span>{shareState === 'copied' ? 'Copied' : shareState === 'failed' ? 'Failed' : 'Share'}</span>
       </button>
     </>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  RelatedPosts — "More from [Section]" strip placed between the article    */
+/*  and the comments. Renders up to three same-category posts as compact     */
+/*  broadsheet-style cards.                                                   */
+/* -------------------------------------------------------------------------- */
+function RelatedPosts({ items, category }) {
+  return (
+    <section className="mt-10" aria-labelledby="related-heading">
+      <div className="flex items-baseline gap-3 mb-4">
+        <h2
+          id="related-heading"
+          className="font-editorial font-black text-[1.35rem] sm:text-[1.5rem] tracking-tight leading-none text-ink"
+        >
+          More from <span className="italic">{flairLabel(category)}</span>
+        </h2>
+        <span className="h-px flex-1 bg-lightgray" aria-hidden />
+        <span className="text-2xs font-archivo font-extrabold uppercase tracking-[0.22em] text-gray tabular-nums">
+          {items.length} {items.length === 1 ? 'piece' : 'pieces'}
+        </span>
+      </div>
+      <ol className="list-none p-0 m-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((p) => (
+          <RelatedPostCard key={p.id} post={p} />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function RelatedPostCard({ post }) {
+  const isAnonymous = (post.category || '').toLowerCase() === 'anonymous'
+  const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
+  const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+  const replies = post.comment_count ?? 0
+  return (
+    <li className="bg-card border border-lightgray border-l-[3px] border-l-gold/70 hover:border-l-gold hover:border-navy/30 transition-colors">
+      <Link
+        to={`/post/${post.id}`}
+        className="block px-4 py-3 no-underline text-ink h-full"
+      >
+        <div className="text-2xs font-archivo font-extrabold uppercase tracking-[0.2em] text-gray mb-1.5">
+          {formatRelative(post.created_at)}
+        </div>
+        <h3 className="font-editorial font-black text-[1.05rem] leading-[1.15] tracking-tight text-ink mb-1.5 line-clamp-3">
+          {post.title}
+        </h3>
+        <div className="flex items-center gap-2 text-2xs font-archivo uppercase tracking-wider text-gray">
+          <span className="truncate">{authorName}</span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{score} pts</span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{replies} {replies === 1 ? 'reply' : 'replies'}</span>
+        </div>
+      </Link>
+    </li>
   )
 }
 
