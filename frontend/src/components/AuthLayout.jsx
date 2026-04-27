@@ -64,7 +64,7 @@ function AuthLayout({ title, subtitle, children }) {
            beside the hero on lg+. */}
       <div className="relative -mt-24 lg:mt-0 px-5 pb-10 lg:py-10 flex items-start lg:items-center justify-center z-10">
         <div className="w-full max-w-[440px]">
-          <div className="bg-card border border-lightgray p-6 lg:p-7 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)] lg:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.18)]">
+          <div className="bg-card border border-lightgray border-t-[3px] border-t-gold p-6 lg:p-7 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)] lg:shadow-[0_12px_40px_-12px_rgba(11,29,52,0.22)]">
             <div className="mb-5">
               <h2 className="font-archivo font-black text-[1.7rem] lg:text-[1.8rem] tracking-tight text-ink leading-tight">{title}</h2>
               {subtitle && <p className="text-gray text-[0.86rem] lg:text-[0.88rem] mt-1.5">{subtitle}</p>}
