@@ -13,6 +13,7 @@ from models.group_member import GroupMember
 from models.user import User
 from routers.auth import get_current_user_dep
 from models.comment import Comment
+from agents import chat as chat_agent
 from services.morgan_events import sync_morgan_events
 from services.permissions import require_admin
 from sqlalchemy import func
@@ -229,22 +230,15 @@ def my_group_ids(
     return [r[0] for r in rows]
 
 
-CANNED_RESPONSES = {
-    "events": "This week:\n\n- **Yard Fest 2026** - Apr 18, Main Yard, 12-8 PM\n- **Spring Career Fair** - Apr 22, Student Center, 10 AM-3 PM\n- **Hackathon Kickoff** - Apr 25, SCMNS 201, 6 PM",
-    "study group": 'Found one! **"Networking Gang"** for COSC 350 - 12 members, meets Tue/Thu on library 3rd floor. They\'re doing networking layers and socket programming.',
-    "trending": "Top posts today:\n\n1. **Yard Fest Weekend Plans** - 89 upvotes\n2. **JPMorgan Internship** - 64 upvotes\n3. **Spring Career Fair** - 47 upvotes",
-    "create a post": 'Hit the **"+ New Post"** button on the right side. Pick a category, write your title and body, and post.',
-    "how": 'Hit the **"+ New Post"** button on the right side. Pick a category, write your title and body, and post. For events, add a date/time so it shows on the calendar.',
-}
-
-
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("30/minute")
 def chat(request: Request, req: ChatRequest):
-    msg = req.message.lower()
-    for key, response in CANNED_RESPONSES.items():
-        if key in msg:
-            return ChatResponse(reply=response)
-    return ChatResponse(
-        reply="Thanks for your message! Try asking about **events**, **study groups**, **trending posts**, or **how to use features**. The full AI version will be able to answer anything about campus life."
-    )
+    """Hand the message to the chat agent. The agent calls Gemini when
+    GEMINI_API_KEY is set, otherwise falls back to a deterministic
+    keyword router so the widget always shows something useful. We
+    discard the agent's `provider` here because the public ChatResponse
+    schema only carries the reply text — flip the agent call to return
+    the full ChatReply if/when we want to surface 'AI' vs 'fallback'
+    indicators in the UI."""
+    result = chat_agent.reply(req.message or "")
+    return ChatResponse(reply=result.reply)

@@ -119,3 +119,62 @@ textarea:focus-visible,
 .vote-pop {
   animation: vote-pop 280ms ease-out;
 }
+
+/* Home feed card reveal — replaces a framer-motion AnimatePresence stagger.
+   Cards fade up on mount; per-card delay is set inline via --feed-delay. */
+@keyframes feed-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.feed-card-in {
+  animation: feed-card-in 280ms cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+  animation-delay: var(--feed-delay, 0ms);
+}
+
+/* Notification badge pop — replaces a framer-motion spring on the unread
+   count bubble. Overshoots slightly then settles. */
+@keyframes badge-pop {
+  0%   { transform: scale(0) rotate(-25deg); }
+  70%  { transform: scale(1.25) rotate(0); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.badge-pop {
+  animation: badge-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Masthead arrival on the home page — date bar, headline, and stats
+   block fade up in sequence. Per-block delay is set inline via
+   --mh-delay so the stagger order can be edited from the JSX without
+   touching this file. Reduced motion users see the final state with
+   no animation at all. */
+@keyframes masthead-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.masthead-rise {
+  animation: masthead-rise 550ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  animation-delay: var(--mh-delay, 0ms);
+}
+
+/* Gold underline that draws in beneath the user's first name in the
+   greeting. Sits on top of an absolutely positioned span; the span has
+   left:0/right:0 so scaleX from 0 → 1 grows it across the name. */
+@keyframes masthead-underline {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.masthead-underline {
+  transform-origin: left center;
+  animation: masthead-underline 700ms cubic-bezier(0.25, 0.1, 0.25, 1) 550ms backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead-rise,
+  .masthead-underline {
+    animation: none;
+  }
+}

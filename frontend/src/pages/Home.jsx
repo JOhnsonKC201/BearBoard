@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import ChatWidget from '../components/ChatWidget'
-import MobileHome from '../components/MobileHome'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
-import NewPostModal from '../components/NewPostModal'
-import CreateGroupModal from '../components/CreateGroupModal'
+import AuthorAvatar from '../components/AuthorAvatar'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
@@ -15,6 +11,14 @@ import { VerifiedBadge } from '../components/VerifiedBadge'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { flairSlug, flairLabel } from '../utils/avatar'
+
+// Lazy: these only mount on explicit user action (button click, >=lg viewport).
+// Splitting them out keeps the first-paint bundle lean.
+const MobileHome = lazy(() => import('../components/MobileHome'))
+const ChatWidget = lazy(() => import('../components/ChatWidget'))
+const NewPostModal = lazy(() => import('../components/NewPostModal'))
+const CreateGroupModal = lazy(() => import('../components/CreateGroupModal'))
+const PostAuthorMenu = lazy(() => import('../components/PostAuthorMenu'))
 
 // Roles allowed to see internal messaging like the "Got a new idea?" banner.
 // General students should not see team/Trello chrome.
@@ -178,6 +182,16 @@ function Home() {
   const [posts, setPosts] = useState([])
   const [postsLoading, setPostsLoading] = useState(true)
   const [postsError, setPostsError] = useState(null)
+
+  // Inline edit/delete handlers for the kebab menu on each card. Patches
+  // local state so the feed stays in sync without a refetch.
+  const handlePostUpdated = (updated) => {
+    if (!updated?.id) return
+    setPosts((cur) => cur.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)))
+  }
+  const handlePostDeleted = (id) => {
+    setPosts((cur) => cur.filter((p) => p.id !== id))
+  }
   const [reloadKey, setReloadKey] = useState(0)
   const [trending, setTrending] = useState([])
   const [events, setEvents] = useState([])
@@ -194,6 +208,21 @@ function Home() {
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
+
+  // Render only the layout that matches the viewport, instead of mounting both
+  // trees and hiding one with CSS. Synchronous init reads matchMedia during the
+  // first render so there's no flash of the wrong layout.
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 1024px)').matches
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e) => setIsDesktop(e.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
 
   // BottomNav's + tab navigates here with ?new=1. Open the modal and strip the
   // param so a refresh doesn't re-open it.
@@ -358,20 +387,28 @@ function Home() {
 
   return (
     <div>
-      {/* Mobile + tablet dashboard (shown below lg). */}
-      <MobileHome
-        posts={visiblePosts}
-        trending={trending}
-        events={events}
-        groups={groups}
-        myGroupIds={myGroupIds}
-        onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
-        onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
-        loading={postsLoading || sidebarLoading}
-      />
+      {/* Mobile + tablet dashboard (shown below lg). Lazy + viewport-gated so
+          desktop users never download or execute this tree. */}
+      {!isDesktop && (
+        <Suspense fallback={null}>
+          <MobileHome
+            posts={visiblePosts}
+            trending={trending}
+            events={events}
+            groups={groups}
+            myGroupIds={myGroupIds}
+            onToggleMembership={(id, joined) => (authedUser ? toggleGroupMembership(id, joined) : navigate('/login'))}
+            onCreateGroup={() => (authedUser ? setShowCreateGroup(true) : navigate('/login'))}
+            onPostUpdated={handlePostUpdated}
+            onPostDeleted={handlePostDeleted}
+            loading={postsLoading || sidebarLoading}
+          />
+        </Suspense>
+      )}
 
       {/* Desktop layout (lg+) */}
-      <div className="hidden lg:block">
+      {isDesktop && (
+      <div className="block">
       {/* Header - broadsheet masthead. Matches the mobile campus-broadsheet
           direction: gold flag line at top, date eyebrow, dynamic greeting
           if authed, a subtle diagonal stripe + corner glow for atmosphere,
@@ -390,16 +427,18 @@ function Home() {
         />
 
         <div className="relative max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-5 pb-8 xl:pt-7 xl:pb-10">
-          <HeroFlag stats={stats} />
+          <div className="masthead-rise" style={{ '--mh-delay': '0ms' }}>
+            <HeroFlag stats={stats} />
+          </div>
 
           <div className="mt-5 xl:mt-7 flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
-            <div className="max-w-[580px]">
+            <div className="masthead-rise max-w-[580px]" style={{ '--mh-delay': '90ms' }}>
               <HeroGreeting user={authedUser} />
               <p className="text-white/55 text-[0.92rem] xl:text-[0.98rem] mt-3 leading-relaxed max-w-[440px] font-franklin">
                 Posts, study groups, events, and opportunities. All in one place, by students, for students.
               </p>
             </div>
-            <dl className="flex gap-6 xl:gap-10 border-l border-white/10 pl-6 xl:pl-10">
+            <dl className="masthead-rise flex gap-6 xl:gap-10 border-l border-white/10 pl-6 xl:pl-10" style={{ '--mh-delay': '180ms' }}>
               <HeroStat value={stats?.users} label="Students" />
               <HeroStat value={stats?.groups} label="Groups" />
               <HeroStat value={stats?.posts_last_24h} label="Today" highlight />
@@ -510,26 +549,21 @@ function Home() {
                   <div className="border-l-[3px] border-l-gold">
                     {pinnedPosts.map((post) => (
                       <div key={post.id} className="border-b border-lightgray last:border-b-0 bg-gold/[0.04]">
-                        <PostCard post={post} />
+                        <PostCard post={post} onUpdated={handlePostUpdated} onDeleted={handlePostDeleted} />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-              <AnimatePresence initial={true}>
-                {regularPosts.map((post, i) => (
-                  <motion.div
-                    key={post.id}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
-                    transition={{ duration: 0.28, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 0.61, 0.36, 1] }}
-                  >
-                    <PostCard post={post} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              {regularPosts.map((post, i) => (
+                <div
+                  key={post.id}
+                  className="feed-card-in"
+                  style={{ '--feed-delay': `${Math.min(i * 40, 320)}ms` }}
+                >
+                  <PostCard post={post} onUpdated={handlePostUpdated} onDeleted={handlePostDeleted} />
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -543,23 +577,7 @@ function Home() {
             ) : trending.length === 0 ? (
               <div className="px-4 py-3 text-[0.78rem] text-gray">No trending posts yet.</div>
             ) : trending.map((t, i) => (
-              <Link
-                key={t.id}
-                to={`/post/${t.id}`}
-                className="flex gap-3 items-start px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/trend"
-              >
-                <div className="font-archivo font-black text-[1.6rem] text-gold leading-none w-[26px] tracking-tighter shrink-0">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[0.82rem] font-semibold leading-tight mb-1 group-hover/trend:text-navy transition-colors line-clamp-2">{t.title}</div>
-                  <div className="text-[0.68rem] text-gray flex items-center gap-2">
-                    <span className="flex items-center gap-[3px]"><span className="text-gold">&#9650;</span>{(t.upvotes ?? 0) - (t.downvotes ?? 0)}</span>
-                    <span className="opacity-40">&middot;</span>
-                    <span>{t.comment_count ?? 0} comments</span>
-                  </div>
-                </div>
-              </Link>
+              <TrendingItem key={t.id} post={t} rank={i + 1} featured={i === 0} />
             ))}
           </SideBox>
 
@@ -776,33 +794,51 @@ function Home() {
           Trello
         </a>
       </footer>
-      </div> {/* /desktop layout (lg+) */}
+      </div>
+      )}
+      {/* /desktop layout (lg+) */}
 
       {/* New Post FAB - desktop only; mobile uses the + tab in BottomNav. */}
-      <button
-        onClick={() => { setPostPreset(null); setShowNewPost(true) }}
-        className="hidden lg:flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
-      >
-        + New Post
-      </button>
+      {isDesktop && (
+        <button
+          onClick={() => { setPostPreset(null); setShowNewPost(true) }}
+          className="flex fixed bottom-[84px] right-6 bg-gold text-navy border-none py-3 px-5 font-archivo text-[0.75rem] font-extrabold uppercase tracking-wide cursor-pointer z-50 items-center gap-1.5 hover:bg-[#E5A92E] transition-colors"
+        >
+          + New Post
+        </button>
+      )}
 
-      <NewPostModal
-        open={showNewPost}
-        preset={postPreset}
-        onClose={() => { setShowNewPost(false); setPostPreset(null) }}
-        onCreated={() => setReloadKey((k) => k + 1)}
-      />
+      {/* Modals + chat widget are lazy: only fetched once the user actually
+          opens them. Suspense fallback is null because they're invisible
+          until `open` anyway. */}
+      {showNewPost && (
+        <Suspense fallback={null}>
+          <NewPostModal
+            open={showNewPost}
+            preset={postPreset}
+            onClose={() => { setShowNewPost(false); setPostPreset(null) }}
+            onCreated={() => setReloadKey((k) => k + 1)}
+          />
+        </Suspense>
+      )}
 
-      <CreateGroupModal
-        open={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreate={createGroup}
-      />
+      {showCreateGroup && (
+        <Suspense fallback={null}>
+          <CreateGroupModal
+            open={showCreateGroup}
+            onClose={() => setShowCreateGroup(false)}
+            onCreate={createGroup}
+          />
+        </Suspense>
+      )}
 
-      {/* Chat Widget - desktop only on small screens it would collide with BottomNav. */}
-      <div className="hidden lg:block">
-        <ChatWidget />
-      </div>
+      {/* Chat Widget - desktop only (on small screens it would collide with
+          BottomNav). Lazy-loaded so it never competes with first-paint. */}
+      {isDesktop && (
+        <Suspense fallback={null}>
+          <ChatWidget />
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -849,6 +885,31 @@ function HeroFlag({ stats }) {
   )
 }
 
+// Eased number tween — used by HeroStat to count up from 0 to the real
+// stat value once it lands. Cubic ease-out so the motion settles
+// gracefully on the final number rather than ticking to a hard stop.
+function useCountUp(value, duration = 900) {
+  const [n, setN] = useState(value == null ? 0 : 0)
+  const startedFor = useRef(null)
+  useEffect(() => {
+    if (value == null) return
+    // Avoid restarting the tween on cosmetic re-renders that pass the same value.
+    if (startedFor.current === value) return
+    startedFor.current = value
+    const start = performance.now()
+    let raf
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setN(Math.round(value * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+  return n
+}
+
 function HeroGreeting({ user }) {
   // Dynamic headline. Logged-in students get a time-of-day greeting; anyone
   // else sees the evergreen "What's happening at Morgan State" billboard.
@@ -862,7 +923,11 @@ function HeroGreeting({ user }) {
           Campus edition &middot; {greet}
         </div>
         <h1 className="font-archivo font-black text-white text-[2.25rem] xl:text-[2.95rem] leading-[1.02] tracking-[-0.01em] uppercase">
-          Hey, <span className="text-gold">{first}</span>
+          Hey,{' '}
+          <span className="relative inline-block text-gold">
+            {first}
+            <span aria-hidden className="masthead-underline absolute left-0 right-0 -bottom-1 h-[3px] bg-gold rounded-full" />
+          </span>
           <span className="block">what's happening</span>
           <span className="block text-white/40 text-[1.35rem] xl:text-[1.65rem] font-extrabold tracking-tight normal-case mt-2">
             at Morgan State today?
@@ -885,8 +950,9 @@ function HeroGreeting({ user }) {
 }
 
 function HeroStat({ value, label, highlight = false }) {
+  const animated = useCountUp(value)
   const display =
-    value == null ? '-' : value >= 1000 ? value.toLocaleString() : String(value)
+    value == null ? '-' : animated >= 1000 ? animated.toLocaleString() : String(animated)
   return (
     <div className="text-right">
       <dt className="sr-only">{label}</dt>
@@ -919,7 +985,84 @@ function SideBox({ title, children, id }) {
   )
 }
 
-function PostCard({ post }) {
+/* ----------------------------------------------------------------------- */
+/*  TrendingItem — sidebar widget row.                                     */
+/*                                                                         */
+/*  Editorial-voice redesign over the old "rank · title · score · comments"*/
+/*  list. Adds a momentum tag (Hot/Rising/New) computed from score + age   */
+/*  so the widget tells the reader why something is here, not just that it */
+/*  is. Top-ranked item gets a featured treatment (slightly larger title + */
+/*  gold accent rule). Hover reveals a left-edge gold bar — the standard   */
+/*  "this is interactive" cue used elsewhere on the page.                  */
+/* ----------------------------------------------------------------------- */
+function TrendingItem({ post, rank, featured = false }) {
+  const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
+  const replies = post.comment_count ?? 0
+  const ageH = (() => {
+    if (!post.created_at) return Infinity
+    const ms = Date.now() - new Date(post.created_at).getTime()
+    return Number.isFinite(ms) ? ms / 36e5 : Infinity
+  })()
+
+  // Heuristic momentum tag — surfaces *why* the item is trending.
+  // Tuned for a small campus board; thresholds are deliberately low
+  // because absolute scores here are an order of magnitude smaller
+  // than on a major site.
+  let tag = null
+  if (score >= 5 && ageH <= 6) tag = { label: 'Hot', cls: 'bg-danger/15 text-danger' }
+  else if (score >= 1 && ageH <= 24) tag = { label: 'Rising', cls: 'bg-gold/20 text-warning' }
+  else if (ageH <= 6) tag = { label: 'New', cls: 'bg-navy/10 text-navy' }
+
+  return (
+    <Link
+      to={`/post/${post.id}`}
+      className={`relative flex gap-3 items-start px-4 ${featured ? 'py-3.5' : 'py-3'} border-b border-[#EAE7E0] last:border-b-0 no-underline text-ink hover:bg-offwhite transition-colors group/trend`}
+    >
+      {/* Hover accent — gold bar slides in on the left edge */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-2 bottom-2 w-[3px] bg-gold scale-y-0 group-hover/trend:scale-y-100 origin-center transition-transform"
+      />
+      <div
+        className={`font-editorial italic font-black leading-[0.9] tracking-tight text-gold shrink-0 tabular-nums ${
+          featured ? 'text-[2rem] w-[34px]' : 'text-[1.5rem] w-[28px]'
+        }`}
+      >
+        {rank}
+      </div>
+      <div className="flex-1 min-w-0">
+        {tag && (
+          <span className={`inline-block text-[0.55rem] font-archivo font-extrabold uppercase tracking-[0.16em] px-1.5 py-[2px] rounded-sm mb-1 ${tag.cls}`}>
+            {tag.label}
+          </span>
+        )}
+        <div
+          className={`font-editorial font-black leading-[1.18] tracking-tight text-ink mb-1.5 group-hover/trend:text-navy transition-colors line-clamp-2 ${
+            featured ? 'text-[0.98rem]' : 'text-[0.88rem]'
+          }`}
+        >
+          {post.title}
+        </div>
+        <div className="text-[0.66rem] text-gray font-archivo uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center gap-[3px] text-ink/70">
+            <span className="text-gold">&#9650;</span>
+            <span className="tabular-nums">{score}</span>
+          </span>
+          <span aria-hidden className="text-lightgray">/</span>
+          <span className="tabular-nums">{replies} {replies === 1 ? 'reply' : 'replies'}</span>
+          {Number.isFinite(ageH) && (
+            <>
+              <span aria-hidden className="text-lightgray">/</span>
+              <span className="tabular-nums">{formatRelativeTime(post.created_at)}</span>
+            </>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function PostCard({ post, onUpdated, onDeleted }) {
   const categoryKey = (post.category || 'general').toLowerCase()
   const catClass = CAT_STYLES[categoryKey] || CAT_STYLES.general
   const isAnonymous = categoryKey === 'anonymous'
@@ -927,8 +1070,6 @@ function PostCard({ post }) {
 
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const authorMajor = isAnonymous ? '' : (post.author?.major || '')
-  const avatar = paletteFor(isAnonymous ? -1 : post.author?.id ?? post.id)
-  const initials = isAnonymous ? '?' : initialsFor(authorName)
   const eventLabel = isEvent ? formatEventDateTime(post.event_date, post.event_time) : ''
 
   const initialScore = (post.upvotes ?? 0) - (post.downvotes ?? 0)
@@ -1063,12 +1204,12 @@ function PostCard({ post }) {
           </div>
         )}
         <div className="flex items-center gap-2.5 mb-2.5">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center font-archivo font-black text-[0.65rem] shrink-0 ring-1 ring-black/5"
-            style={{ background: avatar.bg, color: avatar.tc }}
-          >
-            {initials}
-          </div>
+          <AuthorAvatar
+            author={post.author}
+            anonymous={isAnonymous}
+            size="sm"
+            seedFallback={post.id}
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>
@@ -1100,6 +1241,13 @@ function PostCard({ post }) {
           <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
             {flairLabel(post.category)}
           </span>
+          <Suspense fallback={null}>
+            <PostAuthorMenu
+              post={post}
+              onUpdated={onUpdated}
+              onDeleted={onDeleted}
+            />
+          </Suspense>
         </div>
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
           <h3 className="font-archivo font-bold text-[1.15rem] leading-[1.25] mb-1 tracking-tight group-hover/title:text-navy transition-colors">

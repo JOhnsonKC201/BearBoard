@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { ProfileSkeleton } from '../components/Skeletons'
@@ -730,8 +730,16 @@ function SiteAnalyticsCard({ siteStats }) {
  * Page.
  * ========================================================================= */
 function Profile() {
-  const { id } = useParams()
+  const { id: rawId } = useParams()
   const { user: currentUser, setUser: setAuthUser } = useAuth()
+  // The Welcome page links to /profile/me so the "Fill in your profile"
+  // card works without knowing the current user's id at render time.
+  // Substitute the real id here, or bounce to /login if there's no user.
+  if (rawId === 'me') {
+    if (!currentUser?.id) return <Navigate to="/login" replace />
+    return <Navigate to={`/profile/${currentUser.id}`} replace />
+  }
+  const id = rawId
   const [user, setUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -758,7 +766,10 @@ function Profile() {
         if (cancelled) return
         setUser(userData)
         setPosts(postsData)
-        setAvatarUrl(readImage(userData.id, 'avatar'))
+        // Avatar now lives on the user row server-side (synced across all
+        // surfaces). Banner is still browser-local; migrating that is a
+        // follow-up.
+        setAvatarUrl(userData.avatar_url || null)
         setBannerUrl(readImage(userData.id, 'banner'))
       })
       .catch((err) => {
@@ -805,11 +816,25 @@ function Profile() {
     setImgError(null)
     try {
       const dataUrl = await readFileAsDataURL(file)
-      writeImage(user.id, 'avatar', dataUrl)
+      // Optimistic local preview while the upload round-trips so the user
+      // doesn't see a flash of the old photo.
       setAvatarUrl(dataUrl)
-      // TODO backend: POST /api/users/me/avatar multipart, replace url with server url.
+      const updated = await apiFetch('/api/users/me/avatar', {
+        method: 'POST',
+        body: JSON.stringify({ data_url: dataUrl }),
+      })
+      setAvatarUrl(updated.avatar_url || null)
+      setUser((prev) => ({ ...prev, ...updated }))
+      // Push into AuthContext so the navbar chip + comment authorship
+      // reflect the new photo immediately, no refresh required.
+      setAuthUser((prev) => (prev ? { ...prev, ...updated } : prev))
+      // Drop the legacy localStorage copy; the server is the source of
+      // truth from here on.
+      writeImage(user.id, 'avatar', null)
     } catch (e) {
-      setImgError(e.message || 'Could not read image')
+      // Roll back the optimistic preview if the upload was rejected.
+      setAvatarUrl(user.avatar_url || null)
+      setImgError(e.message || 'Could not upload image')
     } finally {
       setAvatarSaving(false)
     }
@@ -828,10 +853,19 @@ function Profile() {
       setBannerSaving(false)
     }
   }
-  const handleClearAvatar = () => {
+  const handleClearAvatar = async () => {
     if (!isSelf) return
-    writeImage(user.id, 'avatar', null)
+    const previous = avatarUrl
     setAvatarUrl(null)
+    try {
+      const updated = await apiFetch('/api/users/me/avatar', { method: 'DELETE' })
+      setUser((prev) => ({ ...prev, ...updated }))
+      setAuthUser((prev) => (prev ? { ...prev, ...updated } : prev))
+      writeImage(user.id, 'avatar', null)
+    } catch (e) {
+      setAvatarUrl(previous)
+      setImgError(e?.message || 'Could not remove image')
+    }
   }
   const handleClearBanner = () => {
     if (!isSelf) return

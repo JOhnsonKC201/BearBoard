@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
+import ImageUploader from './ImageUploader'
+import EmojiPickerButton, { insertAtCursor } from './EmojiPickerButton'
 
 /**
  * EditPostModal — lets the author edit title, body, and image URL on an
@@ -19,6 +21,7 @@ function EditPostModal({ post, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState(null)
   const titleRef = useRef(null)
+  const bodyRef = useRef(null)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -63,8 +66,8 @@ function EditPostModal({ post, onClose, onSaved }) {
       aria-modal="true"
       aria-labelledby="edit-post-title"
     >
-      <div className="bg-card w-full max-w-[560px] max-h-[92vh] overflow-y-auto border border-lightgray">
-        <header className="flex items-center justify-between px-5 py-4 border-b border-divider bg-offwhite sticky top-0 z-[1]">
+      <div className="bg-card w-full max-w-[560px] max-h-[100dvh] sm:max-h-[92vh] flex flex-col overflow-hidden border border-lightgray">
+        <header className="flex items-center justify-between px-5 py-4 border-b border-divider bg-offwhite shrink-0">
           <h2 id="edit-post-title" className="font-archivo font-black text-[1.05rem] tracking-tight">
             Edit post
           </h2>
@@ -72,12 +75,13 @@ function EditPostModal({ post, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-9 h-9 flex items-center justify-center bg-transparent border-none text-gray hover:text-ink cursor-pointer text-xl leading-none"
+            className="w-11 h-11 flex items-center justify-center bg-transparent border-none text-gray hover:text-ink cursor-pointer text-xl leading-none"
           >
             &times;
           </button>
         </header>
-        <form onSubmit={submit} className="px-5 py-5 space-y-4">
+        <form onSubmit={submit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">
               Title <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 tabular-nums">({title.length}/{TITLE_MAX})</span>
@@ -96,50 +100,60 @@ function EditPostModal({ post, onClose, onSaved }) {
               Body <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 tabular-nums">({body.length}/{BODY_MAX})</span>
             </label>
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
               disabled={submitting}
               rows={7}
               className="w-full border border-lightgray bg-white px-3.5 py-2.5 text-[0.92rem] font-franklin resize-y focus:border-navy focus:ring-2 focus:ring-navy/20 outline-none transition-colors leading-relaxed"
             />
+            <div className="mt-1">
+              <EmojiPickerButton
+                align="left"
+                disabled={submitting}
+                onPick={(e) => insertAtCursor(bodyRef, body, setBody, e)}
+              />
+            </div>
           </div>
           <div>
             <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">
-              Image URL <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional — clear to remove)</span>
+              Image <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional — remove to clear)</span>
             </label>
-            <input
-              type="url"
+            <ImageUploader
               value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value.slice(0, 500))}
+              onChange={setImageUrl}
               disabled={submitting}
-              placeholder="https://..."
-              className="w-full border border-lightgray bg-white px-3.5 py-2.5 text-[0.88rem] font-franklin focus:border-navy focus:ring-2 focus:ring-navy/20 outline-none transition-colors"
             />
           </div>
           <div className="text-[0.74rem] text-gray italic bg-offwhite border-l-[3px] border-navy px-3 py-2">
             Category / flair cannot be changed after posting. If the flair is wrong, delete and repost.
           </div>
-          {err && (
-            <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold" role="alert">
-              {err}
+          </div>
+          {/* Sticky action footer — stays above the iOS keyboard so the
+              Save button never hides when the body textarea is focused. */}
+          <div className="shrink-0 border-t border-divider bg-card px-5 py-3">
+            {err && (
+              <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold mb-2" role="alert">
+                {err}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 px-4 min-h-[44px] border border-lightgray bg-white hover:bg-offwhite cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 bg-navy text-gold font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 min-h-[44px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
+              >
+                {submitting ? 'Saving...' : 'Save changes'}
+              </button>
             </div>
-          )}
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 px-4 min-h-[42px] border border-lightgray bg-white hover:bg-offwhite cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-navy text-gold font-archivo font-extrabold text-[0.74rem] uppercase tracking-wide py-2.5 min-h-[42px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60"
-            >
-              {submitting ? 'Saving...' : 'Save changes'}
-            </button>
           </div>
         </form>
       </div>

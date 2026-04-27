@@ -22,6 +22,7 @@ from schemas.post import (
 from models.post import Post
 from models.vote import Vote
 from models.comment import Comment
+from models.comment_vote import CommentVote
 from models.event import Event
 from models.group import Group
 from models.user import User
@@ -359,9 +360,30 @@ def create_comment(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    # Validate threaded reply: parent must exist on the same post and itself
+    # be a top-level comment. Depth-1 cap mirrors Facebook — replies-of-replies
+    # are still attached to the original parent so the UI never has to render
+    # arbitrarily nested walls.
+    parent_id = comment.parent_id
+    if parent_id is not None:
+        parent = (
+            db.query(Comment)
+            .filter(Comment.id == parent_id, Comment.post_id == post_id)
+            .first()
+        )
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+        if parent.parent_id is not None:
+            parent_id = parent.parent_id
+
     _guard_content(body, kind="comment", author_id=current_user.id)
 
-    new_comment = Comment(body=body, author_id=current_user.id, post_id=post_id)
+    new_comment = Comment(
+        body=body,
+        author_id=current_user.id,
+        post_id=post_id,
+        parent_id=parent_id,
+    )
     db.add(new_comment)
     bump_streak(db, current_user)
     if post.is_sos and not post.sos_resolved:
@@ -433,6 +455,70 @@ def delete_comment(
     is_mod = current_user.role in ("admin", "moderator")
     if c.author_id != current_user.id and not is_mod:
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
+    # Cascade replies in application code so SQLite (which ignores
+    # ON DELETE CASCADE unless PRAGMA foreign_keys=ON) behaves the same as
+    # Postgres. Only top-level deletes can have replies — depth-1 cap.
+    by_mod = is_mod and c.author_id != current_user.id
+    if c.parent_id is None:
+        db.query(Comment).filter(Comment.parent_id == c.id).delete(synchronize_session=False)
     db.delete(c)
     db.commit()
-    return {"detail": "Comment deleted", "by_mod": is_mod and c.author_id != current_user.id}
+    return {"detail": "Comment deleted", "by_mod": by_mod}
+
+
+@router.post("/{post_id}/comments/{comment_id}/vote")
+@limiter.limit("60/minute")
+def vote_comment(
+    request: Request,
+    post_id: int,
+    comment_id: int,
+    vote: VoteRequest,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Toggle/change/cast a vote on a comment. Mirrors vote_post: same
+    request body, same toggle semantics (re-voting the same direction
+    cancels, voting the opposite direction flips). Returns the new
+    denormalized counts so the client can reconcile its optimistic
+    update."""
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id, Comment.post_id == post_id)
+        .first()
+    )
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    existing = (
+        db.query(CommentVote)
+        .filter(CommentVote.user_id == current_user.id, CommentVote.comment_id == comment_id)
+        .first()
+    )
+
+    if existing:
+        if existing.vote_type == vote.vote_type:
+            # Toggle off
+            if vote.vote_type == "up":
+                comment.upvotes = max(0, comment.upvotes - 1)
+            else:
+                comment.downvotes = max(0, comment.downvotes - 1)
+            db.delete(existing)
+        else:
+            # Change direction
+            if existing.vote_type == "up":
+                comment.upvotes = max(0, comment.upvotes - 1)
+                comment.downvotes += 1
+            else:
+                comment.downvotes = max(0, comment.downvotes - 1)
+                comment.upvotes += 1
+            existing.vote_type = vote.vote_type
+    else:
+        db.add(CommentVote(user_id=current_user.id, comment_id=comment_id, vote_type=vote.vote_type))
+        if vote.vote_type == "up":
+            comment.upvotes += 1
+        else:
+            comment.downvotes += 1
+
+    db.commit()
+    db.refresh(comment)
+    return {"upvotes": comment.upvotes, "downvotes": comment.downvotes}

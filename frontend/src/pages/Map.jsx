@@ -155,7 +155,7 @@ function CampusMap() {
       <div className="bg-navy px-6 pt-10 pb-9">
         <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
           <div className="max-w-[560px]">
-            <h1 className="font-archivo font-black text-[2.4rem] md:text-[2.4rem] text-white leading-[1.05] tracking-tight uppercase">
+            <h1 className="font-archivo font-black text-[1.85rem] sm:text-[2.4rem] text-white leading-[1.05] tracking-tight uppercase">
               Find a spot <span className="text-gold block">on campus</span>
             </h1>
             <p className="text-white/50 text-[0.92rem] mt-3 leading-relaxed max-w-[420px]">
@@ -241,7 +241,11 @@ function CampusMap() {
         <div className="order-1 md:order-2">
           <div
             ref={mapEl}
-            className="w-full h-[620px] border border-lightgray bg-offwhite"
+            // Viewport-relative on mobile so the map fits above the
+            // BottomNav (56px) without forcing the user to scroll past
+            // hidden Leaflet pan controls. Fixed height returns at md+
+            // where the BottomNav doesn't dominate the viewport.
+            className="w-full h-[60vh] min-h-[360px] md:h-[620px] border border-lightgray bg-offwhite"
             aria-label="Morgan State campus map"
           />
           <div className="mt-2 text-[0.68rem] text-gray font-archivo">

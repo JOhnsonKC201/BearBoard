@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { FLAIRS, flairSlug } from '../utils/avatar'
+import ImageUploader from './ImageUploader'
+import EmojiPickerButton, { insertAtCursor } from './EmojiPickerButton'
 
 // Picker labels. Order mirrors FLAIRS so the UI matches the feed filter rail.
 const CATEGORIES = FLAIRS.map((f) => f.label)
@@ -26,6 +28,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const titleInputRef = useRef(null)
+  const bodyRef = useRef(null)
 
   // Esc-to-close + lock body scroll while the modal is open. Also autofocus
   // the title field so keyboard users can start typing immediately.
@@ -148,13 +151,13 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="bg-card w-[90%] max-w-[600px] max-h-[85vh] overflow-y-auto border border-lightgray"
+            className="bg-card w-[90%] max-w-[600px] max-h-[100dvh] sm:max-h-[92vh] flex flex-col overflow-hidden border border-lightgray"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 4 }}
             transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite sticky top-0 z-[1]">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EAE7E0] bg-offwhite shrink-0">
           <h3 className="font-archivo font-extrabold text-[1rem] uppercase tracking-tight">New Post</h3>
           <button
             onClick={onClose}
@@ -186,7 +189,8 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="px-5 py-4">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
             <Field label="Title" error={errors.title}>
               <input
                 ref={titleInputRef}
@@ -264,25 +268,12 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
               </div>
             )}
 
-            <Field label="Image URL (optional)" error={null}>
-              <input
-                type="url"
+            <Field label="Image (optional)" error={null}>
+              <ImageUploader
                 value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                onChange={setImageUrl}
                 disabled={submitting}
-                placeholder="https://... (paste a direct image link)"
-                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
               />
-              {imageUrl.trim() && (
-                <div className="mt-2 border border-lightgray bg-offwhite overflow-hidden max-h-[180px]">
-                  <img
-                    src={imageUrl.trim()}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
-                  />
-                </div>
-              )}
             </Field>
 
             {isListing && (
@@ -330,6 +321,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
 
             <Field label="Body" error={errors.body}>
               <textarea
+                ref={bodyRef}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 disabled={submitting}
@@ -338,31 +330,44 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                 className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin resize-y focus:border-navy focus:outline-none"
                 placeholder="Share the details…"
               />
-              <CharCount value={body} max={BODY_MAX} />
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <EmojiPickerButton
+                  align="left"
+                  disabled={submitting}
+                  onPick={(e) => insertAtCursor(bodyRef, body, setBody, e)}
+                />
+                <CharCount value={body} max={BODY_MAX} />
+              </div>
             </Field>
 
-            {submitError && (
-              <div className="bg-[#F5D5D0] text-[#8B1A1A] px-3 py-2 text-[0.8rem] mb-3 border border-[#E5B5B0]">
-                {submitError}
+            </div>
+            {/* Sticky footer — stays visible when the iOS keyboard pops
+                so the Post button never hides behind it. The submit
+                error sits in the same bar so users see it without
+                scrolling back up. */}
+            <div className="shrink-0 border-t border-[#EAE7E0] bg-card px-5 py-3">
+              {submitError && (
+                <div className="bg-[#F5D5D0] text-[#8B1A1A] px-3 py-2 text-[0.8rem] mb-2 border border-[#E5B5B0]">
+                  {submitError}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={submitting}
+                  className="bg-transparent text-gray border border-lightgray min-h-[44px] py-2.5 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:text-ink hover:border-gray transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-gold text-navy border-none min-h-[44px] py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Posting…' : 'Post'}
+                </button>
               </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EAE7E0]">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={submitting}
-                className="bg-transparent text-gray border border-lightgray py-2.5 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:text-ink hover:border-gray transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="bg-gold text-navy border-none py-2.5 px-5 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Posting…' : 'Post'}
-              </button>
             </div>
           </form>
         )}

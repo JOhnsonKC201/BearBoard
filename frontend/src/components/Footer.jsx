@@ -32,7 +32,9 @@ const BROWSE_LINKS = [
   { to: '/', label: 'Feed' },
   { to: '/?sort=popular', label: 'Popular' },
   { to: '/?sort=trending', label: 'Trending' },
-  { to: '/#events', label: 'Events' },
+  // Hash targets must match real ids on the home page (see Home.jsx
+  // SideBox calls + the team section). ScrollToTop handles scroll-on-mount.
+  { to: '/#events-box', label: 'Events' },
   { to: '/#groups', label: 'Groups' },
   { to: '/map', label: 'Campus Map' },
   { to: '/professors', label: 'Professors' },
@@ -102,6 +104,33 @@ function ColumnHeading({ id, children }) {
   )
 }
 
+/* ----------------------------------------------------------------------- */
+/*  MobileLinkGroup — collapsible <details> section for the mobile footer. */
+/*                                                                         */
+/*  Mobile only. The desktop layout below uses the static ColumnHeading +  */
+/*  flat <ul>; on mobile we collapse each group behind a tap target so the */
+/*  footer stops being a 25-link single-column scroll wall. The chevron    */
+/*  rotates 90° when open via the `[open]` selector — no React state.      */
+/* ----------------------------------------------------------------------- */
+function MobileLinkGroup({ title, items, renderItem }) {
+  return (
+    <details className="group border-b border-white/12 last:border-b-0">
+      <summary className="list-none cursor-pointer py-4 flex items-center justify-between gap-3 select-none">
+        <span className="font-archivo font-black text-[0.7rem] uppercase tracking-[0.28em] text-gold">
+          {title}
+        </span>
+        <span
+          aria-hidden
+          className="text-gold/70 text-[0.78rem] font-archivo font-bold transition-transform group-open:rotate-90"
+        >
+          ›
+        </span>
+      </summary>
+      <div className="pb-3 -mt-1">{items.map(renderItem)}</div>
+    </details>
+  )
+}
+
 function Wordmark() {
   return (
     <Link
@@ -153,9 +182,9 @@ function Footer() {
         style={{ backgroundImage: 'repeating-linear-gradient(135deg, #D4962A 0 1px, transparent 1px 18px)' }}
       />
 
-      <div className="relative max-w-[1200px] mx-auto px-5 sm:px-8 pt-12 pb-8">
+      <div className="relative max-w-[1200px] mx-auto px-5 sm:px-8 pt-10 sm:pt-12 pb-24 lg:pb-8">
         {/* Brand row */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 mb-10 pb-6 border-b border-white/15">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 mb-8 sm:mb-10 pb-5 sm:pb-6 border-b border-white/15">
           <div>
             <div id="footer-brand">
               <Wordmark />
@@ -181,8 +210,56 @@ function Footer() {
           </div>
         </div>
 
-        {/* Columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-8">
+        {/* Columns — mobile accordion (lg:hidden) */}
+        <div className="lg:hidden -mx-1">
+          <MobileLinkGroup
+            title="Browse"
+            items={BROWSE_LINKS}
+            renderItem={(l) => (
+              <FooterLink key={l.to + l.label} to={l.to} label={l.label} />
+            )}
+          />
+          <MobileLinkGroup
+            title="Community"
+            items={COMMUNITY_LINKS}
+            renderItem={(l) => (
+              <FooterLink key={l.to + l.label} to={l.to} label={l.label} />
+            )}
+          />
+          <MobileLinkGroup
+            title="Legal"
+            items={LEGAL_LINKS}
+            renderItem={(l) => (
+              <FooterLink key={l.to + l.label} to={l.to} label={l.label} />
+            )}
+          />
+          <MobileLinkGroup
+            title="The Team"
+            items={TEAM}
+            renderItem={(m) => (
+              <div
+                key={m.name}
+                className="flex items-baseline justify-between gap-3 py-1.5"
+              >
+                <span className="font-archivo font-bold text-[0.86rem] text-white">
+                  {m.name}
+                </span>
+                <span
+                  className="text-[0.7rem] text-white/55 italic shrink-0"
+                  style={{ fontFamily: 'Fraunces, Georgia, serif' }}
+                >
+                  {m.role}
+                </span>
+              </div>
+            )}
+          />
+          <div className="mt-4 text-[0.7rem] text-gold/75 font-archivo font-extrabold uppercase tracking-[0.18em]">
+            COSC 458 · Spring 2026
+          </div>
+        </div>
+
+        {/* Columns — desktop (lg+) flat layout */}
+        <div className="hidden lg:grid lg:grid-cols-12 gap-x-8 gap-y-8">
           <nav className="lg:col-span-3" aria-labelledby="footer-h-browse">
             <ColumnHeading id="footer-h-browse">Browse</ColumnHeading>
             <ul className="flex flex-col">

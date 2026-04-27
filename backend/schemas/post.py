@@ -118,18 +118,29 @@ class AuthorInfo(BaseModel):
     name: str
     major: Optional[str] = None
     role: str = "student"
+    # Inline base64 data URL or empty string. Surfaces on every post/comment
+    # so author chips across the site (feed, detail page, comments, navbar)
+    # can render the real photo instead of falling back to initials.
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=5_000)
+    # Optional: when set, this comment is a reply to another comment under
+    # the same post. The route enforces depth-1 (parents must be top-level)
+    # so replies-of-replies flatten under the original parent.
+    parent_id: Optional[int] = None
 
 class CommentResponse(BaseModel):
     id: int
     body: str
     author_id: int
     post_id: int
+    parent_id: Optional[int] = None
+    upvotes: int = 0
+    downvotes: int = 0
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
 
