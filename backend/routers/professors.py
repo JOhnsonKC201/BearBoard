@@ -160,16 +160,19 @@ def list_professors(
 ):
     query = db.query(Professor)
     if q:
-        needle = f"%{q.strip().lower()}%"
+        # Escape SQL LIKE specials in user input — '%' / '_' would otherwise
+        # match every row (DoS) or let an attacker probe with wildcards.
+        from core.db_text import like_escape
+        needle = f"%{like_escape(q.strip().lower())}%"
         profs_via_course = (
             db.query(ProfessorRating.professor_id)
-            .filter(func.lower(ProfessorRating.course_code).like(needle))
+            .filter(func.lower(ProfessorRating.course_code).like(needle, escape="\\"))
             .distinct()
         )
         query = query.filter(
             or_(
-                func.lower(Professor.name).like(needle),
-                func.lower(Professor.department).like(needle),
+                func.lower(Professor.name).like(needle, escape="\\"),
+                func.lower(Professor.department).like(needle, escape="\\"),
                 Professor.id.in_(profs_via_course),
             )
         )
