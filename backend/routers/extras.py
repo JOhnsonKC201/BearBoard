@@ -23,7 +23,9 @@ router = APIRouter(prefix="/api", tags=["extras"])
 
 
 @router.get("/trending", response_model=list[PostResponse])
-def get_trending(db: Session = Depends(get_db)):
+def get_trending(request: Request, db: Session = Depends(get_db)):
+    from routers.posts import _anonymize_list, _try_get_user, _viewer_is_mod
+
     two_days_ago = datetime.now(timezone.utc) - timedelta(hours=48)
     posts = (
         db.query(Post)
@@ -41,7 +43,12 @@ def get_trending(db: Session = Depends(get_db)):
             .limit(3)
             .all()
         )
-    return posts
+    viewer = _try_get_user(request, db)
+    return _anonymize_list(
+        posts,
+        viewer_id=viewer.id if viewer else None,
+        viewer_is_mod=_viewer_is_mod(viewer),
+    )
 
 
 @router.get("/events", response_model=list[EventResponse])
@@ -117,8 +124,11 @@ def get_groups(
 ):
     """List study groups, optionally filtered by a course code or name
     fragment ("COSC 350", "cosc350", "networking"). Case-insensitive.
+
+    Private groups are excluded from this listing — they're invite-only and
+    must be reached via direct link to /api/groups/{id}.
     """
-    q = db.query(Group)
+    q = db.query(Group).filter(Group.is_private.is_(False))
     if course and course.strip():
         # Allow "cosc350" to match "COSC 350" by stripping spaces on both sides.
         raw = course.strip()
@@ -152,10 +162,19 @@ def create_group(
     db: Session = Depends(get_db),
 ):
     """Create a new study group. The creator is auto-added as the first
-    member so the Join button on the UI reads as active immediately.
+    member with role='owner' so admin actions resolve correctly from
+    the start. Group names are unique site-wide (case-insensitive) so
+    we don't end up with three "COSC 350 Study Squads".
     """
+    name = payload.name.strip()
+    # Case-insensitive duplicate guard. Lifts to a 409 so the client can
+    # show a focused error instead of a generic 400.
+    dup = db.query(Group).filter(func.lower(Group.name) == name.lower()).first()
+    if dup is not None:
+        raise HTTPException(status_code=409, detail="A group with that name already exists")
+
     group = Group(
-        name=payload.name.strip(),
+        name=name,
         course_code=(payload.course_code or "").strip() or None,
         description=(payload.description or "").strip() or None,
         created_by=current_user.id,
@@ -163,7 +182,12 @@ def create_group(
     )
     db.add(group)
     db.flush()  # assign group.id before creating the membership row
-    db.add(GroupMember(group_id=group.id, user_id=current_user.id))
+    db.add(GroupMember(
+        group_id=group.id,
+        user_id=current_user.id,
+        role="owner",
+        status="active",
+    ))
     db.commit()
     db.refresh(group)
     return group
@@ -175,6 +199,14 @@ def join_group(
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    """Public+open groups: instant join.
+    Public+approval: enqueue a join request for admin review.
+    Private: rejected — must be invited.
+    Banned users: rejected silently with the same 403.
+    """
+    from models.group_invitation import GroupInvitation
+    from models.group_join_request import GroupJoinRequest
+
     group = db.query(Group).filter(Group.id == group_id).one_or_none()
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -183,11 +215,54 @@ def join_group(
         GroupMember.group_id == group_id,
         GroupMember.user_id == current_user.id,
     ).one_or_none()
-    if existing is None:
-        db.add(GroupMember(group_id=group_id, user_id=current_user.id))
-        group.member_count = (group.member_count or 0) + 1
+
+    if existing is not None and existing.status == "banned":
+        raise HTTPException(status_code=403, detail="You can't join this group")
+    if existing is not None and existing.status == "active":
+        return group  # idempotent: already a member
+
+    # If they have a pending invitation, surface a helpful redirect to
+    # /accept rather than letting them join via this path (so the
+    # invited_by attribution is preserved).
+    pending_invite = db.query(GroupInvitation).filter(
+        GroupInvitation.group_id == group_id,
+        GroupInvitation.invited_user_id == current_user.id,
+        GroupInvitation.status == "pending",
+    ).first()
+    if pending_invite is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="You have a pending invitation — accept it from /api/groups/me/invitations instead",
+        )
+
+    if group.is_private:
+        raise HTTPException(status_code=403, detail="This is a private group — invitation required")
+
+    if group.requires_approval:
+        # Enqueue a request rather than adding membership directly.
+        existing_req = db.query(GroupJoinRequest).filter(
+            GroupJoinRequest.group_id == group_id,
+            GroupJoinRequest.user_id == current_user.id,
+        ).one_or_none()
+        if existing_req is None:
+            db.add(GroupJoinRequest(group_id=group_id, user_id=current_user.id, status="pending"))
+        elif existing_req.status != "pending":
+            existing_req.status = "pending"
         db.commit()
-        db.refresh(group)
+        # Surface a 202 by way of a custom header? FastAPI prefers status_code
+        # on the decorator; raising here keeps the contract simple.
+        raise HTTPException(status_code=202, detail="Join request submitted — pending admin approval")
+
+    # Public + open: instant join.
+    db.add(GroupMember(
+        group_id=group_id,
+        user_id=current_user.id,
+        role="member",
+        status="active",
+    ))
+    group.member_count = (group.member_count or 0) + 1
+    db.commit()
+    db.refresh(group)
     return group
 
 
@@ -197,6 +272,8 @@ def leave_group(
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    """Leave a group. Owners must transfer ownership first — otherwise the
+    group would be orphaned with no one able to manage settings or invites."""
     group = db.query(Group).filter(Group.id == group_id).one_or_none()
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -205,11 +282,19 @@ def leave_group(
         GroupMember.group_id == group_id,
         GroupMember.user_id == current_user.id,
     ).one_or_none()
-    if existing is not None:
-        db.delete(existing)
-        group.member_count = max(0, (group.member_count or 1) - 1)
-        db.commit()
-        db.refresh(group)
+    if existing is None or existing.status != "active":
+        return group
+
+    if existing.role == "owner":
+        raise HTTPException(
+            status_code=400,
+            detail="Transfer ownership before leaving — the group can't be left ownerless",
+        )
+
+    db.delete(existing)
+    group.member_count = max(0, (group.member_count or 1) - 1)
+    db.commit()
+    db.refresh(group)
     return group
 
 
@@ -218,13 +303,16 @@ def my_group_ids(
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
-    """Return just the ids of groups the current user belongs to. The feed
-    UI fetches this once and converts it to a Set so each group row can
-    render a Join or Leave button without per-row requests.
+    """Return just the ids of groups the current user is an ACTIVE member of.
+    Banned rows are intentionally excluded so the feed doesn't render a
+    Leave button for a group the user can't actually leave.
     """
     rows = (
         db.query(GroupMember.group_id)
-        .filter(GroupMember.user_id == current_user.id)
+        .filter(
+            GroupMember.user_id == current_user.id,
+            GroupMember.status == "active",
+        )
         .all()
     )
     return [r[0] for r in rows]

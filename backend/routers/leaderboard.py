@@ -59,8 +59,11 @@ def get_leaderboard(
     # Each sub-query returns (user_id, metric_value); we deduplicate at the end.
 
     # Non-anonymous filter for post-related boards. Keeps the leaderboard
-    # from attributing secrets to their authors even indirectly.
-    non_anon = Post.category != "anonymous"
+    # from attributing secrets to their authors even indirectly. We OR the
+    # legacy category check with the explicit boolean so posts created
+    # before is_anonymous existed are still excluded.
+    from sqlalchemy import and_, or_
+    non_anon = and_(Post.category != "anonymous", Post.is_anonymous.is_(False))
 
     # ---- Most posts ------------------------------------------------------
     posts_q = (

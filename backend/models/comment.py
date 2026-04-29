@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -21,6 +21,10 @@ class Comment(Base):
     # pattern Post uses for its upvotes/downvotes columns.
     upvotes = Column(Integer, nullable=False, default=0, server_default="0")
     downvotes = Column(Integer, nullable=False, default=0, server_default="0")
+    # Per-comment privacy flag. The DB always retains author_id; the API
+    # strips it on responses to non-author/non-mod requesters when this is
+    # true. Mirrors Post.is_anonymous.
+    is_anonymous = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
     author = relationship("User", back_populates="comments")

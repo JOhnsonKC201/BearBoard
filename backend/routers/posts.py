@@ -76,32 +76,88 @@ def _guard_content(content: str, kind: str, author_id: int) -> None:
         )
 
 
-def _anonymize_if_needed(post: Post) -> Post:
-    """Strip author identity from anonymous-category posts before returning.
+def _post_is_anon(post: Post) -> bool:
+    """Treat a post as anonymous if either the explicit boolean is set OR
+    the legacy category is 'anonymous'. The OR keeps pre-migration rows
+    behaving identically while new code writes the boolean directly."""
+    if post is None:
+        return False
+    return bool(getattr(post, "is_anonymous", False)) or (post.category or "").lower() == "anonymous"
+
+
+def _anonymize_if_needed(post: Post, viewer_id: int | None = None, viewer_is_mod: bool = False) -> Post:
+    """Strip author identity from anonymous posts before returning.
 
     The Post row always keeps author_id so moderators can investigate abuse
     at the DB layer, but the API response for anonymous posts must not
     leak the author — otherwise the 'Anonymous' label is cosmetic only.
-    SQLAlchemy doesn't let us assign None to a non-nullable column, so we
-    attach a shadow attribute that Pydantic picks up via from_attributes
-    (author_id exists on the model as int, but we expose it as Optional
-    in the response schema).
+
+    The author themselves and any moderator/admin can still see real
+    identity so they can manage their own posts (delete/edit) and so
+    moderators can act on rule violations. Everyone else gets nulled-out
+    author fields.
     """
-    if post and (post.category or "").lower() == "anonymous":
-        # Shadow attributes override the ORM values only for the serialization pass.
-        post.author_id = None
-        post.author = None
+    if post and _post_is_anon(post):
+        post.is_anonymous = True  # normalize for response
+        if not viewer_is_mod and (viewer_id is None or post.author_id != viewer_id):
+            # Shadow attributes override the ORM values only for the serialization pass.
+            post.author_id = None
+            post.author = None
     return post
 
 
-def _anonymize_list(posts: list[Post]) -> list[Post]:
+def _anonymize_list(posts: list[Post], viewer_id: int | None = None, viewer_is_mod: bool = False) -> list[Post]:
     for p in posts:
-        _anonymize_if_needed(p)
+        _anonymize_if_needed(p, viewer_id=viewer_id, viewer_is_mod=viewer_is_mod)
     return posts
+
+
+def _anonymize_comment(comment: Comment, viewer_id: int | None = None, viewer_is_mod: bool = False) -> Comment:
+    """Same shape as _anonymize_if_needed, applied to comments. The author
+    themselves and moderators see the real author; everyone else sees a
+    nulled-out author so the 'Anonymous' label is enforced server-side."""
+    if comment and bool(getattr(comment, "is_anonymous", False)):
+        if not viewer_is_mod and (viewer_id is None or comment.author_id != viewer_id):
+            comment.author_id = None
+            comment.author = None
+    return comment
+
+
+def _anonymize_comment_list(comments, viewer_id: int | None = None, viewer_is_mod: bool = False):
+    for c in comments or []:
+        _anonymize_comment(c, viewer_id=viewer_id, viewer_is_mod=viewer_is_mod)
+    return comments
+
+
+def _viewer_is_mod(user) -> bool:
+    return bool(user) and getattr(user, "role", None) in ("admin", "moderator")
+
+
+def _try_get_user(request: Request, db: Session) -> User | None:
+    """Best-effort current-user lookup for endpoints that don't require auth
+    (the public feed and post detail). We need this to know whether to
+    show the real author to the post's own author. Failures mean
+    anonymous viewer — we just route them through the safer path that
+    strips author identity."""
+    auth = request.headers.get("Authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        return None
+    try:
+        from jose import jwt, JWTError
+        from routers.auth import SECRET_KEY, ALGORITHM
+        token = auth.split(None, 1)[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        if sub is None:
+            return None
+        return db.query(User).filter(User.id == int(sub)).first()
+    except Exception:
+        return None
 
 
 @router.get("/", response_model=list[PostResponse])
 def get_posts(
+    request: Request,
     sort: str = Query("newest", regex="^(newest|popular|trending)$"),
     category: str = Query(None),
     author_id: int = Query(None),
@@ -115,6 +171,15 @@ def get_posts(
         query = query.filter(Post.category == category)
 
     if author_id is not None:
+        # Anonymous posts must NOT appear in any author-filtered listing
+        # served to other users — that's the easiest leak vector (your
+        # public profile's "Posts" tab would otherwise enumerate them).
+        # Only the author themselves (or a moderator) can pull a list
+        # filtered by their own id.
+        viewer = _try_get_user(request, db)
+        is_self_or_mod = viewer is not None and (viewer.id == author_id or _viewer_is_mod(viewer))
+        if not is_self_or_mod:
+            query = query.filter(Post.is_anonymous.is_(False), Post.category != "anonymous")
         query = query.filter(Post.author_id == author_id)
 
     # Unresolved SOS posts always pin to the top of the feed regardless of sort.
@@ -141,7 +206,12 @@ def get_posts(
         for p in posts:
             p.comment_count = counts.get(p.id, 0)
 
-    return _anonymize_list(posts)
+    viewer = _try_get_user(request, db)
+    return _anonymize_list(
+        posts,
+        viewer_id=viewer.id if viewer else None,
+        viewer_is_mod=_viewer_is_mod(viewer),
+    )
 
 
 SOS_RECENT_LIMIT = 1
@@ -188,6 +258,7 @@ def create_post(
         event_date=post.event_date if is_event else None,
         event_time=post.event_time if is_event else None,
         is_sos=bool(post.is_sos),
+        is_anonymous=bool(post.is_anonymous) or post.category.lower() == "anonymous",
         price=(post.price or None) if is_listing else None,
         contact_info=(post.contact_info or None) if is_listing else None,
         image_url=(post.image_url or None),
@@ -212,17 +283,20 @@ def create_post(
 
 
 @router.get("/{post_id}", response_model=PostDetailResponse)
-def get_post(post_id: int, db: Session = Depends(get_db)):
+def get_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     post = (
         db.query(Post)
         .options(joinedload(Post.author), joinedload(Post.comments).joinedload(Comment.author))
         .filter(Post.id == post_id)
         .first()
     )
-    if post:
-        _anonymize_if_needed(post)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    viewer = _try_get_user(request, db)
+    viewer_id = viewer.id if viewer else None
+    is_mod = _viewer_is_mod(viewer)
+    _anonymize_if_needed(post, viewer_id=viewer_id, viewer_is_mod=is_mod)
+    _anonymize_comment_list(post.comments, viewer_id=viewer_id, viewer_is_mod=is_mod)
     return post
 
 
@@ -383,6 +457,7 @@ def create_comment(
         author_id=current_user.id,
         post_id=post_id,
         parent_id=parent_id,
+        is_anonymous=bool(comment.is_anonymous),
     )
     db.add(new_comment)
     bump_streak(db, current_user)
@@ -397,6 +472,7 @@ def create_comment(
         .filter(Comment.id == new_comment.id)
         .first()
     )
+    # Author sees their own author info — no anonymization on create response.
     return new_comment
 
 

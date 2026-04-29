@@ -23,6 +23,10 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [contactInfo, setContactInfo] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [isSos, setIsSos] = useState(false)
+  // Per-spec: anonymity is its own toggle, not a category. Defaults OFF on
+  // every modal open so the user must opt in each time — never carry the
+  // last submission's choice into a fresh draft.
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -62,6 +66,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
       setContactInfo('')
       setImageUrl('')
       setIsSos(false)
+      setIsAnonymous(false)
       setErrors({})
       setSubmitError(null)
       setSubmitting(false)
@@ -112,6 +117,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
         body: body.trim(),
         category: flairSlug(category),
         is_sos: isSos,
+        is_anonymous: isAnonymous,
       }
       if (isEvent) {
         payload.event_date = eventDate
@@ -223,27 +229,36 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                   </button>
                 ))}
               </div>
-              {category === 'Anonymous' && (
-                <div className="mt-2 bg-offwhite border-l-[3px] border-navy px-3 py-2 text-[0.75rem] leading-relaxed text-ink/85">
-                  <strong className="font-archivo uppercase tracking-wider text-[0.62rem] text-navy">
-                    Anonymous — you&apos;re covered
-                  </strong>
-                  <div className="mt-1">
-                    Your name and avatar are hidden from other students. Moderators can
-                    still see the author when investigating a rules violation.{' '}
-                    <a
-                      href="/anonymity"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-navy underline underline-offset-2 hover:text-gold"
-                    >
-                      Read the full anonymity guide
-                    </a>
-                    .
-                  </div>
-                </div>
-              )}
             </Field>
+
+            <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none p-3 border border-lightgray bg-offwhite hover:border-navy/40 transition-colors">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(e) => setIsAnonymous(e.target.checked)}
+                disabled={submitting}
+                className="mt-[3px] accent-navy"
+              />
+              <span>
+                <span className="font-archivo font-extrabold text-[0.78rem] text-navy flex items-center gap-1.5">
+                  <span aria-hidden="true">&#128373;</span> Post anonymously
+                </span>
+                <span className="block text-[0.7rem] text-gray mt-[2px] leading-snug">
+                  Hides your name and avatar from other students. Moderators can
+                  still see the author when investigating rule violations.{' '}
+                  <a
+                    href="/anonymity"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-navy underline underline-offset-2 hover:text-gold"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Anonymity guide
+                  </a>
+                  .
+                </span>
+              </span>
+            </label>
 
             {isEvent && (
               <div className="grid grid-cols-2 gap-3 mb-1">
