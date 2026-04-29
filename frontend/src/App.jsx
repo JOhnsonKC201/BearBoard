@@ -25,6 +25,9 @@ const Crosslinks = lazy(() => import('./pages/Crosslinks'))
 const Welcome = lazy(() => import('./pages/Welcome'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const GroupDetail = lazy(() => import('./pages/GroupDetail'))
+const Groups = lazy(() => import('./pages/Groups'))
+const Events = lazy(() => import('./pages/Events'))
+const Team = lazy(() => import('./pages/Team'))
 
 function WithNav({ children }) {
   // Bottom padding clears the fixed mobile BottomNav (56px tall) plus the
@@ -77,7 +80,10 @@ function App() {
             <Route path="/crosslinks" element={<WithNav><Crosslinks /></WithNav>} />
             <Route path="/welcome" element={<WithNav><Welcome /></WithNav>} />
             <Route path="/leaderboard" element={<WithNav><Leaderboard /></WithNav>} />
+            <Route path="/groups" element={<WithNav><Groups /></WithNav>} />
             <Route path="/groups/:id" element={<WithNav><GroupDetail /></WithNav>} />
+            <Route path="/events" element={<WithNav><Events /></WithNav>} />
+            <Route path="/team" element={<WithNav><Team /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>
