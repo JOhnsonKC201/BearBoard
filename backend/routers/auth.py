@@ -98,7 +98,14 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(existing)
             return existing
-        raise HTTPException(status_code=400, detail="Email already registered")
+        # Don't confirm the email exists — that lets anyone enumerate
+        # which addresses have accounts. Return a generic "couldn't
+        # complete" message that nudges legitimate users toward the
+        # sign-in / reset flow without revealing membership.
+        raise HTTPException(
+            status_code=400,
+            detail="We couldn't complete that registration. If you already have an account, sign in or reset your password.",
+        )
 
     hashed_pw = pwd_context.hash(user.password)
     db_user = User(
