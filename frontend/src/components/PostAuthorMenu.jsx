@@ -72,8 +72,13 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
     setOpen(false)
   }
 
-  const lightBtn = 'text-gray hover:text-ink hover:bg-offwhite'
-  const darkBtn = 'text-white/60 hover:text-white hover:bg-white/10'
+  // The kebab needs to be discoverable at a glance — previously it was
+  // text-gray with no border, blending into cream backgrounds so users
+  // missed the entry point for edit/delete entirely. Now it carries a
+  // subtle border + slightly darker glyph by default so it reads as a
+  // real button without competing with the content.
+  const lightBtn = 'text-ink/70 hover:text-ink border border-lightgray hover:border-navy bg-card hover:bg-offwhite'
+  const darkBtn = 'text-white/75 hover:text-white border border-white/20 hover:border-white/50 bg-transparent hover:bg-white/10'
 
   return (
     <div className="relative" ref={rootRef} onClick={(e) => e.stopPropagation()}>
@@ -83,7 +88,7 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
         aria-expanded={open}
         aria-label="Post actions"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); setConfirm(false) }}
-        className={`w-10 h-10 flex items-center justify-center rounded-full border-none bg-transparent cursor-pointer transition-colors ${variant === 'dark' ? darkBtn : lightBtn} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
+        className={`w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors ${variant === 'dark' ? darkBtn : lightBtn} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <circle cx="5" cy="12" r="1.8" />
