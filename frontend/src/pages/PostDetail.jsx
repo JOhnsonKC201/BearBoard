@@ -267,7 +267,7 @@ function PostDetail() {
                 <PostVoteRail post={post} onUpdate={(patch) => setPost((p) => ({ ...p, ...patch }))} horizontal />
               </div>
 
-              <div className="font-franklin text-[1.02rem] sm:text-[1.06rem] text-ink leading-[1.65] whitespace-pre-wrap selection:bg-gold/30">
+              <div className="font-prose text-[1.05rem] sm:text-[1.1rem] text-ink leading-[1.6] whitespace-pre-wrap selection:bg-gold/30">
                 {/* Drop-cap on the first letter of long posts */}
                 {(post.body || '').length > 240 ? (
                   <>
@@ -288,11 +288,10 @@ function PostDetail() {
             </div>
           </article>
 
-          {related.length > 0 && (
-            <RelatedPosts items={related} category={post.category} />
-          )}
-
-          {/* Letters to the Editor — comments section */}
+          {/* Letters to the Editor — comments section. Placed directly
+              under the article (before "More from") so the conversation
+              the post invited stays adjacent to the post itself. Related
+              posts read more like a footer / "what to read next" rail. */}
           <section className="mt-10" aria-labelledby="comments-heading">
             <div className="flex items-baseline gap-3 mb-4">
               <h2
@@ -415,6 +414,10 @@ function PostDetail() {
               </>
             )}
           </section>
+
+          {related.length > 0 && (
+            <RelatedPosts items={related} category={post.category} />
+          )}
         </main>
 
         {/* RIGHT: thread metadata rail (desktop) — fills the empty whitespace
@@ -924,6 +927,38 @@ function CommentVotePill({ commentId, upvotes = 0, downvotes = 0, onVote, isAuth
 }
 
 /* -------------------------------------------------------------------------- */
+/*  CommentBody — renders a comment/reply body, surfacing a Facebook-style    */
+/*  "↪ in reply to @username" chip when the body opens with an @mention      */
+/*  (the reply composer auto-prefills @authorName when you reply to a sub-    */
+/*  reply, so this gives that prefix a real visual treatment instead of       */
+/*  letting it read as plain text).                                           */
+/* -------------------------------------------------------------------------- */
+function CommentBody({ body, className, as = 'blockquote' }) {
+  const text = String(body || '')
+  // Mention prefix shape: "@Display Name " or "@username," at the very start.
+  // We pick up the first word (no spaces) so a multi-word display name
+  // doesn't accidentally absorb the rest of the sentence — that matches
+  // how the composer prefills.
+  const match = text.match(/^@(\S+)[\s,:.]?(.*)$/s)
+  const Tag = as
+  if (!match) {
+    return <Tag className={className}>{text}</Tag>
+  }
+  const target = match[1]
+  const rest = (match[2] || '').replace(/^[\s,:.]+/, '')
+  return (
+    <Tag className={className}>
+      <span className="inline-flex items-center gap-1 mr-1.5 align-baseline text-[0.72rem] font-archivo font-bold uppercase tracking-wider text-navy bg-offwhite border border-lightgray px-1.5 py-[1px] rounded-sm not-italic">
+        <span aria-hidden>↪</span>
+        @{target}
+      </span>
+      {rest}
+    </Tag>
+  )
+}
+
+
+/* -------------------------------------------------------------------------- */
 /*  CommentRow — one top-level "letter to the editor" with author chip,       */
 /*  broadsheet numbering, inline edit/delete, and a Facebook-style threaded   */
 /*  replies section underneath (indented, with inline reply composer).        */
@@ -1114,9 +1149,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
                 </div>
               </form>
             ) : (
-              <blockquote className="text-[0.92rem] text-ink font-franklin leading-[1.6] whitespace-pre-wrap m-0 border-l-2 border-divider pl-3 group-hover/letter:border-gold/60 transition-colors">
-                {comment.body}
-              </blockquote>
+              <CommentBody body={comment.body} className="text-[0.96rem] text-ink font-prose leading-[1.6] whitespace-pre-wrap m-0 border-l-2 border-divider pl-3 group-hover/letter:border-gold/60 transition-colors" />
             )}
 
             {!editing && (
@@ -1404,9 +1437,7 @@ function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToRep
               </div>
             </form>
           ) : (
-            <p className="text-[0.86rem] text-ink font-franklin leading-[1.55] whitespace-pre-wrap m-0">
-              {reply.body}
-            </p>
+            <CommentBody body={reply.body} as="p" className="text-[0.92rem] text-ink font-prose leading-[1.55] whitespace-pre-wrap m-0" />
           )}
 
           {!editing && (

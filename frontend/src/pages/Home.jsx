@@ -1309,7 +1309,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
           // Strip leading whitespace + collapse runs of dashes/blank-lines
           // so the preview reads cleanly even when the source body opens
           // with formatting noise (the auto-generated weekly threads do).
-          <div className="text-[0.9rem] text-ink/85 leading-[1.55] line-clamp-3 mb-3 font-franklin">
+          <div className="text-[0.95rem] text-ink/85 leading-[1.55] whitespace-pre-wrap line-clamp-3 mb-3 font-prose">
             {post.body.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')}
           </div>
         )}

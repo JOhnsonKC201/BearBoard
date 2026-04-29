@@ -48,6 +48,13 @@ export default {
         // anywhere else we want a warm, magazine-feature voice. Variable
         // font so optical size and italic axis are free to use.
         editorial: ['Fraunces', 'Georgia', 'serif'],
+        // Body serif for post bodies + comment text — pairs with the
+        // editorial title font for a newspaper feel. Georgia is shipped
+        // with every modern OS, so this adds zero bundle weight while
+        // giving us a real serif that reads better than Franklin (sans)
+        // for long paragraphs. Charter falls in second (Mac/iOS native);
+        // Source Serif Pro third (Google Font, only loaded if added later).
+        prose: ['Georgia', 'Charter', '"Source Serif Pro"', 'serif'],
       },
       // Additional fontSize tokens so we stop reaching for arbitrary values
       // like text-[0.62rem] and text-[0.78rem] in every component.
