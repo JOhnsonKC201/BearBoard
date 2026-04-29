@@ -45,14 +45,14 @@ MSU_NOTES: list[tuple[str, str]] = [
     ),
     (
         "Small win Wednesday",
-        "Whatever you got done today — a problem set, a meeting, "
-        "showing up — counts. Share one small win from this week so "
+        "Whatever you got done today, a problem set, a meeting, "
+        "showing up: it counts. Share one small win from this week so "
         "we can hype each other up.",
     ),
     (
         "Shoutout: a Bear who helped you out",
         "Whether it was a study buddy, an upperclassman, a TA, or a "
-        "professor — drop their name (or a no-name shoutout) below. "
+        "professor, drop their name (or a no-name shoutout) below. "
         "Recognition goes a long way.",
     ),
     (
@@ -63,7 +63,7 @@ MSU_NOTES: list[tuple[str, str]] = [
     ),
     (
         "MSU tradition spotlight: the Bear Walk",
-        "From Truth Hall down to Holmes Hall — that walk has been "
+        "From Truth Hall down to Holmes Hall, that walk has been "
         "made by generations of Bears chasing dreams. What's your "
         "favorite Morgan tradition?",
     ),
@@ -76,7 +76,7 @@ MSU_NOTES: list[tuple[str, str]] = [
     (
         "What's making you proud to be a Bear today?",
         "A grade, a club win, a friend's accomplishment, the band "
-        "going off at a game — anything counts. Drop it below.",
+        "going off at a game. Anything counts. Drop it below.",
     ),
     (
         "Goal-setting note",
@@ -86,12 +86,12 @@ MSU_NOTES: list[tuple[str, str]] = [
     (
         "MSU is leadership",
         "Morgan grads run boardrooms, classrooms, courtrooms, and "
-        "newsrooms across the country. The bar's been set — and "
+        "newsrooms across the country. The bar's been set, and "
         "you're going to clear it. What's your plan after MSU?",
     ),
     (
         "Gratitude thread",
-        "Name one thing you're grateful for at Morgan today — a "
+        "Name one thing you're grateful for at Morgan today: a "
         "person, a place, a moment. Reading these will lift the "
         "whole feed.",
     ),
@@ -99,11 +99,11 @@ MSU_NOTES: list[tuple[str, str]] = [
         "Try something new this week",
         "A club meeting, a different dining hall, a new study spot, "
         "a campus event you usually skip. Tell us what you're "
-        "trying — accountability through the feed.",
+        "trying. Accountability through the feed.",
     ),
     (
         "Bears help Bears",
-        "Tutoring, a ride, lecture notes, a kind word — what's "
+        "Tutoring, a ride, lecture notes, a kind word. What's "
         "something you can offer this week? Even small offers "
         "compound. Drop yours below.",
     ),
@@ -119,7 +119,7 @@ QUOTES: list[tuple[str, str]] = [
     ("Earl Graves Sr.",
      "The next generation of Black wealth builders is in our HBCU classrooms right now."),
     ("Kweisi Mfume (Morgan State, '76; U.S. Congressman)",
-     "Education is the great equalizer — the one investment no one can take from you."),
+     "Education is the great equalizer. The one investment no one can take from you."),
     ("Eddie C. Brown (Morgan State; founder, Brown Capital Management)",
      "Discipline and patience compound. The same is true of money and of character."),
     ("Mae Jemison (first Black woman in space)",
@@ -194,7 +194,9 @@ def _post(title: str, body: str, category: str = "general") -> None:
         bot = get_or_create_bot(db)
         # Use a stable prefix (everything before the date) so the
         # idempotency check catches a re-fire on the same day.
-        prefix = title.split("—")[0].strip() or title
+        # Split on ":" (new title format) with em-dash + middle-dot fallback
+        # so any titles posted before the dash cleanup still match.
+        prefix = title.split("·")[0].split("—")[0].split(":")[0].strip() or title
         if _already_posted(db, prefix):
             logger.info("daily_posts: skipped '%s' (already posted today)", title)
             return
@@ -236,10 +238,10 @@ def _deterministic_pick(bank: list, salt: int) -> tuple:
 # ---------------------------------------------------------------------------
 
 def run_morning_note() -> None:
-    """Always a note in the morning — sets a positive tone for the day."""
+    """Always a note in the morning. Sets a positive tone for the day."""
     note_title, note_body = _deterministic_pick(MSU_NOTES, salt=1)
     now = datetime.now()
-    title = f"Morning note — {note_title} · {now.strftime('%b %d')}"
+    title = f"Morning note: {note_title} · {now.strftime('%b %d')}"
     _post(title, note_body)
 
 
@@ -250,14 +252,14 @@ def run_afternoon_post() -> None:
     rng = random.Random(now.timetuple().tm_yday * 100 + 2)
     if rng.random() < 0.5:
         note_title, note_body = _deterministic_pick(MSU_NOTES, salt=2)
-        title = f"Afternoon note — {note_title} · {now.strftime('%b %d')}"
+        title = f"Afternoon note: {note_title} · {now.strftime('%b %d')}"
         _post(title, note_body)
     else:
         author, quote = _deterministic_pick(QUOTES, salt=3)
         title = f"Daily motivation · {now.strftime('%b %d')}"
         body = (
             f"“{quote}”\n\n"
-            f"— {author}\n\n"
+            f"By {author}\n\n"
             "What hits home about this one for you today?"
         )
         _post(title, body)

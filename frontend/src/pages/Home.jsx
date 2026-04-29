@@ -1186,11 +1186,13 @@ function PostCard({ post, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_6px_24px_-10px_rgba(11,29,52,0.22)] hover:-translate-y-[1px] ${
+    <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.28)] hover:-translate-y-[1px] hover:border-navy/20 ${
       post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
     }`}>
-      {/* Header + title */}
-      <div className="px-[18px] pt-4 pb-2">
+      {/* Header — eyebrow row (category + status chips + kebab) sits above
+          the byline so the inline content is uncluttered. SOS still owns
+          its own row when active because it needs maximum visibility. */}
+      <div className="px-5 pt-4 pb-2">
         {post.is_sos && (
           <div className={`mb-2.5 flex items-center gap-2 text-[0.65rem] font-archivo font-extrabold uppercase tracking-wider ${
             post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'
@@ -1203,44 +1205,24 @@ function PostCard({ post, onUpdated, onDeleted }) {
             </span>
           </div>
         )}
-        <div className="flex items-center gap-2.5 mb-2.5">
-          <AuthorAvatar
-            author={post.author}
-            anonymous={isAnonymous}
-            size="sm"
-            seedFallback={post.id}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <strong className="text-[0.82rem] font-semibold leading-tight truncate">{authorName}</strong>
-              {!isAnonymous && <VerifiedBadge user={post.author} size="sm" />}
-              {!isAnonymous && <RoleBadge role={post.author?.role} />}
-              <span className="text-gray/60 text-[0.72rem]">&middot;</span>
-              <span className="text-[0.72rem] text-gray font-archivo">{formatRelativeTime(post.created_at)}</span>
-              {authorMajor && (
-                <>
-                  <span className="text-gray/60 text-[0.72rem] hidden sm:inline">&middot;</span>
-                  <span className="text-[0.7rem] text-gray truncate hidden sm:inline">{authorMajor}</span>
-                </>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-[0.18em] py-1 px-2.5 ${catClass}`}>
+            {flairLabel(post.category)}
+          </span>
           {isHot && (
             <span
-              className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#D4962A] text-white flex items-center gap-1 shrink-0"
+              className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-1 px-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#D4962A] text-white flex items-center gap-1 shrink-0"
               title="High engagement"
             >
               <IconFire /> Hot
             </span>
           )}
           {isEvent && (
-            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gold text-navy flex items-center gap-1 shrink-0">
+            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-1 px-2 rounded-full bg-gold text-navy flex items-center gap-1 shrink-0">
               <IconCalendar /> Event
             </span>
           )}
-          <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full shrink-0 ${catClass}`}>
-            {flairLabel(post.category)}
-          </span>
+          <span aria-hidden className="h-px flex-1 bg-lightgray" />
           <Suspense fallback={null}>
             <PostAuthorMenu
               post={post}
@@ -1249,11 +1231,43 @@ function PostCard({ post, onUpdated, onDeleted }) {
             />
           </Suspense>
         </div>
+
+        {/* Title — newspaper feel via the editorial serif, scaled down from
+            the post-detail H1 but heavier than the body text so it leads
+            the eye even from a long scroll. */}
         <Link to={`/post/${post.id}`} className="no-underline text-ink block group/title">
-          <h3 className="font-archivo font-bold text-[1.15rem] leading-[1.25] mb-1 tracking-tight group-hover/title:text-navy transition-colors">
+          <h3 className="font-editorial font-black text-[1.35rem] sm:text-[1.45rem] leading-[1.18] tracking-tight mb-2.5 group-hover/title:text-navy transition-colors">
             {post.title}
           </h3>
         </Link>
+
+        {/* Byline — two-line layout (name on top, metadata under) so the
+            row never word-wraps awkwardly when there are 4+ chips, and so
+            the time + major + author all read clearly without crowding. */}
+        <div className="flex items-start gap-2.5">
+          <AuthorAvatar
+            author={post.author}
+            anonymous={isAnonymous}
+            size="sm"
+            seedFallback={post.id}
+          />
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap leading-tight">
+              <strong className="text-[0.84rem] font-semibold truncate text-ink">{authorName}</strong>
+              {!isAnonymous && <VerifiedBadge user={post.author} size="sm" />}
+              {!isAnonymous && <RoleBadge role={post.author?.role} />}
+            </div>
+            <div className="text-[0.7rem] text-gray font-archivo mt-0.5 truncate">
+              {formatRelativeTime(post.created_at)}
+              {authorMajor && (
+                <>
+                  <span className="mx-1 text-gray/50" aria-hidden>·</span>
+                  {authorMajor}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Edge-to-edge image */}
@@ -1271,7 +1285,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
       )}
 
       {/* Meta row (price / contact / event) */}
-      <div className="px-[18px] pt-3">
+      <div className="px-5 pt-3">
         {(post.price || post.contact_info) && (
           <div className="flex flex-wrap items-center gap-2 mb-2 text-[0.76rem]">
             {post.price && (
@@ -1292,6 +1306,9 @@ function PostCard({ post, onUpdated, onDeleted }) {
           </div>
         )}
         {post.body && (
+          // Strip leading whitespace + collapse runs of dashes/blank-lines
+          // so the preview reads cleanly even when the source body opens
+          // with formatting noise (the auto-generated weekly threads do).
           <div className="text-[0.95rem] text-ink/85 leading-[1.55] whitespace-pre-wrap line-clamp-3 mb-3 font-prose">
             {post.body.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')}
           </div>
@@ -1299,8 +1316,8 @@ function PostCard({ post, onUpdated, onDeleted }) {
       </div>
 
       {/* Action bar */}
-      <div className="px-[18px] pb-3.5 pt-1">
-        <div className="flex items-center gap-1.5 pt-2.5 border-t border-[#EAE7E0]">
+      <div className="px-5 pb-3.5 pt-1">
+        <div className="flex items-center gap-2 pt-3 border-t border-[#EAE7E0]">
           {/* Vote pill */}
           <div
             className={`flex items-center font-archivo rounded-full border transition-colors ${
@@ -1316,7 +1333,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
               aria-label="Upvote"
               aria-pressed={upActive}
               disabled={pending}
-              className={`flex items-center justify-center w-7 h-7 rounded-l-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
+              className={`flex items-center justify-center w-8 h-8 rounded-l-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
                 upActive ? 'text-gold' : 'text-gray hover:text-navy'
               }`}
             >
@@ -1324,7 +1341,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
             </button>
             <span
               key={popKey}
-              className={`font-extrabold text-[0.78rem] min-w-[22px] text-center vote-pop tabular-nums ${
+              className={`font-extrabold text-[0.82rem] min-w-[24px] text-center vote-pop tabular-nums ${
                 upActive ? 'text-gold' : downActive ? 'text-[#8B1A1A]' : 'text-ink'
               }`}
             >
@@ -1335,7 +1352,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
               aria-label="Downvote"
               aria-pressed={downActive}
               disabled={pending}
-              className={`flex items-center justify-center w-7 h-7 rounded-r-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
+              className={`flex items-center justify-center w-8 h-8 rounded-r-full bg-transparent border-none cursor-pointer transition-colors disabled:cursor-wait ${
                 downActive ? 'text-[#8B1A1A]' : 'text-gray hover:text-navy'
               }`}
             >
@@ -1346,7 +1363,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
           {/* Comments */}
           <Link
             to={`/post/${post.id}`}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-offwhite text-gray text-[0.74rem] font-archivo font-bold no-underline hover:text-navy hover:bg-[#EDE9DF] transition-colors"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-offwhite text-gray text-[0.76rem] font-archivo font-bold no-underline hover:text-navy hover:bg-[#EDE9DF] transition-colors"
             aria-label={`${post.comment_count ?? 0} comments`}
           >
             <IconChat />
@@ -1358,7 +1375,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
             onClick={toggleSave}
             aria-pressed={saved}
             aria-label={saved ? 'Remove from saved' : 'Save post'}
-            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[0.74rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
+            className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[0.76rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
               saved
                 ? 'bg-gold/15 text-[#8B6914] hover:bg-gold/25'
                 : 'bg-offwhite text-gray hover:text-navy hover:bg-[#EDE9DF]'
@@ -1372,7 +1389,7 @@ function PostCard({ post, onUpdated, onDeleted }) {
           <button
             onClick={doShare}
             aria-label="Share post"
-            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[0.74rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
+            className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[0.76rem] font-archivo font-bold transition-colors border-none cursor-pointer ${
               shareState === 'copied'
                 ? 'bg-[#D0EDE9] text-[#0F5E54]'
                 : shareState === 'failed'

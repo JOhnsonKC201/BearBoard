@@ -76,7 +76,9 @@ def _post_weekly(title: str, category: str, body: str) -> None:
         if author_id is None:
             logger.warning("weekly_threads: no users in DB, skipping '%s'", title)
             return
-        prefix = title.split("—")[0].strip() or title
+        # Split on ":" (new title format) with em-dash fallback so any
+        # threads posted before the dash cleanup still match for idempotency.
+        prefix = title.split(":")[0].split("—")[0].strip() or title
         if _already_posted_this_week(db, prefix):
             logger.info("weekly_threads: skipped '%s' (already posted this week)", title)
             return
@@ -152,19 +154,19 @@ def _week_of(now: datetime) -> str:
 
 def run_freshman_friday() -> None:
     now = datetime.now()
-    title = f"Freshman Friday — Week of {_week_of(now)}"
+    title = f"Freshman Friday: Week of {_week_of(now)}"
     _post_weekly(title, "general", FRESHMAN_FRIDAY_BODY)
 
 
 def run_class_registration_help() -> None:
     now = datetime.now()
-    title = f"Class Registration Help — Week of {_week_of(now)}"
+    title = f"Class Registration Help: Week of {_week_of(now)}"
     _post_weekly(title, "academic", CLASS_REGISTRATION_BODY)
 
 
 def run_food_on_campus() -> None:
     now = datetime.now()
-    title = f"Food on Campus — Week of {_week_of(now)}"
+    title = f"Food on Campus: Week of {_week_of(now)}"
     _post_weekly(title, "general", FOOD_ON_CAMPUS_BODY)
 
 
