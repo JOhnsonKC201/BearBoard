@@ -1082,6 +1082,11 @@ function PostCard({ post, onUpdated, onDeleted }) {
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
   const [popKey, setPopKey] = useState(0)
+  // Long posts collapse with an inline "Read more" affordance. Threshold
+  // picked to fit roughly the screenful of a desktop feed without forcing
+  // a single huge post to push every other card off the page.
+  const [expanded, setExpanded] = useState(false)
+  const bodyTooLong = (post.body || '').length > 1500
   const { isAuthed } = useAuth()
   const nav = useNavigate()
 
@@ -1309,14 +1314,39 @@ function PostCard({ post, onUpdated, onDeleted }) {
             <IconClock /> {eventLabel}
           </div>
         )}
-        {post.body && (
-          // Strip leading whitespace + collapse runs of dashes/blank-lines
-          // so the preview reads cleanly even when the source body opens
-          // with formatting noise (the auto-generated weekly threads do).
-          <div className="text-[0.95rem] text-ink/85 leading-[1.55] whitespace-pre-wrap line-clamp-3 mb-3 font-prose">
-            {post.body.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')}
-          </div>
-        )}
+        {post.body && (() => {
+          // Show the full body inline so the feed reads like a digest, not
+          // a wall of "click to read more" links. Long posts (> 1500 chars)
+          // collapse to a fixed max-height with a fade overlay + "Read more"
+          // toggle so they don't push everything else off the page.
+          const cleaned = post.body.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')
+          const collapsed = bodyTooLong && !expanded
+          return (
+            <div className="relative mb-3">
+              <div
+                className={`text-[0.95rem] text-ink/85 leading-[1.55] whitespace-pre-wrap font-prose overflow-hidden ${
+                  collapsed ? 'max-h-[18rem]' : ''
+                }`}
+              >
+                {cleaned}
+              </div>
+              {collapsed && (
+                // Fade-out overlay sits on top of the bottom edge so the
+                // truncation reads as intentional rather than abruptly cut.
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" aria-hidden />
+              )}
+              {bodyTooLong && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); setExpanded((v) => !v) }}
+                  className="relative mt-1 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wider text-navy hover:text-gold bg-transparent border-none cursor-pointer px-0"
+                >
+                  {expanded ? 'Show less' : 'Read more →'}
+                </button>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Action bar */}
