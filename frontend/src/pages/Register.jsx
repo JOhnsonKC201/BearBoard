@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
-import AuthLayout from '../components/AuthLayout'
+import AuthLayout, { AuthFieldsStagger, authFieldChild } from '../components/AuthLayout'
 
 const inputClass =
   'w-full border border-lightgray py-3 sm:py-[10px] px-3.5 text-[0.95rem] sm:text-[0.88rem] font-franklin bg-white focus:border-gold focus:ring-2 focus:ring-gold/20 transition-all placeholder:text-gray/60 min-h-[44px] outline-none'
@@ -98,112 +99,137 @@ function Register() {
 
   return (
     <AuthLayout title="Create your account" subtitle="BearBoard is for students only. Sign up with your .edu email.">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Full Name</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} placeholder="Your full name" />
-          <FieldError message={errors.name} />
-        </div>
+      <AuthFieldsStagger>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <motion.div variants={authFieldChild}>
+            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Full name</label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} placeholder="Your full name" />
+            <FieldError message={errors.name} />
+          </motion.div>
 
-        <div>
-          <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Email</label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="you@morgan.edu" autoComplete="email" />
-          <FieldError message={errors.email} />
-        </div>
+          <motion.div variants={authFieldChild}>
+            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Email</label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="you@morgan.edu" autoComplete="email" />
+            <FieldError message={errors.email} />
+          </motion.div>
 
-        <div>
-          <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Password</label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className={`${inputClass} pr-10`}
-              autoComplete="new-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray/50 hover:text-navy transition-colors"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              <EyeIcon open={showPassword} />
-            </button>
-          </div>
-          <FieldError message={errors.password} />
-        </div>
+          <motion.div variants={authFieldChild}>
+            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`${inputClass} pr-10`}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray/50 hover:text-navy transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <EyeIcon open={showPassword} />
+              </button>
+            </div>
+            <FieldError message={errors.password} />
+          </motion.div>
 
-        <div>
-          <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Confirm Password</label>
-          <div className="relative">
-            <input
-              type={showConfirm ? 'text' : 'password'}
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className={`${inputClass} pr-10`}
-              autoComplete="new-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(!showConfirm)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray/50 hover:text-navy transition-colors"
-              aria-label={showConfirm ? 'Hide password' : 'Show password'}
-            >
-              <EyeIcon open={showConfirm} />
-            </button>
-          </div>
-          <FieldError message={errors.confirmPassword} />
-        </div>
+          <motion.div variants={authFieldChild}>
+            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Confirm password</label>
+            <div className="relative">
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className={`${inputClass} pr-10`}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray/50 hover:text-navy transition-colors"
+                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              >
+                <EyeIcon open={showConfirm} />
+              </button>
+            </div>
+            <FieldError message={errors.confirmPassword} />
+          </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Major</label>
-            <input type="text" name="major" value={formData.major} onChange={handleChange} className={inputClass} placeholder="e.g. CS" />
-          </div>
-          <div>
-            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Grad Year</label>
-            <input type="text" name="graduation_year" value={formData.graduation_year} onChange={handleChange} className={inputClass} placeholder="2026" />
-            <FieldError message={errors.graduation_year} />
-          </div>
-        </div>
+          <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-3" variants={authFieldChild}>
+            <div>
+              <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Major</label>
+              <input type="text" name="major" value={formData.major} onChange={handleChange} className={inputClass} placeholder="e.g. CS" />
+            </div>
+            <div>
+              <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Grad year</label>
+              <input type="text" name="graduation_year" value={formData.graduation_year} onChange={handleChange} className={inputClass} placeholder="2026" />
+              <FieldError message={errors.graduation_year} />
+            </div>
+          </motion.div>
 
-        {submitError && (
-          <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2.5 text-[0.82rem] font-archivo font-bold flex items-center gap-2" role="alert">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 3l10 17H2z" />
-              <path d="M12 10v4M12 17.5v.5" />
-            </svg>
-            {submitError}
-          </div>
-        )}
+          <AnimatePresence>
+            {submitError && (
+              <motion.div
+                key="submit-error"
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -4, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="bg-danger-bg border border-danger-border text-danger px-3 py-2.5 text-[0.82rem] font-archivo font-bold flex items-center gap-2 overflow-hidden"
+                role="alert"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3l10 17H2z" />
+                  <path d="M12 10v4M12 17.5v.5" />
+                </svg>
+                {submitError}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.82rem] uppercase tracking-wide py-3.5 min-h-[48px] border-none cursor-pointer hover:bg-[#E5A92E] active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {submitting ? (
-            <>
-              <span className="w-1.5 h-1.5 bg-navy rounded-full animate-pulse" />
-              Creating account...
-            </>
-          ) : (
-            <>
-              Create Account
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </>
-          )}
-        </button>
-      </form>
+          <motion.button
+            type="submit"
+            disabled={submitting}
+            variants={authFieldChild}
+            whileHover={submitting ? undefined : { scale: 1.005 }}
+            whileTap={submitting ? undefined : { scale: 0.985 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className="w-full bg-gold text-navy font-archivo font-extrabold text-[0.82rem] uppercase tracking-wide py-3.5 min-h-[48px] border-none cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <motion.span
+                  className="w-1.5 h-1.5 bg-navy rounded-full"
+                  animate={{ scale: [1, 1.6, 1], opacity: [0.6, 1, 0.6] }}
+                  transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                Creating account...
+              </>
+            ) : (
+              <>
+                Create account
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
+          </motion.button>
+        </form>
+      </AuthFieldsStagger>
 
-      <div className="text-center mt-5 pt-4 border-t border-divider">
+      <motion.div
+        className="text-center mt-5 pt-4 border-t border-divider"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.65, duration: 0.4 }}
+      >
         <span className="text-gray text-[0.82rem]">Already have an account? </span>
-        <Link to="/login" className="text-navy font-archivo font-extrabold text-[0.82rem] uppercase tracking-wide no-underline hover:text-gold inline-block py-2 min-h-[44px] transition-colors">Sign In</Link>
-      </div>
+        <Link to="/login" className="text-navy font-archivo font-extrabold text-[0.82rem] uppercase tracking-wide no-underline hover:text-gold inline-block py-2 min-h-[44px] transition-colors">Sign in</Link>
+      </motion.div>
     </AuthLayout>
   )
 }
