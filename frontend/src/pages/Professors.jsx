@@ -891,6 +891,7 @@ function Professors() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('top')
+  const [department, setDepartment] = useState(null)
   const [active, setActive] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -898,13 +899,27 @@ function Professors() {
 
   const loadList = () => {
     setLoading(true)
-    const params = new URLSearchParams({ sort, limit: '50' })
+    const params = new URLSearchParams({ sort, limit: '200' })
     if (search.trim()) params.set('q', search.trim())
     apiFetch(`/api/professors?${params.toString()}`, { cache: false })
       .then((data) => setProfs(data || []))
       .catch(() => setProfs([]))
       .finally(() => setLoading(false))
   }
+
+  // Build the department list from whatever the API returned. Sorted
+  // alphabetically; null/empty departments grouped under "Other" so they
+  // still get a chip instead of vanishing.
+  const departments = useMemo(() => {
+    const set = new Set()
+    for (const p of profs) set.add(p.department || 'Other')
+    return Array.from(set).sort()
+  }, [profs])
+
+  const visibleProfs = useMemo(() => {
+    if (!department) return profs
+    return profs.filter((p) => (p.department || 'Other') === department)
+  }, [profs, department])
 
   // Initial + sort changes
   useEffect(() => { loadList() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [sort, reloadKey])
@@ -958,6 +973,22 @@ function Professors() {
                 </button>
               )}
             </div>
+            {departments.length > 1 && (
+              <div className="pt-2 border-t border-divider">
+                <div className="font-archivo text-[0.6rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Department</div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <DeptChip value={null} current={department} onChange={setDepartment}>All ({profs.length})</DeptChip>
+                  {departments.map((d) => {
+                    const n = profs.filter((p) => (p.department || 'Other') === d).length
+                    return (
+                      <DeptChip key={d} value={d} current={department} onChange={setDepartment}>
+                        {d} ({n})
+                      </DeptChip>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {showAdd && <AddProfessorForm onAdded={onAdded} onCancel={() => setShowAdd(false)} />}
@@ -966,16 +997,18 @@ function Professors() {
             <div className="space-y-2">
               {[1,2,3,4].map((i) => <div key={i} className="bg-card border border-lightgray h-[80px] animate-pulse" />)}
             </div>
-          ) : profs.length === 0 ? (
+          ) : visibleProfs.length === 0 ? (
             <div className="bg-card border border-dashed border-lightgray px-4 py-8 text-center">
               <div className="font-editorial italic text-[1.05rem] text-gray leading-snug mb-1">“No matches.”</div>
               <p className="text-2xs text-gray font-archivo uppercase tracking-wider">
-                {search.trim() ? 'Try a different search.' : 'Be the first to add one.'}
+                {department
+                  ? `No professors in ${department} match.`
+                  : search.trim() ? 'Try a different search.' : 'Be the first to add one.'}
               </p>
             </div>
           ) : (
             <ul className="list-none p-0 m-0 space-y-2">
-              {profs.map((p) => (
+              {visibleProfs.map((p) => (
                 <li key={p.id}>
                   <ProfessorCard prof={p} onOpen={setActive} active={active?.id === p.id} />
                 </li>
@@ -1015,6 +1048,20 @@ function SortChip({ value, current, onChange, children }) {
     <button onClick={() => onChange(value)}
       className={`text-2xs font-archivo font-extrabold uppercase tracking-wider py-1.5 px-2.5 border cursor-pointer transition-colors ${
         active ? 'bg-navy text-gold border-navy' : 'bg-card text-ink border-lightgray hover:border-navy'
+      }`}>
+      {children}
+    </button>
+  )
+}
+
+// Same shape as SortChip but smaller + softer color so the department row
+// reads as a secondary filter, not competing with the primary sort row.
+function DeptChip({ value, current, onChange, children }) {
+  const active = value === current
+  return (
+    <button onClick={() => onChange(value)}
+      className={`text-[0.62rem] font-archivo font-bold uppercase tracking-wider py-1 px-2 border cursor-pointer transition-colors ${
+        active ? 'bg-gold/20 text-navy border-gold' : 'bg-card text-gray border-lightgray hover:text-ink hover:border-navy'
       }`}>
       {children}
     </button>
