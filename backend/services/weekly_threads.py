@@ -40,6 +40,14 @@ def _week_start(now: datetime) -> datetime:
 
 
 def _author_id(db: Session) -> int | None:
+    # System-generated threads post under the BearBoard Bot account so the
+    # human admin's name doesn't appear on auto-content.
+    from services.bot_user import get_or_create_bot
+    try:
+        bot = get_or_create_bot(db)
+        return bot.id
+    except Exception:
+        logger.exception("weekly_threads: failed to resolve bot user; falling back to first admin")
     admin = db.query(User).filter(User.role == "admin").order_by(User.id).first()
     if admin:
         return admin.id

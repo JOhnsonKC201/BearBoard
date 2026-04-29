@@ -14,6 +14,7 @@ from core.rate_limit import limiter
 from routers import auth, posts, users, extras, ai, notifications, admin, professors, leaderboard, groups
 from services.resurface import run_resurface
 from services.morgan_events import sync_morgan_events
+from services.daily_posts import run_morning_note, run_afternoon_post
 from services.weekly_threads import (
     run_freshman_friday,
     run_class_registration_help,
@@ -81,6 +82,19 @@ async def lifespan(app: FastAPI):
         _safe("food_on_campus", run_food_on_campus),
         "cron", day_of_week="wed", hour=16, minute=0,
         id="food_on_campus", replace_existing=True,
+    )
+    # Daily MSU-positive notes + occasional motivational quote. Authored by
+    # the BearBoard Bot so the human admin's name doesn't show on auto-content.
+    # Hours are UTC since Render runs in UTC; 13:00 UTC ≈ 9am ET, 19:00 UTC ≈ 3pm ET.
+    scheduler.add_job(
+        _safe("morning_note", run_morning_note),
+        "cron", hour=13, minute=0,
+        id="morning_note", replace_existing=True,
+    )
+    scheduler.add_job(
+        _safe("afternoon_post", run_afternoon_post),
+        "cron", hour=19, minute=0,
+        id="afternoon_post", replace_existing=True,
     )
     scheduler.start()
     try:
