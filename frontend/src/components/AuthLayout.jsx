@@ -84,12 +84,24 @@ function AuthLayout({ title, subtitle, children }) {
         initial="initial"
         animate="animate"
       >
-        {/* Gold diagonal stripe pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+        {/* Gold diagonal stripe pattern — slow continuous drift so the
+            background never reads as a still image. The repeating-linear-
+            gradient is 14px between stripes; we shift backgroundPosition
+            by 28px (two periods) over 12s to keep the motion smooth and
+            seamless without a visible "wrap" jump. */}
+        <motion.div
+          className="absolute inset-0 opacity-[0.08] pointer-events-none"
           style={{ backgroundImage: 'repeating-linear-gradient(135deg, #FFD66B 0 1px, transparent 1px 14px)' }}
           aria-hidden
+          animate={prefersReducedMotion ? undefined : { backgroundPositionX: ['0px', '28px'], backgroundPositionY: ['0px', '-28px'] }}
+          transition={prefersReducedMotion ? undefined : { duration: 12, repeat: Infinity, ease: 'linear' }}
         />
+
+        {/* Floating gold particles — five tiny dots drift up the hero with
+            staggered durations + offsets so the motion never syncs into a
+            visible pattern. Each particle is its own motion component so
+            their lifecycles are independent. */}
+        {!prefersReducedMotion && <FloatingParticles />}
 
         {/* Gold glow accents — bigger, more visible breathe so the navy
             background never reads as static. Skipped under reduced motion. */}
@@ -131,7 +143,7 @@ function AuthLayout({ title, subtitle, children }) {
             >
               B
             </motion.span>
-            BEAR<span className="text-gold">BOARD</span>
+            BEAR<ShimmerWord text="BOARD" enabled={!prefersReducedMotion} />
           </Link>
         </motion.div>
 
@@ -142,13 +154,18 @@ function AuthLayout({ title, subtitle, children }) {
             variants={safe(heroChild)}
           >
             {!prefersReducedMotion && (
+              // Underline first draws in (one-shot), then loops a gentle
+              // width breathe so the rule keeps feeling alive instead of
+              // settling into a static line.
               <motion.span
                 aria-hidden
                 className="block h-[2px] bg-gold origin-left"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.7, ease: easeBack, delay: 0.65 }}
-                style={{ width: 28 }}
+                initial={{ scaleX: 0, width: 28 }}
+                animate={{ scaleX: 1, width: [28, 44, 28] }}
+                transition={{
+                  scaleX: { duration: 0.7, ease: easeBack, delay: 0.65 },
+                  width: { duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1.3 },
+                }}
               />
             )}
             Morgan State &middot; Spring 26
@@ -201,13 +218,24 @@ function AuthLayout({ title, subtitle, children }) {
       <div className="relative -mt-24 lg:mt-0 px-5 pb-10 lg:py-10 flex items-start lg:items-center justify-center z-10">
         <div className="w-full max-w-[440px]">
           <motion.div
-            className="bg-card border border-lightgray border-t-[3px] border-t-gold p-6 lg:p-7 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)] lg:shadow-[0_12px_40px_-12px_rgba(11,29,52,0.22)]"
+            className="relative bg-card border border-lightgray border-t-[3px] border-t-gold p-6 lg:p-7 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)] lg:shadow-[0_12px_40px_-12px_rgba(11,29,52,0.22)] overflow-hidden"
             variants={safe(formPanel)}
             initial="initial"
             animate="animate"
             whileHover={prefersReducedMotion ? undefined : { y: -2, boxShadow: '0 18px 48px -12px rgba(11,29,52,0.32)' }}
             transition={{ type: 'spring', stiffness: 240, damping: 20 }}
           >
+            {/* Continuous gold-glow sliver moves across the top border, like
+                a slow scanline. Sits over the existing border-t-gold so the
+                base color stays even when the sliver isn't on screen. */}
+            {!prefersReducedMotion && (
+              <motion.div
+                aria-hidden
+                className="absolute top-0 left-0 h-[3px] w-1/3 bg-gradient-to-r from-transparent via-white/85 to-transparent pointer-events-none"
+                animate={{ x: ['-50%', '350%'] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }}
+              />
+            )}
             <motion.div
               className="mb-5"
               initial={{ opacity: 0, y: 8 }}
@@ -265,6 +293,82 @@ export function AuthFieldsStagger({ children, delay = 0.55 }) {
 export const authFieldChild = {
   initial: { opacity: 0, y: 24, x: 12 },
   animate: { opacity: 1, y: 0, x: 0, transition: { duration: 0.5, ease: easeBack } },
+}
+
+// FloatingParticles — five small gold dots drift up the navy hero with
+// staggered delays + durations so the motion never syncs into a visible
+// pattern. Pure decoration, pointer-events-none, hidden under reduced motion.
+const PARTICLE_SPECS = [
+  { left: '12%', size: 6, duration: 18, delay: 0, opacity: 0.55 },
+  { left: '32%', size: 4, duration: 22, delay: 4, opacity: 0.4 },
+  { left: '58%', size: 7, duration: 16, delay: 2, opacity: 0.5 },
+  { left: '74%', size: 3, duration: 26, delay: 7, opacity: 0.35 },
+  { left: '88%', size: 5, duration: 20, delay: 5, opacity: 0.45 },
+]
+
+function FloatingParticles() {
+  return (
+    <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+      {PARTICLE_SPECS.map((p, i) => (
+        <motion.span
+          key={i}
+          className="absolute rounded-full bg-gold blur-[1px]"
+          style={{
+            left: p.left,
+            bottom: -20,
+            width: p.size,
+            height: p.size,
+          }}
+          animate={{
+            y: ['0vh', '-110vh'],
+            opacity: [0, p.opacity, p.opacity, 0],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: 'linear',
+            delay: p.delay,
+            times: [0, 0.15, 0.85, 1],
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ShimmerWord — wraps a word in a span that periodically gets a moving
+// gradient sweep across it. Used for the gold "BOARD" in the wordmark so
+// it occasionally "catches the light." Disabled under reduced motion;
+// just renders plain gold-colored text in that case.
+function ShimmerWord({ text, enabled }) {
+  if (!enabled) {
+    return <span className="text-gold">{text}</span>
+  }
+  return (
+    <span className="relative inline-block text-gold">
+      <span aria-hidden style={{ visibility: 'hidden' }}>{text}</span>
+      {/* Base gold layer (stays visible always) */}
+      <span aria-hidden className="absolute inset-0 text-gold">{text}</span>
+      {/* Moving white gradient sweep — periodic, masked to the text shape via
+          background-clip: text. The transform shifts the gradient origin
+          across the text width over ~1.4s, then waits ~6s before sweeping
+          again. */}
+      <motion.span
+        aria-hidden
+        className="absolute inset-0 bg-clip-text text-transparent"
+        style={{
+          backgroundImage: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.95) 50%, transparent 70%)',
+          backgroundSize: '220% 100%',
+          WebkitBackgroundClip: 'text',
+        }}
+        animate={{ backgroundPositionX: ['200%', '-100%'] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', repeatDelay: 5 }}
+      >
+        {text}
+      </motion.span>
+      <span className="sr-only">{text}</span>
+    </span>
+  )
 }
 
 export default AuthLayout
