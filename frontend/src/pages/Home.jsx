@@ -705,7 +705,7 @@ function Home() {
               const busy = groupBusy === g.id
               return (
                 <div key={g.id} className="flex items-center gap-2 px-4 py-3 border-b border-[#EAE7E0] last:border-b-0 hover:bg-offwhite transition-colors">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <Link to={`/groups/${g.id}`} className="flex items-center gap-2.5 min-w-0 flex-1 text-ink no-underline hover:underline">
                     {g.course_code && (
                       <span className={`font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-[7px] rounded-sm shrink-0 ${pillForCourse(g.course_code)}`}>
                         {g.course_code}
@@ -717,7 +717,7 @@ function Home() {
                         <IconUser />{g.member_count}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => authedUser ? toggleGroupMembership(g.id, joined) : navigate('/login')}
@@ -1065,7 +1065,7 @@ function TrendingItem({ post, rank, featured = false }) {
 function PostCard({ post, onUpdated, onDeleted }) {
   const categoryKey = (post.category || 'general').toLowerCase()
   const catClass = CAT_STYLES[categoryKey] || CAT_STYLES.general
-  const isAnonymous = categoryKey === 'anonymous'
+  const isAnonymous = !!post.is_anonymous || categoryKey === 'anonymous'
   const isEvent = categoryKey === 'events' || categoryKey === 'event'
 
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')

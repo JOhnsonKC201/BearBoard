@@ -20,6 +20,9 @@ function PostDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [commentBody, setCommentBody] = useState('')
+  // Per-action anonymity toggle. Resets to OFF after every submit so the next
+  // comment starts from a safe default — never inherits the prior choice.
+  const [commentAnonymous, setCommentAnonymous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [commentError, setCommentError] = useState(null)
   const [related, setRelated] = useState([])
@@ -75,9 +78,10 @@ function PostDetail() {
     try {
       await apiFetch(`/api/posts/${id}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ body: commentBody.trim() }),
+        body: JSON.stringify({ body: commentBody.trim(), is_anonymous: commentAnonymous }),
       })
       setCommentBody('')
+      setCommentAnonymous(false)
       load()
     } catch (err) {
       setCommentError(err.status === 401 ? 'Log in to comment' : (err.message || 'Failed to post comment'))
@@ -88,10 +92,11 @@ function PostDetail() {
 
   // Posts a threaded reply attached to a top-level comment. Throws on
   // failure so the inline reply form can surface the error to the user.
-  const submitReply = async (parentId, body) => {
+  // `anonymous` is per-reply — CommentRow drives this from its own toggle.
+  const submitReply = async (parentId, body, anonymous = false) => {
     await apiFetch(`/api/posts/${id}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ body: body.trim(), parent_id: parentId }),
+      body: JSON.stringify({ body: body.trim(), parent_id: parentId, is_anonymous: !!anonymous }),
     })
     load()
   }
@@ -159,7 +164,9 @@ function PostDetail() {
 
   const categoryKey = (post.category || 'general').toLowerCase()
   const catClass = catClassFor(post.category)
-  const isAnonymous = categoryKey === 'anonymous'
+  // is_anonymous is the canonical signal; fall back to the legacy category
+  // check for posts that pre-date the boolean column.
+  const isAnonymous = !!post.is_anonymous || categoryKey === 'anonymous'
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const authorMajor = isAnonymous ? '' : (post.author?.major || '')
   const commentCount = (post.comments || []).length
@@ -325,6 +332,25 @@ function PostDetail() {
                 <div className="text-mini text-danger mt-2 font-archivo font-bold" role="alert">
                   {commentError}
                 </div>
+              )}
+              {isAuthed && (
+                <label className="flex items-center gap-2 mt-2 cursor-pointer select-none text-[0.78rem] font-franklin text-ink/85">
+                  <input
+                    type="checkbox"
+                    checked={commentAnonymous}
+                    onChange={(e) => setCommentAnonymous(e.target.checked)}
+                    disabled={submitting}
+                    className="accent-navy"
+                  />
+                  <span>
+                    Reply anonymously
+                    {commentAnonymous && (
+                      <span className="ml-2 text-2xs uppercase tracking-wider font-archivo font-extrabold text-navy">
+                        (your name + avatar will be hidden)
+                      </span>
+                    )}
+                  </span>
+                </label>
               )}
               <div className="flex items-center justify-between mt-2 gap-2">
                 <div className="flex items-center gap-2">
@@ -658,7 +684,7 @@ function RelatedPosts({ items, category }) {
 }
 
 function RelatedPostCard({ post }) {
-  const isAnonymous = (post.category || '').toLowerCase() === 'anonymous'
+  const isAnonymous = !!post.is_anonymous || (post.category || '').toLowerCase() === 'anonymous'
   const authorName = isAnonymous ? 'Anonymous' : (post.author?.name || 'Unknown')
   const score = (post.upvotes ?? 0) - (post.downvotes ?? 0)
   const replies = post.comment_count ?? 0
@@ -912,6 +938,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
 
   const [replying, setReplying] = useState(false)
   const [replyDraft, setReplyDraft] = useState('')
+  const [replyAnonymous, setReplyAnonymous] = useState(false)
   const [replyBusy, setReplyBusy] = useState(false)
   const [replyErr, setReplyErr] = useState(null)
   // FB convention: when more than 2 replies exist, collapse the older ones
@@ -923,12 +950,19 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
   const [collapsed, setCollapsed] = useState(false)
   const replyTaRef = useRef(null)
 
-  const isAuthor = currentUser && comment.author_id === currentUser.id
+  const isAuthor = currentUser && comment.author_id != null && comment.author_id === currentUser.id
   const isMod = currentUser && (currentUser.role === 'moderator' || currentUser.role === 'admin')
   const canEdit = isAuthor
   const canDelete = isAuthor || isMod
 
-  const authorName = comment.author?.name || 'Unknown'
+  // Anonymous comments arrive with author == null (server strips it for
+  // non-author/non-mod viewers). Mods who can see the real author get a
+  // small "(anon)" hint so they know who they're moderating still wanted
+  // to be hidden from the public.
+  const isAnonComment = !!comment.is_anonymous
+  const authorName = isAnonComment && !comment.author
+    ? 'Anonymous'
+    : (comment.author?.name || 'Unknown')
 
   const save = async (e) => {
     e.preventDefault()
@@ -985,8 +1019,9 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
     if (!body) return
     setReplyBusy(true); setReplyErr(null)
     try {
-      await onReply(body)
+      await onReply(body, replyAnonymous)
       setReplyDraft('')
+      setReplyAnonymous(false)
       setReplying(false)
     } catch (e2) {
       setReplyErr(e2?.status === 401 ? 'Log in to reply' : (e2?.message || 'Failed to post reply'))
@@ -1014,6 +1049,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
           </button>
           <AuthorAvatar
             author={comment.author}
+            anonymous={isAnonComment}
             size={collapsed ? 'xs' : 'sm'}
             seedFallback={comment.id}
           />
@@ -1213,6 +1249,16 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
                       {replyErr}
                     </div>
                   )}
+                  <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none text-[0.72rem] font-franklin text-ink/85">
+                    <input
+                      type="checkbox"
+                      checked={replyAnonymous}
+                      onChange={(e) => setReplyAnonymous(e.target.checked)}
+                      disabled={replyBusy}
+                      className="accent-navy"
+                    />
+                    <span>Reply anonymously</span>
+                  </label>
                   <div className="flex items-center justify-between gap-2 mt-1.5">
                     <div className="flex items-center gap-1.5">
                       <EmojiPickerButton
@@ -1228,7 +1274,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
                       <button
                         type="button"
                         disabled={replyBusy}
-                        onClick={() => { setReplying(false); setReplyDraft(''); setReplyErr(null) }}
+                        onClick={() => { setReplying(false); setReplyDraft(''); setReplyAnonymous(false); setReplyErr(null) }}
                         className="bg-transparent border border-lightgray py-1.5 px-3 font-archivo text-2xs font-extrabold uppercase tracking-wider text-gray hover:text-ink cursor-pointer disabled:opacity-60"
                       >
                         Cancel
@@ -1268,11 +1314,12 @@ function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToRep
   const [err, setErr] = useState(null)
   const draftRef = useRef(null)
 
-  const isAuthor = currentUser && reply.author_id === currentUser.id
+  const isAuthor = currentUser && reply.author_id != null && reply.author_id === currentUser.id
   const isMod = currentUser && (currentUser.role === 'moderator' || currentUser.role === 'admin')
   const canEdit = isAuthor
   const canDelete = isAuthor || isMod
-  const authorName = reply.author?.name || 'Unknown'
+  const isAnonReply = !!reply.is_anonymous
+  const authorName = isAnonReply && !reply.author ? 'Anonymous' : (reply.author?.name || 'Unknown')
 
   const save = async (e) => {
     e.preventDefault()
@@ -1307,7 +1354,7 @@ function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToRep
   return (
     <li className="group/reply">
       <div className="flex items-start gap-2">
-        <AuthorAvatar author={reply.author} size="xs" seedFallback={reply.id} />
+        <AuthorAvatar author={reply.author} anonymous={isAnonReply} size="xs" seedFallback={reply.id} />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
             <strong className="text-[0.78rem] font-semibold text-ink truncate">{authorName}</strong>

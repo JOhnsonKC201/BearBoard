@@ -67,6 +67,10 @@ class PostCreate(BaseModel):
     event_date: Optional[date] = None
     event_time: Optional[str] = Field(default=None, max_length=20)
     is_sos: bool = False
+    # Toggle on the post composer. When true, the API strips author identity
+    # from responses (DB still retains author_id for moderation). Decoupled
+    # from `category` so any flair can be posted anonymously.
+    is_anonymous: bool = False
     price: Optional[str] = Field(default=None, max_length=40)
     contact_info: Optional[str] = Field(default=None, max_length=200)
     image_url: Optional[str] = Field(default=None, max_length=500)
@@ -132,15 +136,22 @@ class CommentCreate(BaseModel):
     # the same post. The route enforces depth-1 (parents must be top-level)
     # so replies-of-replies flatten under the original parent.
     parent_id: Optional[int] = None
+    # Toggle on the comment composer; same semantics as PostCreate.is_anonymous.
+    # Per-action — does NOT carry over to the user's next comment.
+    is_anonymous: bool = False
 
 class CommentResponse(BaseModel):
     id: int
     body: str
-    author_id: int
+    # author_id is Optional so routes can null-it-out for anonymous comments
+    # before serialization. The DB column itself stays NOT NULL; this only
+    # controls what leaves the API.
+    author_id: Optional[int] = None
     post_id: int
     parent_id: Optional[int] = None
     upvotes: int = 0
     downvotes: int = 0
+    is_anonymous: bool = False
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
 
@@ -163,6 +174,7 @@ class PostResponse(BaseModel):
     event_time: Optional[str] = None
     is_sos: bool = False
     sos_resolved: bool = False
+    is_anonymous: bool = False
     price: Optional[str] = None
     contact_info: Optional[str] = None
     image_url: Optional[str] = None

@@ -24,6 +24,7 @@ const Resources = lazy(() => import('./pages/Resources'))
 const Crosslinks = lazy(() => import('./pages/Crosslinks'))
 const Welcome = lazy(() => import('./pages/Welcome'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
+const GroupDetail = lazy(() => import('./pages/GroupDetail'))
 
 function WithNav({ children }) {
   // Bottom padding clears the fixed mobile BottomNav (56px tall) plus the
@@ -76,6 +77,7 @@ function App() {
             <Route path="/crosslinks" element={<WithNav><Crosslinks /></WithNav>} />
             <Route path="/welcome" element={<WithNav><Welcome /></WithNav>} />
             <Route path="/leaderboard" element={<WithNav><Leaderboard /></WithNav>} />
+            <Route path="/groups/:id" element={<WithNav><GroupDetail /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>
