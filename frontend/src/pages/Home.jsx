@@ -1184,16 +1184,6 @@ function PostCard({ post, onUpdated, onDeleted }) {
     setTimeout(() => setShareState(null), 1800)
   }
 
-  const vote = (dir) => {
-    if (userVote === dir) {
-      setVotes(votes + (dir === 'up' ? -1 : 1))
-      setUserVote(null)
-    } else {
-      setVotes(votes + (dir === 'up' ? (userVote === 'down' ? 2 : 1) : (userVote === 'up' ? -2 : -1)))
-      setUserVote(dir)
-    }
-  }
-
   return (
     <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.28)] hover:-translate-y-[1px] hover:border-navy/20 ${
       post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
