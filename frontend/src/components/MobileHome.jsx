@@ -9,6 +9,7 @@ import {
   formatRelativeShort as formatRelative,
   eventDateParts,
 } from '../utils/format'
+import { safeHref } from '../utils/safeUrl'
 
 // =============================================================================
 // MobileHome - "Campus Broadsheet"
@@ -354,7 +355,7 @@ function MobileHome({
               return (
                 <a
                   key={ev.id}
-                  href={ev.source_url || '#events'}
+                  href={safeHref(ev.source_url, '#events')}
                   target={isExternal ? '_blank' : undefined}
                   rel={isExternal ? 'noreferrer' : undefined}
                   className={`snap-start shrink-0 w-[250px] no-underline text-ink bg-card border border-ink/10 ${

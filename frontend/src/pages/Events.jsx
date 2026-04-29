@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { safeHref } from '../utils/safeUrl'
 
 // Full Morgan State events page. Pulls from /api/events (which is fed by
 // the Morgan iCal sync), groups by month, and surfaces user-created event
@@ -156,7 +157,7 @@ export default function Events() {
                         <h3 className="font-archivo font-bold text-[1rem] leading-tight m-0">{it.title}</h3>
                       </Link>
                     ) : (
-                      <a href={it.url} target="_blank" rel="noopener noreferrer" className="text-ink no-underline hover:underline">
+                      <a href={safeHref(it.url)} target="_blank" rel="noopener noreferrer" className="text-ink no-underline hover:underline">
                         <h3 className="font-archivo font-bold text-[1rem] leading-tight m-0">{it.title}</h3>
                       </a>
                     )
