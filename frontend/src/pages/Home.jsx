@@ -11,6 +11,7 @@ import { VerifiedBadge } from '../components/VerifiedBadge'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { flairSlug, flairLabel } from '../utils/avatar'
+import { formatRelativeTime } from '../utils/format'
 
 // Lazy: these only mount on explicit user action (button click, >=lg viewport).
 // Splitting them out keeps the first-paint bundle lean.
@@ -45,23 +46,6 @@ function paletteFor(seed) {
 function initialsFor(name) {
   if (!name) return '?'
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
-}
-
-function formatRelativeTime(iso) {
-  if (!iso) return ''
-  const then = new Date(iso).getTime()
-  if (Number.isNaN(then)) return ''
-  const seconds = Math.max(1, Math.floor((Date.now() - then) / 1000))
-  if (seconds < 60) return `${seconds}s ago`
-  const m = Math.floor(seconds / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `${d}d ago`
-  const mo = Math.floor(d / 30)
-  if (mo < 12) return `${mo}mo ago`
-  return `${Math.floor(mo / 12)}y ago`
 }
 
 function formatEventDateTime(dateStr, timeStr) {
@@ -170,8 +154,11 @@ const CAT_STYLES = {
   admissions: 'bg-[#D6EDD9] text-[#1E4B22]',
 }
 
+// Whitelist what the URL is allowed to drive — anything else (typo, stale
+// link) silently degrades to 'new' so the page never breaks on a bad param.
+const VALID_SORTS = new Set(['new', 'popular', 'trending'])
+
 function Home() {
-  const [activeSort, setActiveSort] = useState('new')
   const [activeFilter, setActiveFilter] = useState('All')
   const { user: authedUser } = useAuth()
   const navigate = useNavigate()
@@ -208,6 +195,23 @@ function Home() {
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase()
+  // Sort is URL-driven so the NavRail's Popular / New / Trending links
+  // (and shareable links like /?sort=trending) actually re-sort the feed
+  // instead of just highlighting in the rail. Falls back to 'new' for
+  // missing or invalid values.
+  const sortParamRaw = searchParams.get('sort')
+  const activeSort = VALID_SORTS.has(sortParamRaw) ? sortParamRaw : 'new'
+  const setActiveSort = (next) => {
+    const params = new URLSearchParams(searchParams)
+    if (!VALID_SORTS.has(next)) {
+      params.delete('sort')
+    } else {
+      // Always write the param (even for 'new') so the NavRail can tell
+      // "Home" (no param) from "New" (?sort=new) for its active highlight.
+      params.set('sort', next)
+    }
+    setSearchParams(params, { replace: true })
+  }
 
   // Render only the layout that matches the viewport, instead of mounting both
   // trees and hiding one with CSS. Synchronous init reads matchMedia during the

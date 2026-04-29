@@ -11,22 +11,31 @@ export function initialsFor(name) {
     .join('')
 }
 
-// "5s ago", "12m ago", "3h ago", "4d ago", "2mo ago", "1y ago".
+// "Just now", "1 second ago", "10 minutes ago", "3 hours ago", "2 days ago",
+// "5 months ago", "1 year ago". Spelled out so the feed reads naturally
+// rather than like log lines. Singular vs plural handled per unit.
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'} ago`
+}
+
 export function formatRelativeTime(iso) {
   if (!iso) return ''
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ''
-  const seconds = Math.max(1, Math.floor((Date.now() - then) / 1000))
-  if (seconds < 60) return `${seconds}s ago`
+  const seconds = Math.floor((Date.now() - then) / 1000)
+  // Sub-second / clock-skew: treat as "just now" so we never show negative
+  // ages or a confusing 0-second value.
+  if (seconds < 5) return 'Just now'
+  if (seconds < 60) return plural(seconds, 'second')
   const m = Math.floor(seconds / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return plural(m, 'minute')
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return plural(h, 'hour')
   const d = Math.floor(h / 24)
-  if (d < 30) return `${d}d ago`
+  if (d < 30) return plural(d, 'day')
   const mo = Math.floor(d / 30)
-  if (mo < 12) return `${mo}mo ago`
-  return `${Math.floor(mo / 12)}y ago`
+  if (mo < 12) return plural(mo, 'month')
+  return plural(Math.floor(mo / 12), 'year')
 }
 
 // Short variant used by the mobile feed ("5s", "12m") where ago is implicit
