@@ -153,12 +153,12 @@ function NavRail() {
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
       <RailSection title="Browse">
-        <RailItem to="/#events-box" label="Events" Icon={IconCal} />
-        <RailItem to="/#groups" label="Groups" Icon={IconPeople} />
+        <RailItem to="/events" label="Events" Icon={IconCal} active={location.pathname.startsWith('/events')} />
+        <RailItem to="/groups" label="Groups" Icon={IconPeople} active={location.pathname.startsWith('/groups')} />
         <RailItem to="/map" label="Campus Map" Icon={IconMap} active={location.pathname === '/map'} />
         <RailItem to="/professors" label="Professors" Icon={IconMortar} active={location.pathname === '/professors'} />
         <RailItem to="/crosslinks" label="Related communities" Icon={IconMap} active={location.pathname === '/crosslinks'} />
-        <RailItem to="/#team" label="Team" Icon={IconTeam} />
+        <RailItem to="/team" label="Team" Icon={IconTeam} active={location.pathname === '/team'} />
       </RailSection>
       <div className="border-t border-[#EAE7E0]" />
       <RailSection title="Policies">
