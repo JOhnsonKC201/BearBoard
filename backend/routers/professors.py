@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import Integer, func, desc, or_, cast
@@ -18,12 +20,13 @@ from schemas.professor import (
 router = APIRouter(prefix="/api/professors", tags=["professors"])
 
 
-def _build_aggregates(db: Session, professor_ids: list[int]) -> dict[int, dict]:
-    """Compute count/avg/take-again-percent per professor in one query each.
+# ---------------------------------------------------------------------------
+# Aggregation
+# ---------------------------------------------------------------------------
 
-    Returning a dict keyed by professor id keeps the downstream assembly simple
-    without forcing us to round-trip N+1 queries.
-    """
+def _build_aggregates(db: Session, professor_ids: list[int]) -> dict[int, dict]:
+    """Compute count/avg/take-again-percent + per-axis averages in one query.
+    Returning a dict keyed by professor id keeps downstream assembly simple."""
     if not professor_ids:
         return {}
     rows = (
@@ -32,6 +35,11 @@ def _build_aggregates(db: Session, professor_ids: list[int]) -> dict[int, dict]:
             func.count(ProfessorRating.id).label("cnt"),
             func.avg(ProfessorRating.rating).label("avg_rating"),
             func.avg(ProfessorRating.difficulty).label("avg_difficulty"),
+            func.avg(ProfessorRating.clarity).label("avg_clarity"),
+            func.avg(ProfessorRating.engagement).label("avg_engagement"),
+            func.avg(ProfessorRating.accessibility).label("avg_accessibility"),
+            func.avg(ProfessorRating.fairness).label("avg_fairness"),
+            func.avg(ProfessorRating.exam_prep_quality).label("avg_exam_prep_quality"),
             func.sum(cast(ProfessorRating.would_take_again, Integer)).label("take_again_sum"),
             func.count(ProfessorRating.would_take_again).label("take_again_n"),
         )
@@ -46,11 +54,20 @@ def _build_aggregates(db: Session, professor_ids: list[int]) -> dict[int, dict]:
             take_again_pct = int(round(100 * (row.take_again_sum or 0) / row.take_again_n))
         out[row.professor_id] = {
             "rating_count": int(row.cnt or 0),
-            "avg_rating": float(round(row.avg_rating, 2)) if row.avg_rating is not None else None,
-            "avg_difficulty": float(round(row.avg_difficulty, 2)) if row.avg_difficulty is not None else None,
+            "avg_rating": _r2(row.avg_rating),
+            "avg_difficulty": _r2(row.avg_difficulty),
+            "avg_clarity": _r2(row.avg_clarity),
+            "avg_engagement": _r2(row.avg_engagement),
+            "avg_accessibility": _r2(row.avg_accessibility),
+            "avg_fairness": _r2(row.avg_fairness),
+            "avg_exam_prep_quality": _r2(row.avg_exam_prep_quality),
             "would_take_again_pct": take_again_pct,
         }
     return out
+
+
+def _r2(x):
+    return float(round(x, 2)) if x is not None else None
 
 
 def _attach_aggregates(professors: list[Professor], aggs: dict[int, dict]) -> list[dict]:
@@ -64,11 +81,75 @@ def _attach_aggregates(professors: list[Professor], aggs: dict[int, dict]) -> li
             "rating_count": agg.get("rating_count", 0),
             "avg_rating": agg.get("avg_rating"),
             "avg_difficulty": agg.get("avg_difficulty"),
+            "avg_clarity": agg.get("avg_clarity"),
+            "avg_engagement": agg.get("avg_engagement"),
+            "avg_accessibility": agg.get("avg_accessibility"),
+            "avg_fairness": agg.get("avg_fairness"),
+            "avg_exam_prep_quality": agg.get("avg_exam_prep_quality"),
             "would_take_again_pct": agg.get("would_take_again_pct"),
             "created_at": p.created_at,
         })
     return out
 
+
+# ---------------------------------------------------------------------------
+# Rating <-> response serialization (extracted because two routes use it)
+# ---------------------------------------------------------------------------
+
+def _parse_exam_types(raw):
+    if not raw:
+        return None
+    if isinstance(raw, list):
+        return raw
+    try:
+        v = json.loads(raw)
+        return v if isinstance(v, list) else None
+    except Exception:
+        return None
+
+
+def _serialize_rating(r: ProfessorRating, user: User | None = None) -> dict:
+    author = user or r.user
+    return {
+        "id": r.id,
+        "rating": r.rating,
+        "difficulty": r.difficulty,
+        "would_take_again": r.would_take_again,
+        "course_code": r.course_code,
+        "comment": r.comment,
+        "clarity": r.clarity,
+        "engagement": r.engagement,
+        "accessibility": r.accessibility,
+        "fairness": r.fairness,
+        "exam_prep_quality": r.exam_prep_quality,
+        "course_title": r.course_title,
+        "semester": r.semester,
+        "grade_received": r.grade_received,
+        "attendance_policy": r.attendance_policy,
+        "quiz_type": r.quiz_type,
+        "exam_types": _parse_exam_types(r.exam_types),
+        "curves": r.curves,
+        "workload": r.workload,
+        "class_format": r.class_format,
+        "class_size": r.class_size,
+        "recommendation": r.recommendation,
+        "best_aspects": r.best_aspects,
+        "areas_for_improvement": r.areas_for_improvement,
+        "advice": r.advice,
+        "user_id": r.user_id,
+        "author": {
+            "id": author.id,
+            "name": author.name,
+            "major": author.major,
+            "role": getattr(author, "role", "student") or "student",
+        } if author else None,
+        "created_at": r.created_at,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @router.get("", response_model=list[ProfessorResponse])
 def list_professors(
@@ -80,9 +161,6 @@ def list_professors(
     query = db.query(Professor)
     if q:
         needle = f"%{q.strip().lower()}%"
-        # Covers: first name, surname (substring match), department,
-        # and any course code the professor has been rated for
-        # (e.g. "COSC 458" → any prof someone reviewed under that code).
         profs_via_course = (
             db.query(ProfessorRating.professor_id)
             .filter(func.lower(ProfessorRating.course_code).like(needle))
@@ -96,14 +174,11 @@ def list_professors(
             )
         )
 
-    # For "top" we need aggregates to rank, so fetch candidates then sort in
-    # Python after attaching aggregates. For "new" the DB can sort directly.
     if sort == "new":
         professors = query.order_by(desc(Professor.created_at)).limit(limit).all()
         aggs = _build_aggregates(db, [p.id for p in professors])
         return _attach_aggregates(professors, aggs)
 
-    # top / controversial: pull a larger candidate set then sort by aggregates
     candidates = query.limit(limit * 3).all()
     aggs = _build_aggregates(db, [p.id for p in candidates])
     enriched = _attach_aggregates(candidates, aggs)
@@ -116,7 +191,7 @@ def list_professors(
             ),
             reverse=True,
         )
-    else:  # controversial — mid-tier avg but high volume
+    else:  # controversial
         enriched.sort(
             key=lambda p: (p["rating_count"], -abs((p["avg_rating"] or 3) - 3)),
             reverse=True,
@@ -133,7 +208,6 @@ def create_professor(
     db: Session = Depends(get_db),
 ):
     name = data.name.strip()
-    # Case-insensitive dedupe: a school has one "Dr. Smith", not two.
     existing = (
         db.query(Professor).filter(func.lower(Professor.name) == name.lower()).first()
     )
@@ -166,36 +240,22 @@ def get_professor(prof_id: int, db: Session = Depends(get_db)):
     )
 
     aggs = _build_aggregates(db, [prof.id]).get(prof.id, {})
-    base = {
+    return {
         "id": prof.id,
         "name": prof.name,
         "department": prof.department,
         "rating_count": aggs.get("rating_count", 0),
         "avg_rating": aggs.get("avg_rating"),
         "avg_difficulty": aggs.get("avg_difficulty"),
+        "avg_clarity": aggs.get("avg_clarity"),
+        "avg_engagement": aggs.get("avg_engagement"),
+        "avg_accessibility": aggs.get("avg_accessibility"),
+        "avg_fairness": aggs.get("avg_fairness"),
+        "avg_exam_prep_quality": aggs.get("avg_exam_prep_quality"),
         "would_take_again_pct": aggs.get("would_take_again_pct"),
         "created_at": prof.created_at,
-        "ratings": [
-            {
-                "id": r.id,
-                "rating": r.rating,
-                "difficulty": r.difficulty,
-                "would_take_again": r.would_take_again,
-                "course_code": r.course_code,
-                "comment": r.comment,
-                "user_id": r.user_id,
-                "author": {
-                    "id": r.user.id,
-                    "name": r.user.name,
-                    "major": r.user.major,
-                    "role": getattr(r.user, "role", "student") or "student",
-                } if r.user else None,
-                "created_at": r.created_at,
-            }
-            for r in ratings
-        ],
+        "ratings": [_serialize_rating(r) for r in ratings],
     }
-    return base
 
 
 @router.post("/{prof_id}/ratings", response_model=RatingResponse)
@@ -219,47 +279,46 @@ def create_or_update_rating(
         )
         .first()
     )
+
+    # Common field set so the create + update branches can't drift.
+    payload = {
+        "rating": data.rating,
+        "difficulty": data.difficulty,
+        "would_take_again": data.would_take_again,
+        "course_code": (data.course_code or "").strip() or None,
+        "comment": (data.comment or "").strip() or None,
+        "clarity": data.clarity,
+        "engagement": data.engagement,
+        "accessibility": data.accessibility,
+        "fairness": data.fairness,
+        "exam_prep_quality": data.exam_prep_quality,
+        "course_title": (data.course_title or "").strip() or None,
+        "semester": (data.semester or "").strip() or None,
+        "grade_received": (data.grade_received or "").strip() or None,
+        "attendance_policy": data.attendance_policy or None,
+        "quiz_type": data.quiz_type or None,
+        "exam_types": json.dumps(data.exam_types) if data.exam_types else None,
+        "curves": data.curves or None,
+        "workload": data.workload or None,
+        "class_format": data.class_format or None,
+        "class_size": data.class_size or None,
+        "recommendation": data.recommendation or None,
+        "best_aspects": (data.best_aspects or "").strip() or None,
+        "areas_for_improvement": (data.areas_for_improvement or "").strip() or None,
+        "advice": (data.advice or "").strip() or None,
+    }
+
     if existing:
-        # Editing a past rating — users change their mind, no need to force
-        # delete-then-recreate.
-        existing.rating = data.rating
-        existing.difficulty = data.difficulty
-        existing.would_take_again = data.would_take_again
-        existing.course_code = (data.course_code or "").strip() or None
-        existing.comment = (data.comment or "").strip() or None
-        db.commit()
-        db.refresh(existing)
+        for k, v in payload.items():
+            setattr(existing, k, v)
         rating_obj = existing
     else:
-        rating_obj = ProfessorRating(
-            professor_id=prof_id,
-            user_id=user.id,
-            rating=data.rating,
-            difficulty=data.difficulty,
-            would_take_again=data.would_take_again,
-            course_code=(data.course_code or "").strip() or None,
-            comment=(data.comment or "").strip() or None,
-        )
+        rating_obj = ProfessorRating(professor_id=prof_id, user_id=user.id, **payload)
         db.add(rating_obj)
-        db.commit()
-        db.refresh(rating_obj)
 
-    return {
-        "id": rating_obj.id,
-        "rating": rating_obj.rating,
-        "difficulty": rating_obj.difficulty,
-        "would_take_again": rating_obj.would_take_again,
-        "course_code": rating_obj.course_code,
-        "comment": rating_obj.comment,
-        "user_id": rating_obj.user_id,
-        "author": {
-            "id": user.id,
-            "name": user.name,
-            "major": user.major,
-            "role": getattr(user, "role", "student") or "student",
-        },
-        "created_at": rating_obj.created_at,
-    }
+    db.commit()
+    db.refresh(rating_obj)
+    return _serialize_rating(rating_obj, user=user)
 
 
 @router.delete("/{prof_id}/ratings/mine", status_code=204)

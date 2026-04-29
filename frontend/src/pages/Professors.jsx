@@ -1,52 +1,290 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
+// ---------------------------------------------------------------------------
+// Constants — rating axes + enum option labels. Centralized so both the
+// form (write) and the detail page (read) reference the same vocab.
+// ---------------------------------------------------------------------------
+
+const METRIC_AXES = [
+  { key: 'clarity',           label: 'Clarity',     hint: 'Lectures are organized and easy to follow' },
+  { key: 'engagement',        label: 'Engagement',  hint: 'Class is interactive and holds attention' },
+  { key: 'accessibility',     label: 'Accessibility', hint: 'Available for office hours and email' },
+  { key: 'fairness',          label: 'Fairness',    hint: 'Grading is consistent and transparent' },
+  { key: 'exam_prep_quality', label: 'Exam prep',   hint: 'Tests reflect what was actually taught' },
+]
+
+const RATING_ADJECTIVES = ['Tap to rate', 'Awful', 'Meh', 'Decent', 'Great', 'Exceptional']
+const DIFFICULTY_ADJECTIVES = ['Tap to rate', 'Easy', 'Manageable', 'Moderate', 'Challenging', 'Brutal']
+
+const ATTENDANCE_OPTIONS = [
+  { value: 'required',     label: 'Required' },
+  { value: 'not_required', label: 'Not required' },
+  { value: 'recommended',  label: 'Recommended' },
+]
+const QUIZ_OPTIONS = [
+  { value: 'none',      label: 'None' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'pop',       label: 'Pop quizzes' },
+  { value: 'both',      label: 'Both' },
+]
+const EXAM_TYPE_OPTIONS = [
+  { value: 'multiple_choice',  label: 'Multiple choice' },
+  { value: 'essay',            label: 'Essay' },
+  { value: 'true_false',       label: 'True / false' },
+  { value: 'written_problems', label: 'Written problems' },
+  { value: 'take_home',        label: 'Take home' },
+  { value: 'open_book',        label: 'Open book / cheat sheet' },
+  { value: 'online',           label: 'Online / computer' },
+  { value: 'other',            label: 'Other' },
+]
+const CURVES_OPTIONS = [
+  { value: 'never',     label: 'Never' },
+  { value: 'as_needed', label: 'As needed' },
+  { value: 'always',    label: 'Always' },
+]
+const WORKLOAD_OPTIONS = [
+  { value: 'light',    label: 'Light' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'heavy',    label: 'Heavy' },
+]
+const FORMAT_OPTIONS = [
+  { value: 'in_person', label: 'In person' },
+  { value: 'hybrid',    label: 'Hybrid' },
+  { value: 'online',    label: 'Online' },
+]
+const SIZE_OPTIONS = [
+  { value: 'small',  label: 'Small (≤ 25)' },
+  { value: 'medium', label: 'Medium (26-60)' },
+  { value: 'large',  label: 'Large (60+)' },
+]
+const RECOMMENDATION_OPTIONS = [
+  { value: 'absolutely_yes',    label: 'Absolutely yes',     tone: 'success' },
+  { value: 'yes',               label: 'Yes',                tone: 'success' },
+  { value: 'only_if_no_choice', label: 'Only if no choice',  tone: 'warning' },
+  { value: 'never',             label: 'Never',              tone: 'danger' },
+]
+const GRADE_OPTIONS = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F', 'P', 'W']
+const SEMESTER_OPTIONS = (() => {
+  const out = []
+  const now = new Date()
+  const startYear = now.getFullYear()
+  for (let y = startYear + 1; y >= startYear - 4; y--) {
+    out.push(`Spring ${y}`)
+    out.push(`Fall ${y - 1}`)
+  }
+  return out
+})()
+
+
+// ---------------------------------------------------------------------------
+// Display primitives
+// ---------------------------------------------------------------------------
+
 function Stars({ value, size = '1rem' }) {
-  if (value == null) return <span className="text-gray text-[0.82rem] font-archivo">-</span>
+  if (value == null) return <span className="text-gray text-[0.82rem] font-archivo">—</span>
   const rounded = Math.round(value * 2) / 2
   const full = Math.floor(rounded)
   const half = rounded - full === 0.5
   const empty = 5 - full - (half ? 1 : 0)
   return (
     <span className="inline-flex items-center gap-[1px]" style={{ fontSize: size }} aria-label={`${value.toFixed(1)} out of 5`}>
-      {Array.from({ length: full }).map((_, i) => <span key={`f${i}`} className="text-gold">&#9733;</span>)}
-      {half && <span className="text-gold">&#189;</span>}
-      {Array.from({ length: empty }).map((_, i) => <span key={`e${i}`} className="text-lightgray">&#9734;</span>)}
+      {Array.from({ length: full }).map((_, i) => <span key={`f${i}`} className="text-gold">★</span>)}
+      {half && <span className="text-gold">½</span>}
+      {Array.from({ length: empty }).map((_, i) => <span key={`e${i}`} className="text-lightgray">☆</span>)}
     </span>
   )
 }
+
+// Horizontal score bar — shows avg/5 for a single metric. The fill color
+// shifts danger→warning→success as the score climbs so a 2.1 reads visually
+// different from a 4.6 even if you skip the number.
+function MetricBar({ label, value, hint }) {
+  const v = value == null ? 0 : value
+  const pct = Math.max(0, Math.min(100, (v / 5) * 100))
+  const tone = v >= 4 ? 'bg-[#1A8A7D]' : v >= 3 ? 'bg-gold' : v >= 2 ? 'bg-[#D4962A]' : 'bg-danger'
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-[120px] shrink-0">
+        <div className="font-archivo font-bold text-[0.78rem] uppercase tracking-wider text-ink">{label}</div>
+        {hint && <div className="text-[0.66rem] text-gray font-franklin leading-tight mt-0.5">{hint}</div>}
+      </div>
+      <div className="flex-1 h-2 bg-offwhite rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-[width] duration-500 ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="w-[58px] shrink-0 text-right font-archivo font-extrabold text-[0.92rem] tabular-nums text-ink">
+        {value == null ? '—' : value.toFixed(1)}
+      </div>
+    </div>
+  )
+}
+
+function StarPicker({ value, onChange, max = 5, labels, size = 'lg' }) {
+  const [hover, setHover] = useState(0)
+  const shown = hover || value
+  const label = labels ? labels[shown] : ''
+  const starSize = size === 'sm' ? 'text-[1.25rem]' : 'text-[1.9rem] sm:text-[2.1rem]'
+  const btnPad = size === 'sm' ? 'p-0.5' : 'p-1 sm:p-1.5'
+  return (
+    <div>
+      <div
+        className="flex items-center gap-0.5"
+        onMouseLeave={() => setHover(0)}
+      >
+        {Array.from({ length: max }).map((_, i) => {
+          const n = i + 1
+          const filled = n <= shown
+          return (
+            <button
+              type="button"
+              key={n}
+              onMouseEnter={() => setHover(n)}
+              onClick={() => onChange(n === value ? 0 : n)}
+              aria-label={labels ? `${labels[n]} (${n} stars)` : `${n} stars`}
+              className={`${btnPad} bg-transparent border-none cursor-pointer leading-none transition-transform active:scale-95 ${
+                filled ? 'text-gold' : 'text-lightgray hover:text-gold/60'
+              } ${starSize}`}
+            >
+              ★
+            </button>
+          )
+        })}
+      </div>
+      {labels && (
+        <div className={`mt-0.5 font-archivo ${shown ? 'text-ink/85 font-bold' : 'text-gray font-semibold'} ${size === 'sm' ? 'text-[0.7rem]' : 'text-[0.82rem]'}`}>
+          {label || labels[0]}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Single-select pill row. For attendance, quizzes, curves, workload, etc.
+function PillSelect({ value, onChange, options, allowClear = true }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((opt) => {
+        const active = value === opt.value
+        const tone = opt.tone
+        const activeCls = tone === 'success'
+          ? 'bg-[#0F5E54] text-white border-[#0F5E54]'
+          : tone === 'warning'
+          ? 'bg-[#8B6914] text-white border-[#8B6914]'
+          : tone === 'danger'
+          ? 'bg-danger text-white border-danger'
+          : 'bg-navy text-gold border-navy'
+        return (
+          <button
+            type="button"
+            key={opt.value}
+            onClick={() => onChange(active && allowClear ? null : opt.value)}
+            className={`font-archivo text-2xs font-extrabold uppercase tracking-wider py-1.5 px-3 border cursor-pointer transition-colors ${
+              active ? activeCls : 'bg-card text-ink border-lightgray hover:border-navy'
+            }`}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function MultiPillSelect({ value = [], onChange, options }) {
+  const set = new Set(value)
+  const toggle = (v) => {
+    const next = new Set(set)
+    if (next.has(v)) next.delete(v); else next.add(v)
+    onChange(Array.from(next))
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((opt) => {
+        const active = set.has(opt.value)
+        return (
+          <button
+            type="button"
+            key={opt.value}
+            onClick={() => toggle(opt.value)}
+            className={`font-archivo text-2xs font-extrabold uppercase tracking-wider py-1.5 px-3 border cursor-pointer transition-colors ${
+              active
+                ? 'bg-navy text-gold border-navy'
+                : 'bg-card text-ink border-lightgray hover:border-navy'
+            }`}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function FormSection({ title, desc, children }) {
+  return (
+    <section className="border-t border-divider pt-5 mt-5 first:border-t-0 first:pt-0 first:mt-0">
+      <div className="mb-3">
+        <h3 className="font-archivo font-extrabold text-[0.82rem] uppercase tracking-wider text-navy m-0">{title}</h3>
+        {desc && <p className="text-[0.78rem] text-gray font-franklin mt-1 m-0">{desc}</p>}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  )
+}
+
+function FieldLabel({ label, required, children }) {
+  return (
+    <div>
+      <label className="font-archivo text-[0.62rem] font-extrabold uppercase tracking-wide text-gray block mb-1.5">
+        {label}{required && <span className="text-danger ml-1">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// Professor list card — surfaces avg + 3 of the 5 sub-metrics inline so a
+// browse user can read multiple cards without clicking through.
+// ---------------------------------------------------------------------------
 
 function ProfessorCard({ prof, onOpen, active }) {
   const hasRating = prof.avg_rating != null && prof.rating_count > 0
   return (
     <button
       onClick={() => onOpen(prof)}
-      className={`w-full text-left bg-card border overflow-hidden transition-all hover:-translate-y-[1px] hover:shadow-[0_6px_20px_-10px_rgba(11,29,52,0.2)] ${
-        active ? 'border-gold' : 'border-lightgray hover:border-navy'
+      className={`w-full text-left bg-card border overflow-hidden transition-all hover:-translate-y-[1px] hover:shadow-[0_8px_24px_-12px_rgba(11,29,52,0.22)] ${
+        active ? 'border-gold border-l-[3px] border-l-gold' : 'border-lightgray hover:border-navy/30'
       }`}
     >
       <div className="px-4 py-3.5 flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-navy text-gold flex items-center justify-center font-archivo font-black text-[0.78rem] shrink-0 ring-1 ring-black/5">
+        <div className="w-12 h-12 rounded-full bg-navy text-gold flex items-center justify-center font-archivo font-black text-[0.82rem] shrink-0 ring-1 ring-black/5">
           {(prof.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-archivo font-bold text-[0.95rem] leading-tight truncate">{prof.name}</div>
-          <div className="text-[0.7rem] text-gray uppercase tracking-wide font-archivo font-bold mt-0.5 truncate">
+          <div className="font-editorial font-black text-[1.05rem] leading-tight truncate text-ink">{prof.name}</div>
+          <div className="text-[0.7rem] text-gray uppercase tracking-wider font-archivo font-bold mt-0.5 truncate">
             {prof.department || 'Department unknown'}
           </div>
+          {hasRating && prof.would_take_again_pct != null && (
+            <div className="text-[0.68rem] text-success font-archivo font-extrabold mt-1 uppercase tracking-wider">
+              {prof.would_take_again_pct}% would take again
+            </div>
+          )}
         </div>
         <div className="shrink-0 text-right">
           {hasRating ? (
             <>
               <div className="flex items-center justify-end gap-1">
-                <span className="text-gold text-[0.95rem] leading-none">&#9733;</span>
-                <span className="font-archivo font-black text-navy text-[1.05rem] leading-none tabular-nums">
+                <span className="text-gold text-[1.05rem] leading-none">★</span>
+                <span className="font-editorial font-black text-navy text-[1.45rem] leading-none tabular-nums">
                   {prof.avg_rating.toFixed(1)}
                 </span>
               </div>
-              <div className="text-[0.64rem] text-gray uppercase tracking-wider font-archivo font-bold mt-1">
+              <div className="text-[0.6rem] text-gray uppercase tracking-wider font-archivo font-bold mt-1">
                 {prof.rating_count} {prof.rating_count === 1 ? 'review' : 'reviews'}
               </div>
             </>
@@ -61,615 +299,725 @@ function ProfessorCard({ prof, onOpen, active }) {
   )
 }
 
-// Human-friendly labels for a 1-5 rating. The index-0 entry is the
-// placeholder shown before the student has hovered or selected anything.
-const RATING_ADJECTIVES = ['Tap to rate', 'Awful', 'Meh', 'Decent', 'Great', 'Exceptional']
-const DIFFICULTY_ADJECTIVES = ['Tap to rate', 'Easy', 'Manageable', 'Moderate', 'Challenging', 'Brutal']
 
-function StarPicker({ value, onChange, max = 5, labels, size = 'lg' }) {
-  const [hover, setHover] = useState(0)
-  const shown = hover || value
-  const label = labels ? labels[shown] : ''
-  const starSize = size === 'sm' ? 'text-[1.25rem]' : 'text-[1.9rem] sm:text-[2.1rem]'
-  const btnPad = size === 'sm' ? 'p-0.5' : 'p-1 sm:p-1.5'
-  return (
-    <div>
-      <div
-        className="flex gap-1 items-center"
-        onMouseLeave={() => setHover(0)}
-        role="radiogroup"
-        aria-label={labels ? labels[0] : 'Rating'}
-      >
-        {Array.from({ length: max }).map((_, i) => {
-          const v = i + 1
-          const on = shown >= v
-          return (
-            <button
-              key={v}
-              type="button"
-              onMouseEnter={() => setHover(v)}
-              onFocus={() => setHover(v)}
-              onBlur={() => setHover(0)}
-              onClick={() => onChange(v)}
-              className={`bg-transparent border-none cursor-pointer leading-none transition-all ${btnPad} ${starSize} ${
-                on
-                  ? 'text-gold drop-shadow-[0_0_6px_rgba(212,150,42,0.35)] scale-[1.04]'
-                  : 'text-lightgray hover:text-gold/70'
-              } rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60`}
-              role="radio"
-              aria-checked={value === v}
-              aria-label={`${v} ${v === 1 ? 'star' : 'stars'}${labels ? ` - ${labels[v]}` : ''}`}
-            >
-              <span aria-hidden>{on ? '★' : '☆'}</span>
-            </button>
-          )
-        })}
-        <span
-          className={`ml-2 font-archivo font-extrabold text-[0.66rem] uppercase tracking-[0.18em] transition-colors ${
-            shown ? 'text-navy' : 'text-gray/60'
-          }`}
-        >
-          {label}
-        </span>
-      </div>
-    </div>
-  )
-}
+// ---------------------------------------------------------------------------
+// RatingForm — the rich, sectioned write surface. Modeled on RateYourProf:
+// course context up top → 5-axis stars → "the intel" → class shape →
+// recommendation → written review (3 prompts).
+// ---------------------------------------------------------------------------
 
 function RatingForm({ professor, onSubmitted, onCancel, existing }) {
+  // Bind every field. Existing values pre-populate so an edit doesn't wipe.
   const [rating, setRating] = useState(existing?.rating || 0)
   const [difficulty, setDifficulty] = useState(existing?.difficulty || 0)
-  const [wouldTake, setWouldTake] = useState(existing?.would_take_again ?? null)
-  const [course, setCourse] = useState(existing?.course_code || '')
-  const [comment, setComment] = useState(existing?.comment || '')
+  const [wouldTakeAgain, setWouldTakeAgain] = useState(existing?.would_take_again ?? null)
+  const [courseCode, setCourseCode] = useState(existing?.course_code || '')
+  const [courseTitle, setCourseTitle] = useState(existing?.course_title || '')
+  const [semester, setSemester] = useState(existing?.semester || SEMESTER_OPTIONS[0])
+  const [grade, setGrade] = useState(existing?.grade_received || '')
+  const [clarity, setClarity] = useState(existing?.clarity || 0)
+  const [engagement, setEngagement] = useState(existing?.engagement || 0)
+  const [accessibility, setAccessibility] = useState(existing?.accessibility || 0)
+  const [fairness, setFairness] = useState(existing?.fairness || 0)
+  const [examPrep, setExamPrep] = useState(existing?.exam_prep_quality || 0)
+  const [attendance, setAttendance] = useState(existing?.attendance_policy || null)
+  const [quizType, setQuizType] = useState(existing?.quiz_type || null)
+  const [examTypes, setExamTypes] = useState(existing?.exam_types || [])
+  const [curves, setCurves] = useState(existing?.curves || null)
+  const [workload, setWorkload] = useState(existing?.workload || null)
+  const [classFormat, setClassFormat] = useState(existing?.class_format || null)
+  const [classSize, setClassSize] = useState(existing?.class_size || null)
+  const [recommendation, setRecommendation] = useState(existing?.recommendation || null)
+  const [bestAspects, setBestAspects] = useState(existing?.best_aspects || '')
+  const [areasForImprovement, setAreasForImprovement] = useState(existing?.areas_for_improvement || '')
+  const [advice, setAdvice] = useState(existing?.advice || '')
+  const [skipWrittenReview, setSkipWrittenReview] = useState(false)
+
   const [submitting, setSubmitting] = useState(false)
-  const [err, setErr] = useState(null)
+  const [error, setError] = useState(null)
+
+  // Auto-derive overall from the 5 sub-metrics when at least 3 are set
+  // and the user hasn't manually picked an overall yet. Removes the
+  // common "fill out everything except the overall and get blocked" UX.
+  useEffect(() => {
+    const sub = [clarity, engagement, accessibility, fairness, examPrep].filter((x) => x > 0)
+    if (sub.length >= 3 && !rating) {
+      const avg = sub.reduce((a, b) => a + b, 0) / sub.length
+      setRating(Math.round(avg))
+    }
+  }, [clarity, engagement, accessibility, fairness, examPrep])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!rating) { setErr('Pick an overall rating first.'); return }
-    setSubmitting(true); setErr(null)
+    setError(null)
+    if (!rating) { setError('Pick an overall rating (or fill in the 5-axis breakdown and we will derive it)'); return }
+    if (!courseCode.trim()) { setError('Course code is required'); return }
+    setSubmitting(true)
     try {
-      await apiFetch(`/api/professors/${professor.id}/ratings`, {
+      const payload = {
+        rating,
+        difficulty: difficulty || null,
+        would_take_again: wouldTakeAgain,
+        course_code: courseCode.trim() || null,
+        course_title: courseTitle.trim() || null,
+        semester: semester || null,
+        grade_received: grade || null,
+        clarity: clarity || null,
+        engagement: engagement || null,
+        accessibility: accessibility || null,
+        fairness: fairness || null,
+        exam_prep_quality: examPrep || null,
+        attendance_policy: attendance,
+        quiz_type: quizType,
+        exam_types: examTypes.length ? examTypes : null,
+        curves,
+        workload,
+        class_format: classFormat,
+        class_size: classSize,
+        recommendation,
+        best_aspects: skipWrittenReview ? null : (bestAspects.trim() || null),
+        areas_for_improvement: skipWrittenReview ? null : (areasForImprovement.trim() || null),
+        advice: skipWrittenReview ? null : (advice.trim() || null),
+      }
+      const created = await apiFetch(`/api/professors/${professor.id}/ratings`, {
         method: 'POST',
-        body: JSON.stringify({
-          rating,
-          difficulty: difficulty || null,
-          would_take_again: wouldTake,
-          course_code: course || null,
-          comment: comment || null,
-        }),
+        body: JSON.stringify(payload),
       })
-      onSubmitted()
-    } catch (e2) {
-      setErr(e2.message || 'Submit failed')
+      onSubmitted(created)
+    } catch (err) {
+      setError(err?.message || 'Submit failed')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const canSubmit = rating > 0 && !submitting
-
   return (
-    <form onSubmit={submit} className="bg-card border border-lightgray p-5 sm:p-6 space-y-6">
-      <header className="border-b border-lightgray pb-3">
-        <div className="font-archivo font-extrabold text-[0.6rem] uppercase tracking-[0.24em] text-gold mb-1">
-          {existing ? 'Editing your review' : 'Rate this professor'}
-        </div>
-        <h3 className="font-archivo font-black text-[1.15rem] text-navy leading-tight">
-          {professor.name}
-        </h3>
-        {professor.department && (
-          <div className="text-[0.75rem] text-gray mt-0.5 font-archivo font-bold uppercase tracking-wider">
-            {professor.department}
-          </div>
-        )}
-      </header>
+    <form onSubmit={submit} className="bg-card border border-lightgray border-l-[3px] border-l-gold p-5 sm:p-6">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <h2 className="font-editorial font-black text-[1.4rem] sm:text-[1.6rem] leading-none tracking-tight m-0">
+          Rate {professor.name}
+        </h2>
+        <button type="button" onClick={onCancel} className="text-mini font-archivo font-extrabold uppercase tracking-wider text-gray hover:text-ink bg-transparent border-none cursor-pointer">
+          Cancel
+        </button>
+      </div>
+      <p className="text-[0.82rem] text-ink/75 font-prose leading-relaxed mb-5 max-w-[55ch]">
+        Keep it about the classroom — teaching, coursework, your academic experience.
+        Personal attacks, harassment, and off-topic content will be flagged and may be removed.
+      </p>
 
-      {/* Teaching quality — overall rating, renamed for clarity. */}
-      <section>
-        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
-          Teaching quality <span className="text-red">*</span>
-        </label>
-        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
-          How well did they explain material, run the class, and answer questions?
+      <FormSection title="Course information" desc="Required so future students can filter to the section they're considering.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FieldLabel label="Course code" required>
+            <input
+              value={courseCode}
+              onChange={(e) => setCourseCode(e.target.value)}
+              placeholder="e.g. COSC 350"
+              maxLength={30}
+              className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none"
+            />
+          </FieldLabel>
+          <FieldLabel label="Course title">
+            <input
+              value={courseTitle}
+              onChange={(e) => setCourseTitle(e.target.value)}
+              placeholder="Intro to Networking"
+              maxLength={200}
+              className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none"
+            />
+          </FieldLabel>
+          <FieldLabel label="Semester">
+            <select value={semester} onChange={(e) => setSemester(e.target.value)} className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none">
+              {SEMESTER_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Grade received (optional)">
+            <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none">
+              <option value="">Prefer not to say</option>
+              {GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </FieldLabel>
         </div>
-        <StarPicker value={rating} onChange={setRating} labels={RATING_ADJECTIVES} />
-      </section>
+      </FormSection>
 
-      {/* Effort required — stored as "difficulty" on the backend. */}
-      <section>
-        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
-          Effort required
-        </label>
-        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
-          How hard did you have to work for the grade? Reading load, assignment volume, exam prep.
-        </div>
-        <StarPicker value={difficulty} onChange={setDifficulty} labels={DIFFICULTY_ADJECTIVES} />
-      </section>
-
-      {/* Would take again — same yes/no/unsure pill set, bigger tap targets. */}
-      <section>
-        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-2">
-          Would you take them again?
-        </label>
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { label: 'Yes',    v: true,  emoji: '👍' },
-            { label: 'No',     v: false, emoji: '👎' },
-            { label: 'Unsure', v: null,  emoji: '🤷' },
-          ].map((opt) => {
-            const active = wouldTake === opt.v
+      <FormSection title="Rate this professor" desc="1 star = Awful · 5 stars = Exceptional. Skip any axis you can't fairly judge.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          <FieldLabel label="Overall" required>
+            <StarPicker value={rating} onChange={setRating} labels={RATING_ADJECTIVES} />
+          </FieldLabel>
+          <FieldLabel label="Difficulty">
+            <StarPicker value={difficulty} onChange={setDifficulty} labels={DIFFICULTY_ADJECTIVES} />
+          </FieldLabel>
+          {METRIC_AXES.map((m) => {
+            const stateMap = {
+              clarity: [clarity, setClarity],
+              engagement: [engagement, setEngagement],
+              accessibility: [accessibility, setAccessibility],
+              fairness: [fairness, setFairness],
+              exam_prep_quality: [examPrep, setExamPrep],
+            }
+            const [val, setVal] = stateMap[m.key]
             return (
-              <button
-                key={String(opt.v)}
-                type="button"
-                onClick={() => setWouldTake(opt.v)}
-                className={`inline-flex items-center gap-2 text-[0.78rem] font-archivo font-extrabold uppercase tracking-wide py-2.5 px-4 min-h-[44px] rounded-full border-2 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
-                  active
-                    ? 'bg-navy border-navy text-gold shadow-[0_2px_8px_-2px_rgba(11,29,52,0.35)]'
-                    : 'bg-white border-lightgray text-ink/70 hover:border-navy hover:text-navy'
-                }`}
-                aria-pressed={active}
-              >
-                <span aria-hidden>{opt.emoji}</span>
-                {opt.label}
-              </button>
+              <FieldLabel key={m.key} label={m.label}>
+                <StarPicker value={val} onChange={setVal} labels={RATING_ADJECTIVES} size="sm" />
+                <div className="text-[0.66rem] text-gray font-franklin mt-1 leading-tight">{m.hint}</div>
+              </FieldLabel>
             )
           })}
         </div>
-      </section>
+      </FormSection>
 
-      {/* Course code — optional but useful for filtering later. */}
-      <section className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-2 sm:gap-3 sm:items-center">
-        <label className="font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy">
-          Course <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional)</span>
+      <FormSection title="The intel" desc="The practical stuff future students actually need to know.">
+        <FieldLabel label="Attendance policy">
+          <PillSelect value={attendance} onChange={setAttendance} options={ATTENDANCE_OPTIONS} />
+        </FieldLabel>
+        <FieldLabel label="Quizzes">
+          <PillSelect value={quizType} onChange={setQuizType} options={QUIZ_OPTIONS} />
+        </FieldLabel>
+        <FieldLabel label="Exam types (pick all that apply)">
+          <MultiPillSelect value={examTypes} onChange={setExamTypes} options={EXAM_TYPE_OPTIONS} />
+        </FieldLabel>
+        <FieldLabel label="Curves / grade adjustments">
+          <PillSelect value={curves} onChange={setCurves} options={CURVES_OPTIONS} />
+        </FieldLabel>
+      </FormSection>
+
+      <FormSection title="Class details">
+        <FieldLabel label="Workload">
+          <PillSelect value={workload} onChange={setWorkload} options={WORKLOAD_OPTIONS} />
+        </FieldLabel>
+        <FieldLabel label="Format">
+          <PillSelect value={classFormat} onChange={setClassFormat} options={FORMAT_OPTIONS} />
+        </FieldLabel>
+        <FieldLabel label="Class size">
+          <PillSelect value={classSize} onChange={setClassSize} options={SIZE_OPTIONS} />
+        </FieldLabel>
+      </FormSection>
+
+      <FormSection title="Would you recommend this professor?">
+        <PillSelect value={recommendation} onChange={setRecommendation} options={RECOMMENDATION_OPTIONS} />
+        <div className="flex items-center gap-2 text-[0.78rem] font-franklin text-ink/85 mt-2">
+          <span className="font-archivo text-[0.62rem] font-extrabold uppercase tracking-wide text-gray">Would take again?</span>
+          <button type="button" onClick={() => setWouldTakeAgain(wouldTakeAgain === true ? null : true)}
+            className={`text-2xs font-archivo font-extrabold uppercase tracking-wider py-1 px-2.5 border cursor-pointer transition-colors ${
+              wouldTakeAgain === true ? 'bg-success text-white border-success' : 'bg-card text-ink border-lightgray hover:border-navy'
+            }`}>
+            Yes
+          </button>
+          <button type="button" onClick={() => setWouldTakeAgain(wouldTakeAgain === false ? null : false)}
+            className={`text-2xs font-archivo font-extrabold uppercase tracking-wider py-1 px-2.5 border cursor-pointer transition-colors ${
+              wouldTakeAgain === false ? 'bg-danger text-white border-danger' : 'bg-card text-ink border-lightgray hover:border-navy'
+            }`}>
+            No
+          </button>
+        </div>
+      </FormSection>
+
+      <FormSection title="Written review" desc="Three focused prompts. Specific examples beat vague vibes.">
+        <label className="flex items-center gap-2 text-[0.82rem] font-franklin cursor-pointer mb-1">
+          <input type="checkbox" checked={skipWrittenReview} onChange={(e) => setSkipWrittenReview(e.target.checked)} className="accent-navy" />
+          <span>Skip written review — just submit my scores.</span>
         </label>
-        <input
-          value={course}
-          onChange={(e) => setCourse(e.target.value)}
-          placeholder="e.g. COSC 458"
-          maxLength={30}
-          className="w-full bg-white border border-lightgray text-ink text-[0.92rem] py-2.5 px-3.5 outline-none focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/30 transition-colors font-franklin"
-        />
-      </section>
+        {!skipWrittenReview && (
+          <>
+            <FieldLabel label="Best aspects — what does this professor do well?">
+              <textarea value={bestAspects} onChange={(e) => setBestAspects(e.target.value)} rows={3} maxLength={2000}
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin resize-y focus:border-navy focus:outline-none" />
+            </FieldLabel>
+            <FieldLabel label="Areas for improvement">
+              <textarea value={areasForImprovement} onChange={(e) => setAreasForImprovement(e.target.value)} rows={3} maxLength={2000}
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin resize-y focus:border-navy focus:outline-none" />
+            </FieldLabel>
+            <FieldLabel label="Advice to future students">
+              <textarea value={advice} onChange={(e) => setAdvice(e.target.value)} rows={3} maxLength={2000}
+                className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin resize-y focus:border-navy focus:outline-none" />
+            </FieldLabel>
+          </>
+        )}
+      </FormSection>
 
-      {/* Optional free-form comment — the place to say what the stars couldn't. */}
-      <section>
-        <label className="block font-archivo font-extrabold text-[0.72rem] uppercase tracking-[0.18em] text-navy mb-0.5">
-          Anything else? <span className="font-franklin normal-case tracking-normal text-[0.7rem] text-gray/70 italic">(optional)</span>
-        </label>
-        <div className="text-[0.76rem] text-gray mb-2 font-franklin">
-          Tips future students should know, the best assignment, what you&rsquo;d do differently. Keep it honest and respectful.
-        </div>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={4}
-          maxLength={2000}
-          placeholder="Loved the Socratic style, hated the 8am lectures. Bring coffee."
-          className="w-full bg-white border border-lightgray text-ink text-[0.92rem] py-3 px-3.5 outline-none focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/30 transition-colors resize-y font-franklin leading-relaxed"
-        />
-        <div className="text-right text-[0.68rem] text-gray/70 mt-1 tabular-nums">
-          {comment.length}/2000
-        </div>
-      </section>
-
-      {err && (
-        <div className="bg-danger-bg border border-danger-border text-danger px-3 py-2 text-[0.82rem] font-archivo font-bold" role="alert">
-          {err}
-        </div>
+      {error && (
+        <div className="mt-4 bg-danger-bg border border-danger/40 text-danger px-3 py-2 text-mini font-archivo font-bold">{error}</div>
       )}
-
-      <div className="flex gap-2 pt-2 border-t border-lightgray">
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="flex-1 sm:flex-none bg-gold text-navy border-none py-3 px-6 font-archivo text-[0.78rem] font-extrabold uppercase tracking-[0.16em] min-h-[48px] cursor-pointer hover:bg-[#E5A92E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40"
-        >
-          {submitting ? 'Submitting…' : existing ? 'Update review' : 'Post review'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="bg-transparent border border-lightgray py-3 px-5 min-h-[48px] font-archivo text-[0.78rem] font-extrabold uppercase tracking-[0.16em] text-gray hover:text-ink hover:border-navy cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40"
-        >
+      <div className="mt-5 flex items-center gap-2 justify-end">
+        <button type="button" onClick={onCancel} disabled={submitting}
+          className="bg-transparent border border-lightgray text-gray hover:text-ink py-2.5 px-4 font-archivo text-mini font-extrabold uppercase tracking-wider cursor-pointer">
           Cancel
+        </button>
+        <button type="submit" disabled={submitting}
+          className="bg-navy text-gold border-none py-2.5 px-5 font-archivo text-mini font-extrabold uppercase tracking-wider cursor-pointer hover:bg-[#132d4a] disabled:opacity-60">
+          {submitting ? 'Submitting…' : existing ? 'Update rating' : 'Submit rating'}
         </button>
       </div>
     </form>
   )
 }
 
+
+// ---------------------------------------------------------------------------
+// ProfessorDetail — hero + 5-metric breakdown + reviews list
+// ---------------------------------------------------------------------------
+
+function recommendationLabel(value) {
+  const opt = RECOMMENDATION_OPTIONS.find((o) => o.value === value)
+  return opt?.label || null
+}
+
 function ProfessorDetail({ profId, onBack, reloadKey, onReload }) {
-  const { user, isAuthed } = useAuth()
-  const [data, setData] = useState(null)
+  const [prof, setProf] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState(null)
+  const [error, setError] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const formRef = useRef(null)
+  const { user, isAuthed } = useAuth()
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true); setErr(null)
-    apiFetch(`/api/professors/${profId}`)
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setErr(e.message || 'Failed to load') })
+    setLoading(true); setError(null)
+    apiFetch(`/api/professors/${profId}`, { cache: false })
+      .then((data) => { if (!cancelled) setProf(data) })
+      .catch((e) => { if (!cancelled) setError(e?.message || 'Failed to load') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [profId, reloadKey])
 
   const myRating = useMemo(() => {
-    if (!data || !user) return null
-    return data.ratings.find((r) => r.user_id === user.id) || null
-  }, [data, user])
+    if (!prof?.ratings || !user) return null
+    return prof.ratings.find((r) => r.user_id === user.id) || null
+  }, [prof, user])
 
-  const deleteMine = async () => {
-    if (!confirm('Delete your review?')) return
-    try {
-      await apiFetch(`/api/professors/${profId}/ratings/mine`, { method: 'DELETE' })
-      onReload()
-    } catch (e) {
-      alert(e.message || 'Delete failed')
-    }
+  const openForm = () => {
+    if (!isAuthed) { window.location.href = '/login'; return }
+    setShowForm(true)
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
+
+  const onSubmitted = () => {
+    setShowForm(false)
+    onReload?.()
   }
 
   if (loading) {
-    return <div className="bg-card border border-lightgray p-6 text-center text-gray">Loading…</div>
+    return <div className="bg-card border border-lightgray h-[400px] animate-pulse" />
   }
-  if (err || !data) {
+  if (error || !prof) {
     return (
-      <div className="bg-card border border-lightgray p-6 text-center">
-        <div className="text-[#8B1A1A] font-archivo font-bold mb-2">{err || 'Not found'}</div>
-        <button onClick={onBack} className="bg-navy text-white border-none py-2 px-4 font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide cursor-pointer">Back</button>
+      <div className="bg-card border border-lightgray p-5 text-center">
+        <p className="text-gray font-archivo text-mini">{error || 'Not found'}</p>
+        <button onClick={onBack} className="text-navy underline mt-2 cursor-pointer bg-transparent border-none">Back</button>
       </div>
     )
   }
 
-  return (
-    <div className="bg-card border border-lightgray">
-      <div className="px-5 py-4 border-b border-[#EAE7E0] bg-offwhite flex items-center gap-3">
-        <button onClick={onBack} className="bg-transparent border-none text-gray hover:text-ink cursor-pointer text-[1.1rem]">
-          &larr;
-        </button>
-        <div className="w-11 h-11 rounded-full bg-navy text-gold flex items-center justify-center font-archivo font-black text-[0.78rem] shrink-0">
-          {(data.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-archivo font-extrabold text-[1.1rem] leading-tight truncate">{data.name}</h2>
-          <div className="text-[0.72rem] text-gray uppercase tracking-wide font-archivo font-bold truncate">
-            {data.department || 'Department unknown'}
-          </div>
-        </div>
-      </div>
+  const overall = prof.avg_rating
+  const overallTone = overall == null ? 'bg-offwhite text-gray border-lightgray'
+    : overall >= 4 ? 'bg-[#0F5E54] text-white border-[#0F5E54]'
+    : overall >= 3 ? 'bg-gold text-navy border-gold'
+    : overall >= 2 ? 'bg-[#8B6914] text-white border-[#8B6914]'
+    : 'bg-danger text-white border-danger'
 
-      {data.rating_count > 0 ? (
-        <div className="px-5 py-4 grid grid-cols-3 gap-3 border-b border-[#EAE7E0]">
-          <Stat
-            label="Overall"
-            value={data.avg_rating != null ? data.avg_rating.toFixed(1) : '-'}
-            sub={data.avg_rating != null ? <Stars value={data.avg_rating} /> : null}
-          />
-          <Stat
-            label="Difficulty"
-            value={data.avg_difficulty != null ? data.avg_difficulty.toFixed(1) : '-'}
-            sub={data.avg_difficulty != null ? <Stars value={data.avg_difficulty} /> : null}
-          />
-          <Stat
-            label="Take again"
-            value={data.would_take_again_pct != null ? `${data.would_take_again_pct}%` : '-'}
-          />
-        </div>
-      ) : (
-        <div className="px-5 py-8 border-b border-[#EAE7E0] flex flex-col items-center text-center">
-          <div className="text-lightgray text-[2.1rem] leading-none mb-2 tracking-[0.1em]" aria-hidden>
-            &#9734;&#9734;&#9734;&#9734;&#9734;
-          </div>
-          <div className="font-archivo font-black text-[1.05rem] text-navy">No ratings yet</div>
-          <div className="text-[0.82rem] text-gray mt-1 max-w-[360px]">
-            Be the first to share what this class was really like.
-          </div>
-        </div>
+  return (
+    <div className="space-y-5">
+      {onBack && (
+        <button onClick={onBack} className="text-mini font-archivo font-extrabold uppercase tracking-wider text-gray hover:text-ink bg-transparent border-none cursor-pointer">
+          ← Back to list
+        </button>
       )}
 
-      <div className="px-5 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-archivo font-extrabold text-[0.75rem] uppercase tracking-widest text-navy">
-            {data.rating_count} {data.rating_count === 1 ? 'review' : 'reviews'}
+      {/* HERO */}
+      <header className="bg-card border border-lightgray border-l-[3px] border-l-gold p-5 sm:p-6">
+        <div className="flex items-start gap-4 flex-wrap">
+          <div className={`w-[88px] h-[88px] sm:w-[100px] sm:h-[100px] rounded-full border-4 ${overallTone} flex flex-col items-center justify-center shrink-0`}>
+            <div className="font-editorial font-black text-[2rem] sm:text-[2.4rem] leading-none">
+              {overall == null ? '—' : overall.toFixed(1)}
+            </div>
+            <div className="text-[0.55rem] font-archivo font-extrabold uppercase tracking-wider opacity-80 mt-0.5">
+              {prof.rating_count || 0} {prof.rating_count === 1 ? 'review' : 'reviews'}
+            </div>
           </div>
-          {isAuthed && !showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-gold text-navy border-none py-[6px] px-3 font-archivo text-[0.68rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors"
-            >
-              {myRating ? 'Edit my review' : '+ Write a review'}
+          <div className="flex-1 min-w-0">
+            <h1 className="font-editorial font-black text-[2rem] sm:text-[2.6rem] leading-none tracking-tight m-0 italic">
+              {prof.name}
+            </h1>
+            <div className="text-mini text-gray font-archivo uppercase tracking-wider mt-2">
+              {prof.department || 'Department unknown'}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3 text-[0.85rem] font-archivo">
+              {prof.would_take_again_pct != null && (
+                <Stat label="Would take again" value={`${prof.would_take_again_pct}%`} tone={prof.would_take_again_pct >= 70 ? 'success' : prof.would_take_again_pct >= 40 ? 'warning' : 'danger'} />
+              )}
+              {prof.avg_difficulty != null && (
+                <Stat label="Difficulty" value={prof.avg_difficulty.toFixed(1)} tone="neutral" />
+              )}
+            </div>
+          </div>
+          <div className="shrink-0">
+            <button onClick={openForm}
+              className="bg-gold text-navy border-none py-3 px-5 font-archivo text-mini font-extrabold uppercase tracking-wider cursor-pointer hover:bg-[#E5A92E] transition-colors">
+              {myRating ? 'Update your rating' : 'Rate this professor'}
             </button>
-          )}
-          {!isAuthed && (
-            <Link to="/login" className="text-navy font-archivo text-[0.7rem] font-extrabold uppercase tracking-wide no-underline hover:text-gold">
-              Sign in to review &rarr;
-            </Link>
-          )}
+          </div>
         </div>
 
-        {showForm && (
-          <div className="mb-4">
-            <RatingForm
-              professor={data}
-              existing={myRating}
-              onCancel={() => setShowForm(false)}
-              onSubmitted={() => { setShowForm(false); onReload() }}
-            />
-          </div>
-        )}
-
-        {data.ratings.length === 0 ? null : (
-          <div className="space-y-3">
-            {data.ratings.map((r) => (
-              <div key={r.id} className="bg-offwhite border border-lightgray px-4 py-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Stars value={r.rating} />
-                  <span className="font-archivo font-extrabold text-[0.8rem]">{r.rating}</span>
-                  {r.course_code && (
-                    <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-[#D1E3F5] text-navy">
-                      {r.course_code}
-                    </span>
-                  )}
-                  {r.would_take_again === true && (
-                    <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-[#D0EDE9] text-[#0F5E54]">
-                      Would take again
-                    </span>
-                  )}
-                  {r.would_take_again === false && (
-                    <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-sm bg-[#F5D5D0] text-[#8B1A1A]">
-                      Would not retake
-                    </span>
-                  )}
-                  {r.difficulty && (
-                    <span className="text-[0.68rem] text-gray font-archivo">
-                      Difficulty: {r.difficulty}/5
-                    </span>
-                  )}
-                  {user && r.user_id === user.id && (
-                    <button
-                      onClick={deleteMine}
-                      className="ml-auto text-[0.65rem] text-gray hover:text-[#8B1A1A] cursor-pointer bg-transparent border-none font-archivo font-bold uppercase tracking-wide"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-                {r.comment && (
-                  <div className="text-[0.85rem] text-ink leading-relaxed whitespace-pre-wrap">{r.comment}</div>
-                )}
-                <div className="text-[0.68rem] text-gray mt-1.5">
-                  {r.author?.name || 'Anonymous'}
-                  {r.created_at && <> &middot; {new Date(r.created_at).toLocaleDateString()}</>}
-                </div>
-              </div>
+        {/* 5-axis breakdown */}
+        {prof.rating_count > 0 && (
+          <div className="mt-6 pt-5 border-t border-divider grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            {METRIC_AXES.map((m) => (
+              <MetricBar key={m.key} label={m.label} hint={m.hint} value={prof[`avg_${m.key}`]} />
             ))}
           </div>
         )}
-      </div>
+      </header>
+
+      {/* RATING FORM (slides in) */}
+      {showForm && (
+        <div ref={formRef}>
+          <RatingForm
+            professor={prof}
+            existing={myRating}
+            onSubmitted={onSubmitted}
+            onCancel={() => setShowForm(false)}
+          />
+        </div>
+      )}
+
+      {/* REVIEWS */}
+      <section>
+        <div className="flex items-baseline gap-3 mb-3">
+          <h2 className="font-editorial font-black text-[1.4rem] tracking-tight m-0">
+            Student reviews
+          </h2>
+          <span aria-hidden className="h-px flex-1 bg-lightgray" />
+          <span className="text-2xs text-gray font-archivo uppercase tracking-wider tabular-nums">
+            {prof.ratings.length} {prof.ratings.length === 1 ? 'review' : 'reviews'}
+          </span>
+        </div>
+        {prof.ratings.length === 0 ? (
+          <div className="bg-card border border-dashed border-lightgray px-5 py-10 text-center">
+            <div className="font-editorial italic text-[1.2rem] text-gray leading-snug mb-1">“Be the first.”</div>
+            <p className="text-mini text-gray font-archivo uppercase tracking-wider">No reviews yet for {prof.name}.</p>
+          </div>
+        ) : (
+          <ul className="list-none p-0 m-0 space-y-3">
+            {prof.ratings.map((r) => <ReviewCard key={r.id} review={r} />)}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }
 
-function Stat({ label, value, sub }) {
+function Stat({ label, value, tone = 'neutral' }) {
+  const toneCls = tone === 'success' ? 'bg-success-bg text-success'
+    : tone === 'warning' ? 'bg-warning-bg text-warning'
+    : tone === 'danger' ? 'bg-danger-bg text-danger'
+    : 'bg-offwhite text-ink/85 border border-lightgray'
   return (
-    <div className="text-center">
-      <div className="font-archivo font-black text-[1.6rem] text-navy leading-none">{value}</div>
-      {sub && <div className="mt-1">{sub}</div>}
-      <div className="text-[0.6rem] uppercase tracking-widest text-gray font-archivo font-extrabold mt-1">{label}</div>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-sm font-archivo text-[0.72rem] font-extrabold uppercase tracking-wider ${toneCls}`}>
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </span>
+  )
+}
+
+
+function ReviewCard({ review }) {
+  const courseLabel = [review.course_code, review.course_title].filter(Boolean).join(' · ')
+  const recLabel = recommendationLabel(review.recommendation)
+  return (
+    <li className="bg-card border border-lightgray border-l-[3px] border-l-navy/60 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Stars value={review.rating} size="1.05rem" />
+            <span className="font-archivo font-extrabold text-[0.92rem] tabular-nums text-ink">{review.rating}.0</span>
+            {review.difficulty != null && (
+              <span className="text-2xs text-gray font-archivo uppercase tracking-wider">
+                · Difficulty {review.difficulty}/5
+              </span>
+            )}
+          </div>
+          {courseLabel && (
+            <div className="font-archivo font-bold text-[0.84rem] text-ink/85 mt-1.5">{courseLabel}</div>
+          )}
+          <div className="text-2xs text-gray font-archivo uppercase tracking-wider mt-0.5">
+            {review.semester || ''}{review.grade_received ? ` · Grade ${review.grade_received}` : ''}
+            {review.author?.name && (
+              <> · {review.author.name}{review.author.major ? ` (${review.author.major})` : ''}</>
+            )}
+          </div>
+        </div>
+        {recLabel && (
+          <span className={`shrink-0 font-archivo text-2xs font-extrabold uppercase tracking-wider py-1 px-2.5 rounded-sm ${
+            review.recommendation === 'absolutely_yes' || review.recommendation === 'yes'
+              ? 'bg-success text-white'
+              : review.recommendation === 'only_if_no_choice'
+              ? 'bg-[#8B6914] text-white'
+              : 'bg-danger text-white'
+          }`}>
+            {recLabel}
+          </span>
+        )}
+      </div>
+
+      {/* 5-axis chips */}
+      {(review.clarity || review.engagement || review.accessibility || review.fairness || review.exam_prep_quality) && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {METRIC_AXES.map((m) => {
+            const v = review[m.key]
+            if (v == null) return null
+            return (
+              <span key={m.key} className="font-archivo text-2xs font-extrabold uppercase tracking-wider py-1 px-2 bg-offwhite border border-lightgray text-ink/85">
+                {m.label} {v}/5
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Intel pills */}
+      {(review.attendance_policy || review.quiz_type || review.curves || review.workload || review.class_format || review.class_size) && (
+        <div className="mt-3 flex flex-wrap gap-1.5 text-2xs font-archivo">
+          {review.attendance_policy && <Tag>Attendance: {humanize(review.attendance_policy)}</Tag>}
+          {review.quiz_type && <Tag>Quizzes: {humanize(review.quiz_type)}</Tag>}
+          {review.curves && <Tag>Curves: {humanize(review.curves)}</Tag>}
+          {review.workload && <Tag>Workload: {humanize(review.workload)}</Tag>}
+          {review.class_format && <Tag>{humanize(review.class_format)}</Tag>}
+          {review.class_size && <Tag>{humanize(review.class_size)} class</Tag>}
+        </div>
+      )}
+
+      {/* Written review prompts */}
+      <div className="mt-4 space-y-3">
+        {review.best_aspects && <PromptedQuote prompt="What this professor did well" body={review.best_aspects} />}
+        {review.areas_for_improvement && <PromptedQuote prompt="Areas for improvement" body={review.areas_for_improvement} />}
+        {review.advice && <PromptedQuote prompt="Advice to future students" body={review.advice} />}
+        {review.comment && !review.best_aspects && !review.areas_for_improvement && !review.advice && (
+          <PromptedQuote prompt="Comment" body={review.comment} />
+        )}
+      </div>
+    </li>
+  )
+}
+
+function PromptedQuote({ prompt, body }) {
+  return (
+    <div>
+      <div className="font-archivo text-[0.62rem] font-extrabold uppercase tracking-wider text-gray mb-1">{prompt}</div>
+      <p className="text-[0.92rem] font-prose text-ink/85 leading-[1.55] m-0 whitespace-pre-wrap border-l-2 border-divider pl-3">
+        {body}
+      </p>
     </div>
   )
 }
+
+function Tag({ children }) {
+  return (
+    <span className="font-archivo text-2xs font-extrabold uppercase tracking-wider py-1 px-2 bg-offwhite border border-lightgray text-ink/85 rounded-sm">
+      {children}
+    </span>
+  )
+}
+
+function humanize(s) {
+  if (!s) return ''
+  return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+
+// ---------------------------------------------------------------------------
+// Add-a-professor form (kept simple — name + department; reused in panel)
+// ---------------------------------------------------------------------------
 
 function AddProfessorForm({ onAdded, onCancel }) {
   const [name, setName] = useState('')
-  const [dept, setDept] = useState('')
-  const [err, setErr] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [department, setDepartment] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
 
   const submit = async (e) => {
     e.preventDefault()
-    if (name.trim().length < 2) { setErr('Enter a full name.'); return }
-    setSubmitting(true); setErr(null)
+    setBusy(true); setError(null)
     try {
-      const prof = await apiFetch('/api/professors', {
+      const created = await apiFetch('/api/professors', {
         method: 'POST',
-        body: JSON.stringify({ name: name.trim(), department: dept.trim() || null }),
+        body: JSON.stringify({ name: name.trim(), department: department.trim() || null }),
       })
-      onAdded(prof)
-    } catch (e2) {
-      setErr(e2.message || 'Failed to add')
+      onAdded(created)
+    } catch (err) {
+      setError(err?.message || 'Failed to add professor')
     } finally {
-      setSubmitting(false)
+      setBusy(false)
     }
   }
 
   return (
-    <form onSubmit={submit} className="bg-offwhite border border-lightgray px-4 py-4 mb-4">
-      <div className="font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest text-navy mb-3">Add a professor</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Dr. Jane Smith"
-          maxLength={150}
-          className="bg-card border border-lightgray text-ink text-[0.85rem] py-2 px-3 outline-none focus:border-navy"
-        />
-        <input
-          value={dept}
-          onChange={(e) => setDept(e.target.value)}
-          placeholder="Computer Science"
-          maxLength={100}
-          className="bg-card border border-lightgray text-ink text-[0.85rem] py-2 px-3 outline-none focus:border-navy"
-        />
-      </div>
-      <div className="text-[0.7rem] text-gray mb-3">
-        Use the professor's real name. Don't post anything false or defamatory. Reviews are moderated.
-      </div>
-      {err && <div className="text-[0.75rem] text-[#8B1A1A] font-archivo font-bold mb-2">{err}</div>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-navy text-white border-none py-2 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#0a182b] transition-colors disabled:opacity-60"
-        >
-          {submitting ? 'Adding…' : 'Add'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="bg-transparent border border-lightgray py-2 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide text-gray hover:text-ink cursor-pointer"
-        >
-          Cancel
-        </button>
+    <form onSubmit={submit} className="bg-card border border-lightgray p-4">
+      <h3 className="font-archivo font-extrabold text-[0.82rem] uppercase tracking-wider mb-3">Add a professor</h3>
+      <div className="space-y-3">
+        <FieldLabel label="Full name" required>
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} required
+            placeholder="e.g. Dr. Jane Smith"
+            className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none" />
+        </FieldLabel>
+        <FieldLabel label="Department">
+          <input value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={100}
+            placeholder="Computer Science"
+            className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none" />
+        </FieldLabel>
+        {error && <div className="text-mini text-danger font-archivo font-bold">{error}</div>}
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onCancel} disabled={busy}
+            className="bg-transparent border border-lightgray text-gray py-2 px-3 font-archivo text-mini font-extrabold uppercase tracking-wider cursor-pointer">
+            Cancel
+          </button>
+          <button type="submit" disabled={busy || !name.trim()}
+            className="bg-navy text-gold border-none py-2 px-3 font-archivo text-mini font-extrabold uppercase tracking-wider cursor-pointer hover:bg-[#132d4a] disabled:opacity-60">
+            {busy ? '…' : 'Add'}
+          </button>
+        </div>
       </div>
     </form>
   )
 }
 
+
+// ---------------------------------------------------------------------------
+// Page shell — split-pane layout: list on the left, detail on the right
+// ---------------------------------------------------------------------------
+
 function Professors() {
-  const { isAuthed } = useAuth()
-  const [professors, setProfessors] = useState([])
+  const [profs, setProfs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState(null)
-  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
   const [sort, setSort] = useState('top')
-  const [selectedId, setSelectedId] = useState(null)
+  const [active, setActive] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const { isAuthed } = useAuth()
 
+  const loadList = () => {
+    setLoading(true)
+    const params = new URLSearchParams({ sort, limit: '50' })
+    if (search.trim()) params.set('q', search.trim())
+    apiFetch(`/api/professors?${params.toString()}`, { cache: false })
+      .then((data) => setProfs(data || []))
+      .catch(() => setProfs([]))
+      .finally(() => setLoading(false))
+  }
+
+  // Initial + sort changes
+  useEffect(() => { loadList() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [sort, reloadKey])
+  // Debounced search
   useEffect(() => {
-    let cancelled = false
-    setLoading(true); setErr(null)
-    const params = new URLSearchParams({ sort, limit: '100' })
-    if (query.trim()) params.set('q', query.trim())
-    apiFetch(`/api/professors?${params.toString()}`)
-      .then((d) => { if (!cancelled) setProfessors(d) })
-      .catch((e) => { if (!cancelled) setErr(e.message || 'Failed to load') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [query, sort, reloadKey])
+    const id = setTimeout(loadList, 250)
+    return () => clearTimeout(id)
+  }, [search])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selected = useMemo(() => professors.find((p) => p.id === selectedId), [professors, selectedId])
+  const onAdded = (created) => {
+    setShowAdd(false)
+    setProfs((prev) => {
+      // Move to top if already present, otherwise prepend.
+      const exists = prev.find((p) => p.id === created.id)
+      const rest = prev.filter((p) => p.id !== created.id)
+      return [created, ...rest]
+    })
+    setActive(created)
+  }
 
   return (
-    <div>
-      <div className="bg-navy px-6 pt-10 pb-9">
-        <div className="max-w-[1080px] mx-auto flex justify-between items-end gap-10 flex-col md:flex-row md:items-end">
-          <div className="max-w-[560px]">
-            <h1 className="font-archivo font-black text-[1.85rem] sm:text-[2.4rem] text-white leading-[1.05] tracking-tight uppercase">
-              Rate your <span className="text-gold block">professors</span>
-            </h1>
-            <p className="text-white/50 text-[0.92rem] mt-3 leading-relaxed max-w-[440px]">
-              Help Morgan students pick the right class. Review honestly, stay respectful. Nothing false or personal.
-            </p>
-          </div>
-          <div className="flex gap-8">
-            <HeaderNum value={professors.length} label="Professors" />
-            <HeaderNum
-              value={professors.reduce((sum, p) => sum + (p.rating_count || 0), 0)}
-              label="Reviews"
-            />
-          </div>
-        </div>
-      </div>
-      <hr className="h-[3px] bg-gold border-none m-0" />
+    <div className="min-h-[60vh] max-w-[1240px] mx-auto px-4 sm:px-6 py-6">
+      <header className="mb-5">
+        <h1 className="font-editorial font-black text-[2.2rem] sm:text-[2.8rem] leading-none tracking-tight m-0">
+          Professors
+        </h1>
+        <p className="text-mini text-gray font-archivo uppercase tracking-wider mt-2">
+          Honest, anonymous-friendly reviews from Bears who actually took the class.
+        </p>
+      </header>
 
-      <div className="max-w-[1080px] mx-auto px-6 py-7 grid grid-cols-1 md:grid-cols-[360px_1fr] gap-6">
-        <aside>
-          <div className="mb-3">
+      <div className="grid lg:grid-cols-[420px_minmax(0,1fr)] gap-5">
+        {/* LEFT: list */}
+        <aside className="space-y-3 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pr-1">
+          <div className="bg-card border border-lightgray p-3 space-y-2">
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Name, department, or course (e.g. COSC 458)..."
-              className="w-full bg-card border border-lightgray text-ink text-[0.85rem] py-2.5 px-3.5 outline-none focus:border-navy transition-colors placeholder:text-gray"
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, department, or course code…"
+              className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
             />
-            <div className="mt-1.5 text-[0.68rem] text-gray font-archivo leading-snug">
-              Try "Wang", "Computer Science", "Mathematics", or a course code
-              like "COSC 458".
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <SortChip value="top" current={sort} onChange={setSort}>Top rated</SortChip>
+              <SortChip value="new" current={sort} onChange={setSort}>New</SortChip>
+              <SortChip value="controversial" current={sort} onChange={setSort}>Controversial</SortChip>
+              {isAuthed && (
+                <button onClick={() => setShowAdd((v) => !v)}
+                  className="ml-auto text-2xs font-archivo font-extrabold uppercase tracking-wider py-1.5 px-2.5 bg-navy text-gold border-none cursor-pointer hover:bg-[#132d4a]">
+                  {showAdd ? 'Close' : '+ Add'}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-1 bg-offwhite border border-lightgray rounded-full p-1 mb-3 w-fit">
-            {['top', 'new', 'controversial'].map((s) => (
-              <button
-                key={s}
-                onClick={() => setSort(s)}
-                className={`font-archivo text-[0.65rem] font-extrabold uppercase tracking-wide py-[5px] px-3 rounded-full cursor-pointer transition-all ${
-                  sort === s ? 'bg-navy text-white shadow-[0_1px_3px_rgba(11,29,52,0.25)]' : 'text-gray hover:text-ink'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          {isAuthed && !showAdd && (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="w-full bg-gold text-navy border-none py-2.5 px-4 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wide cursor-pointer hover:bg-[#E5A92E] transition-colors mb-3"
-            >
-              + Add a professor
-            </button>
-          )}
-
-          {showAdd && (
-            <AddProfessorForm
-              onAdded={(p) => { setShowAdd(false); setReloadKey((k) => k + 1); setSelectedId(p.id) }}
-              onCancel={() => setShowAdd(false)}
-            />
-          )}
+          {showAdd && <AddProfessorForm onAdded={onAdded} onCancel={() => setShowAdd(false)} />}
 
           {loading ? (
-            <div className="bg-card border border-lightgray px-4 py-8 text-center text-gray">Loading professors…</div>
-          ) : err ? (
-            <div className="bg-card border border-lightgray px-4 py-4 text-center text-[#8B1A1A]">{err}</div>
-          ) : professors.length === 0 ? (
-            <div className="bg-card border border-lightgray px-4 py-8 text-center text-gray text-[0.85rem]">
-              {query ? `No matches for "${query}".` : 'No professors yet.'}
-              {isAuthed && <> <br/><span className="text-navy">Add one above.</span></>}
+            <div className="space-y-2">
+              {[1,2,3,4].map((i) => <div key={i} className="bg-card border border-lightgray h-[80px] animate-pulse" />)}
+            </div>
+          ) : profs.length === 0 ? (
+            <div className="bg-card border border-dashed border-lightgray px-4 py-8 text-center">
+              <div className="font-editorial italic text-[1.05rem] text-gray leading-snug mb-1">“No matches.”</div>
+              <p className="text-2xs text-gray font-archivo uppercase tracking-wider">
+                {search.trim() ? 'Try a different search.' : 'Be the first to add one.'}
+              </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {professors.map((p) => (
-                <ProfessorCard key={p.id} prof={p} onOpen={(x) => setSelectedId(x.id)} active={selectedId === p.id} />
+            <ul className="list-none p-0 m-0 space-y-2">
+              {profs.map((p) => (
+                <li key={p.id}>
+                  <ProfessorCard prof={p} onOpen={setActive} active={active?.id === p.id} />
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </aside>
 
-        <div>
-          {selected ? (
+        {/* RIGHT: detail */}
+        <main>
+          {active ? (
             <ProfessorDetail
-              profId={selected.id}
-              onBack={() => setSelectedId(null)}
+              profId={active.id}
+              onBack={() => setActive(null)}
               reloadKey={reloadKey}
               onReload={() => setReloadKey((k) => k + 1)}
             />
           ) : (
-            <div className="bg-card border border-lightgray px-6 py-16 text-center">
-              <div className="text-[2.5rem] mb-3">&#127891;</div>
-              <div className="font-archivo font-extrabold text-[1.1rem] text-navy mb-2">Pick a professor</div>
-              <div className="text-[0.85rem] text-gray max-w-[320px] mx-auto">
-                Search for one on the left, or add a new professor if you don't see them yet.
+            <div className="bg-card border border-dashed border-lightgray px-6 py-16 text-center">
+              <div className="font-editorial italic text-[1.4rem] text-gray leading-snug mb-2">
+                “Pick a professor.”
               </div>
+              <p className="text-mini text-gray font-archivo uppercase tracking-wider">
+                Tap any professor on the left to see ratings, the 5-axis breakdown, and student advice.
+              </p>
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   )
 }
 
-function HeaderNum({ value, label }) {
+function SortChip({ value, current, onChange, children }) {
+  const active = value === current
   return (
-    <div className="text-right">
-      <div className="font-archivo font-black text-[2rem] text-gold leading-none tracking-tight">{value}</div>
-      <div className="text-white/35 text-[0.68rem] uppercase tracking-widest font-semibold mt-1">{label}</div>
-    </div>
+    <button onClick={() => onChange(value)}
+      className={`text-2xs font-archivo font-extrabold uppercase tracking-wider py-1.5 px-2.5 border cursor-pointer transition-colors ${
+        active ? 'bg-navy text-gold border-navy' : 'bg-card text-ink border-lightgray hover:border-navy'
+      }`}>
+      {children}
+    </button>
   )
 }
 
