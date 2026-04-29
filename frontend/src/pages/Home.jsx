@@ -1292,8 +1292,8 @@ function PostCard({ post, onUpdated, onDeleted }) {
           </div>
         )}
         {post.body && (
-          <div className="text-[0.88rem] text-ink/80 leading-relaxed whitespace-pre-wrap line-clamp-3 mb-3">
-            {post.body}
+          <div className="text-[0.95rem] text-ink/85 leading-[1.55] whitespace-pre-wrap line-clamp-3 mb-3 font-prose">
+            {post.body.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')}
           </div>
         )}
       </div>
