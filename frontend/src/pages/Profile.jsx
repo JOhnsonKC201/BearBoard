@@ -406,15 +406,69 @@ function Nameplate({ user, palette, avatarUrl, isSelf, onEdit, onPickAvatar, onC
 
 /* =========================================================================
  * BioQuote — bio rendered as an editorial pull quote.
+ *
+ * When a user hasn't written a bio, instead of every empty profile reading
+ * the same line, we deterministically pick one MSU-themed placeholder per
+ * user_id. Stable for that user (so it doesn't flip on each refresh) but
+ * different across users, so two un-bio'd profiles don't read identically.
  * ========================================================================= */
+
+// Bio placeholders — short MSU-flavored lines, motivational quotes, and
+// student "voices." Mix of original copy and quotes from MSU alumni / Black
+// leaders. Keep each ~1-2 sentences max so the pull-quote layout stays clean.
+const BIO_PLACEHOLDERS = [
+  'On the Yard, between classes, just trying to make it work.',
+  'Bear by acceptance, Morganite by choice.',
+  '“Education is the great equalizer.” — Kweisi Mfume, Morgan State \'76',
+  'Probably in the library. Probably overcaffeinated.',
+  'Came to Morgan to do something that matters. Still figuring out what.',
+  'Eight semesters. Two majors thought about. One degree to finish.',
+  'Still learning the campus. Still learning myself.',
+  '“Excellence is to do a common thing in an uncommon way.” — Booker T. Washington',
+  'Group project survivor. Office hours regular.',
+  'Loud at the games, quiet in the stacks.',
+  '“Nothing will work unless you do.” — Maya Angelou',
+  'Building something, somewhere, with somebody. Hopefully soon.',
+  '“If they don\'t give you a seat at the table, bring a folding chair.” — Shirley Chisholm',
+  'Morgan made me. Or it\'s about to.',
+  'Trying to leave the campus better than I found it.',
+  '“The fuel that ignites the engine of opportunity is education.” — Robert F. Smith',
+  'Bear pride. Library hours. Mac and cheese on Sundays.',
+  'A work in progress, like everybody else.',
+  '“It always seems impossible until it\'s done.” — Nelson Mandela',
+  'Studying hard. Showing up. Figuring it out.',
+]
+
+function pickPlaceholder(user) {
+  // Prefer a deterministic pick keyed off user_id so the same user always
+  // sees the same line. Falls back to a hash of the user's name when id is
+  // unavailable (shouldn't happen in practice, but defensive).
+  const seed = user?.id ?? hashString(user?.name || user?.email || 'anon')
+  const i = Math.abs(seed) % BIO_PLACEHOLDERS.length
+  return BIO_PLACEHOLDERS[i]
+}
+
+function hashString(s) {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i)
+    h |= 0
+  }
+  return h
+}
+
 function BioQuote({ user, isSelf, onEdit }) {
   const text = (user.bio || '').trim()
+  // Sprinkle the major + grad year into the placeholder when we have it,
+  // so the line reads at least slightly tailored. About 1-in-3 placeholders
+  // pair naturally with a follow-up sentence.
   const fallback = (() => {
+    const base = pickPlaceholder(user)
     if (user.major && user.graduation_year) {
-      return `Studying ${user.major}, Class of ${user.graduation_year} at Morgan State. A quiet reader, an occasional poster.`
+      return `${base} ${user.major}, Class of ${user.graduation_year}.`
     }
-    if (user.major) return `${user.major} student at Morgan State. New to BearBoard.`
-    return 'A Morgan State student on BearBoard.'
+    if (user.major) return `${base} ${user.major} at Morgan State.`
+    return base
   })()
   const body = text || fallback
   const letter = body.charAt(0)

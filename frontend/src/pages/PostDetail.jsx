@@ -198,15 +198,12 @@ function PostDetail() {
         </div>
       </div>
 
-      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-[64px_1fr_260px] gap-6 lg:gap-8">
-        {/* LEFT: vote rail (desktop) — sticky as the user scrolls long posts/comments */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-6">
-            <PostVoteRail post={post} onUpdate={(patch) => setPost((p) => ({ ...p, ...patch }))} />
-          </div>
-        </aside>
-
-        {/* CENTER: featured article + comments */}
+      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 lg:gap-8">
+        {/* CENTER: featured article + comments. The side vote rail was
+            removed in favor of an inline vote control on the same bar as
+            Reply / Save / Share — matches the Facebook pattern the user
+            asked for and prevents the article from feeling disconnected
+            from its actions. */}
         <main className="min-w-0">
           <article className="bg-card border border-lightgray border-l-[3px] border-l-gold relative">
             {/* Featured-article header */}
@@ -261,12 +258,7 @@ function PostDetail() {
             )}
 
             {/* Body — editorial column */}
-            <div className="px-5 sm:px-8 py-6">
-              {/* Mobile vote rail (lg:hidden) — surfaces voting on small screens */}
-              <div className="lg:hidden mb-5">
-                <PostVoteRail post={post} onUpdate={(patch) => setPost((p) => ({ ...p, ...patch }))} horizontal />
-              </div>
-
+            <div className="px-5 sm:px-8 py-6 pb-3">
               <div className="font-prose text-[1.05rem] sm:text-[1.1rem] text-ink leading-[1.6] whitespace-pre-wrap selection:bg-gold/30">
                 {/* Drop-cap on the first letter of long posts */}
                 {(post.body || '').length > 240 ? (
@@ -282,9 +274,16 @@ function PostDetail() {
               </div>
             </div>
 
-            {/* Action bar — share / save / jump-to-reply */}
-            <div className="px-5 sm:px-8 py-3 border-t border-divider flex items-center gap-2 flex-wrap bg-offwhite/40">
-              <ActionButtons post={post} onJumpToReply={focusComposer} commentCount={commentCount} />
+            {/* Action bar — vote / reply / save / share, all on one row.
+                No top border + no offwhite tint so it reads as a continuation
+                of the article body rather than a disconnected footer. */}
+            <div className="px-5 sm:px-8 pb-5 flex items-center gap-2 flex-wrap">
+              <ActionButtons
+                post={post}
+                onJumpToReply={focusComposer}
+                commentCount={commentCount}
+                onPostUpdate={(patch) => setPost((p) => ({ ...p, ...patch }))}
+              />
             </div>
           </article>
 
@@ -586,7 +585,7 @@ function PostVoteRail({ post, onUpdate, horizontal = false }) {
 /* -------------------------------------------------------------------------- */
 /*  ActionButtons — share, save, jump-to-reply for the post.                  */
 /* -------------------------------------------------------------------------- */
-function ActionButtons({ post, onJumpToReply, commentCount }) {
+function ActionButtons({ post, onJumpToReply, commentCount, onPostUpdate }) {
   const [saved, setSaved] = useState(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('bb:saved') || '[]')
@@ -619,10 +618,16 @@ function ActionButtons({ post, onJumpToReply, commentCount }) {
     setTimeout(() => setShareState(null), 1800)
   }
 
-  const btn = 'inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-mini font-archivo font-bold border-none cursor-pointer transition-colors'
+  const btn = 'inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-mini font-archivo font-bold border-none cursor-pointer transition-colors'
 
   return (
     <>
+      {/* Inline vote control — same pill style as the action chips so the
+          row reads as one coherent action bar (Facebook-style). The
+          PostVoteRail in horizontal mode is rounded + has its own
+          internal up/score/down layout so it slots right in. */}
+      <PostVoteRail post={post} onUpdate={onPostUpdate} horizontal />
+
       <button
         type="button"
         onClick={onJumpToReply}
