@@ -7,40 +7,63 @@ const STATS = [
   { value: 'CST', label: 'Spring 26' },
 ]
 
-// Motion variants. Kept here (not at module scope) is fine — small enough
-// that re-creating per render isn't worth a useMemo. The stagger numbers are
-// dialed in to feel snappy on a 16ms display tick: ~80ms between siblings,
-// ~280ms total to settle.
+// Motion variants. Bumped from "tasteful" to "actually noticeable" — bigger
+// travel distances, slightly slower so the eye can read the motion, longer
+// stagger between siblings so each piece registers as its own entrance.
 const easeOut = [0.22, 0.61, 0.36, 1]
+const easeBack = [0.16, 1, 0.32, 1]   // overshoot-y "pop" curve
 
 const heroContainer = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+    transition: { staggerChildren: 0.14, delayChildren: 0.1 },
   },
 }
 
 const heroChild = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: easeOut } },
+  initial: { opacity: 0, y: 40 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeBack } },
 }
 
 const heroChildLeft = {
-  initial: { opacity: 0, x: -18 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.55, ease: easeOut } },
+  initial: { opacity: 0, x: -50 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.75, ease: easeBack } },
 }
 
 const formPanel = {
-  initial: { opacity: 0, x: 28 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.55, ease: easeOut, delay: 0.1 } },
+  initial: { opacity: 0, x: 80, scale: 0.96 },
+  animate: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.8, ease: easeBack, delay: 0.2 } },
 }
 
-// Mobile-only entrance for the form card — slides up from below the hero
-// instead of in from the right (it sits below the hero on small screens).
-const formPanelMobile = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut, delay: 0.15 } },
+// Word-by-word reveal for the hero headline. Each word slides up + fades in,
+// 70ms apart, so the headline reads as a typed-in / staged moment instead
+// of arriving as one block.
+const wordContainer = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.07 } },
+}
+const wordChild = {
+  initial: { opacity: 0, y: 28, rotateX: -45 },
+  animate: { opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.55, ease: easeBack } },
+}
+
+function AnimatedHeadline({ children, className }) {
+  // Splits the visible text into words, wraps each in a motion.span. The
+  // outer span has overflow-hidden so words appear to rise out of an
+  // invisible baseline rather than just fade through their final position.
+  const words = String(children).split(' ')
+  return (
+    <motion.span className={className} variants={wordContainer} initial="initial" animate="animate">
+      {words.map((w, i) => (
+        <span key={`${w}-${i}`} className="inline-block overflow-hidden align-bottom">
+          <motion.span className="inline-block" variants={wordChild} style={{ transformOrigin: '50% 100%' }}>
+            {w}{i < words.length - 1 ? ' ' : ''}
+          </motion.span>
+        </span>
+      ))}
+    </motion.span>
+  )
 }
 
 function AuthLayout({ title, subtitle, children }) {
@@ -68,19 +91,32 @@ function AuthLayout({ title, subtitle, children }) {
           aria-hidden
         />
 
-        {/* Gold glow accents — slow ambient breathe, skipped under reduced motion */}
+        {/* Gold glow accents — bigger, more visible breathe so the navy
+            background never reads as static. Skipped under reduced motion. */}
         <motion.div
-          className="absolute -bottom-40 -right-32 w-[420px] h-[420px] rounded-full bg-gold/[0.14] blur-3xl pointer-events-none"
+          className="absolute -bottom-40 -right-32 w-[520px] h-[520px] rounded-full bg-gold/[0.22] blur-3xl pointer-events-none"
           aria-hidden
-          animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
-          transition={prefersReducedMotion ? undefined : { duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+          animate={prefersReducedMotion ? undefined : { scale: [1, 1.25, 1], opacity: [0.5, 1, 0.5], x: [0, 30, 0] }}
+          transition={prefersReducedMotion ? undefined : { duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -top-32 -left-20 w-[280px] h-[280px] rounded-full bg-gold/[0.08] blur-3xl pointer-events-none lg:hidden"
+          className="absolute -top-32 -left-20 w-[360px] h-[360px] rounded-full bg-gold/[0.18] blur-3xl pointer-events-none"
           aria-hidden
-          animate={prefersReducedMotion ? undefined : { scale: [1, 1.12, 1], opacity: [0.65, 1, 0.65] }}
-          transition={prefersReducedMotion ? undefined : { duration: 11, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          animate={prefersReducedMotion ? undefined : { scale: [1, 1.3, 1], opacity: [0.4, 0.95, 0.4], y: [0, 25, 0] }}
+          transition={prefersReducedMotion ? undefined : { duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
         />
+        {/* One-shot diagonal highlight sweep on page load — a subtle
+            band of light passes across the hero, like a marquee opening. */}
+        {!prefersReducedMotion && (
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            initial={{ x: '-110%', opacity: 0 }}
+            animate={{ x: '110%', opacity: [0, 0.4, 0] }}
+            transition={{ duration: 1.6, ease: 'easeOut', delay: 0.3 }}
+            style={{ background: 'linear-gradient(105deg, transparent 35%, rgba(255,214,107,0.25) 50%, transparent 65%)' }}
+          />
+        )}
 
         {/* Wordmark */}
         <motion.div className="relative flex items-center gap-3" variants={safe(heroChildLeft)}>
@@ -102,17 +138,36 @@ function AuthLayout({ title, subtitle, children }) {
         {/* Hero copy — each line staggers in */}
         <div className="relative flex-1 flex flex-col justify-center max-w-[460px] mt-8 lg:mt-0">
           <motion.span
-            className="font-archivo font-extrabold text-[0.68rem] lg:text-[0.7rem] uppercase tracking-[0.22em] text-gold mb-3 lg:mb-4"
+            className="font-archivo font-extrabold text-[0.68rem] lg:text-[0.7rem] uppercase tracking-[0.22em] text-gold mb-3 lg:mb-4 inline-flex items-center gap-3"
             variants={safe(heroChild)}
           >
+            {!prefersReducedMotion && (
+              <motion.span
+                aria-hidden
+                className="block h-[2px] bg-gold origin-left"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.7, ease: easeBack, delay: 0.65 }}
+                style={{ width: 28 }}
+              />
+            )}
             Morgan State &middot; Spring 26
           </motion.span>
           <motion.h1
             className="font-archivo font-black text-[2.15rem] lg:text-[2.6rem] leading-[1.05] tracking-tight uppercase mb-4"
             variants={safe(heroChild)}
           >
-            What's happening
-            <span className="text-gold block">at Morgan State</span>
+            {prefersReducedMotion ? (
+              <>
+                What's happening
+                <span className="text-gold block">at Morgan State</span>
+              </>
+            ) : (
+              <>
+                <AnimatedHeadline>What's happening</AnimatedHeadline>
+                <AnimatedHeadline className="text-gold block">at Morgan State</AnimatedHeadline>
+              </>
+            )}
           </motion.h1>
           <motion.p
             className="text-white/60 text-[0.88rem] lg:text-[0.92rem] leading-relaxed"
@@ -150,9 +205,8 @@ function AuthLayout({ title, subtitle, children }) {
             variants={safe(formPanel)}
             initial="initial"
             animate="animate"
-            // On mobile the form sits under the hero and slides up; on desktop
-            // it slides in from the right. Use a hidden mobile-only div with
-            // its own variant so we don't fight CSS for breakpoint behavior.
+            whileHover={prefersReducedMotion ? undefined : { y: -2, boxShadow: '0 18px 48px -12px rgba(11,29,52,0.32)' }}
+            transition={{ type: 'spring', stiffness: 240, damping: 20 }}
           >
             <motion.div
               className="mb-5"
@@ -187,7 +241,7 @@ function AuthLayout({ title, subtitle, children }) {
 // Optional helper for auth pages that want a staggered cascade on their
 // form fields. Wrap children with this; each immediate child gets the
 // stagger. Skips animation under prefers-reduced-motion.
-export function AuthFieldsStagger({ children, delay = 0.35 }) {
+export function AuthFieldsStagger({ children, delay = 0.55 }) {
   const prefersReducedMotion = useReducedMotion()
   const variants = prefersReducedMotion
     ? {
@@ -198,7 +252,7 @@ export function AuthFieldsStagger({ children, delay = 0.35 }) {
         initial: { opacity: 0 },
         animate: {
           opacity: 1,
-          transition: { staggerChildren: 0.07, delayChildren: delay },
+          transition: { staggerChildren: 0.11, delayChildren: delay },
         },
       }
   return (
@@ -209,8 +263,8 @@ export function AuthFieldsStagger({ children, delay = 0.35 }) {
 }
 
 export const authFieldChild = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: easeOut } },
+  initial: { opacity: 0, y: 24, x: 12 },
+  animate: { opacity: 1, y: 0, x: 0, transition: { duration: 0.5, ease: easeBack } },
 }
 
 export default AuthLayout
