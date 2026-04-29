@@ -48,11 +48,26 @@ def _load_post_payload(post_id: int, db: Session) -> str:
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    # SECURITY: Anonymity contract has to hold even when the payload is
+    # bound for an external LLM. For anonymous posts/comments we strip
+    # the author name (the body content still ships — that's the point of
+    # summarizing). Also: a named comment from the post's own author on
+    # their own anonymous post would re-link them by name, so collapse
+    # those to 'Anonymous' too.
+    post_is_anon = (
+        bool(getattr(post, "is_anonymous", False))
+        or (post.category or "").lower() == "anonymous"
+    )
+
+    def _comment_author_label(c):
+        if getattr(c, "is_anonymous", False):
+            return "Anonymous"
+        if post_is_anon and c.author_id == post.author_id:
+            return "Anonymous"
+        return (c.author.name if c.author else None) or "anon"
+
     comments = sorted(post.comments or [], key=lambda c: c.created_at or 0)
-    flat = [
-        ((c.author.name if c.author else None) or "anon", c.body)
-        for c in comments
-    ]
+    flat = [(_comment_author_label(c), c.body) for c in comments]
     return summarize_agent.format_post_for_summary(
         title=post.title or "",
         body=post.body or "",
