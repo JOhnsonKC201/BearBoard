@@ -11,6 +11,12 @@ const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 const CLOUDINARY_ENABLED = Boolean(CLOUD_NAME && UPLOAD_PRESET)
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+// `image/*` on the file-input's accept attribute (rather than enumerated MIME
+// types) is what makes iOS Safari + Android Chrome cleanly offer "Take Photo"
+// + "Photo Library" + "Browse Files" in the native picker. The MIME validation
+// against ACCEPTED_TYPES still runs after pickup so HEIC / TIFF / video can't
+// sneak through.
+const ACCEPT_ATTR = 'image/*'
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB — matches Cloudinary free-tier friendly
 
 function humanSize(bytes) {
@@ -45,6 +51,10 @@ function uploadToCloudinary(file, onProgress) {
 
 function ImageUploader({ value, onChange, disabled }) {
   const fileInputRef = useRef(null)
+  // Separate input wired to capture="environment" so mobile users get
+  // straight to the camera viewfinder when they tap "Take photo." Desktop
+  // browsers ignore `capture`, so this safely no-ops there.
+  const cameraInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
@@ -63,6 +73,12 @@ function ImageUploader({ value, onChange, disabled }) {
     if (disabled || uploading) return
     setError(null)
     fileInputRef.current?.click()
+  }
+
+  const takePhoto = () => {
+    if (disabled || uploading) return
+    setError(null)
+    cameraInputRef.current?.click()
   }
 
   const ingestFile = async (file) => {
@@ -183,10 +199,35 @@ function ImageUploader({ value, onChange, disabled }) {
               </div>
             )}
           </button>
+          {/* Mobile-first secondary action — opens the camera viewfinder
+              directly on phones via the dedicated capture-attribute input.
+              On desktop the click no-ops (no camera attached), so we hide
+              the button on screens where it'd just confuse. */}
+          <button
+            type="button"
+            onClick={takePhoto}
+            disabled={disabled || uploading}
+            className="sm:hidden mt-2 w-full bg-card border border-navy text-navy py-2.5 px-3 font-archivo text-[0.72rem] font-extrabold uppercase tracking-wider cursor-pointer hover:bg-navy hover:text-gold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            Take a photo
+          </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept={ACCEPTED_TYPES.join(',')}
+            accept={ACCEPT_ATTR}
+            onChange={onFile}
+            className="hidden"
+            disabled={disabled || uploading}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept={ACCEPT_ATTR}
+            capture="environment"
             onChange={onFile}
             className="hidden"
             disabled={disabled || uploading}
