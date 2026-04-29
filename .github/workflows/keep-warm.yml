@@ -1,0 +1,26 @@
+name: Keep Render Backend Warm
+
+# Render's free-tier web service sleeps after ~15 min of inactivity, and the
+# subsequent cold boot takes 30-60s — long enough that real users see empty
+# skeletons on the home page. This workflow pings /health every 10 minutes so
+# the dyno stays warm during the day.
+#
+# GitHub Actions cron can drift 5-15 min under runner load, so the effective
+# cadence may sometimes exceed Render's 15-min sleep threshold. The frontend
+# retry/backoff in src/api/client.js + the HealthDot debounce cover that case
+# gracefully so users still see content rather than a "Reconnecting..." flash.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: |
+          curl -fsS --max-time 90 --retry 2 --retry-delay 5 \
+            https://bearboard-api.onrender.com/health
