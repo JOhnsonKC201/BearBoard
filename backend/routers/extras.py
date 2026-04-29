@@ -128,18 +128,21 @@ def get_groups(
     Private groups are excluded from this listing — they're invite-only and
     must be reached via direct link to /api/groups/{id}.
     """
+    from core.db_text import like_escape
     q = db.query(Group).filter(Group.is_private.is_(False))
     if course and course.strip():
         # Allow "cosc350" to match "COSC 350" by stripping spaces on both sides.
-        raw = course.strip()
+        # Escape % and _ first so a search of '%' doesn't match every group
+        # (DoS) and so an attacker can't probe with wildcard chars.
+        raw = like_escape(course.strip())
         compact = raw.replace(" ", "")
         like_raw = f"%{raw}%"
         like_compact = f"%{compact}%"
         q = q.filter(
             or_(
-                Group.course_code.ilike(like_raw),
-                Group.course_code.ilike(like_compact),
-                Group.name.ilike(like_raw),
+                Group.course_code.ilike(like_raw, escape="\\"),
+                Group.course_code.ilike(like_compact, escape="\\"),
+                Group.name.ilike(like_raw, escape="\\"),
             )
         )
     return q.order_by(desc(Group.member_count)).limit(20).all()
