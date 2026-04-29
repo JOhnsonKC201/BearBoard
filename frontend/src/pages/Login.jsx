@@ -134,9 +134,9 @@ function Login() {
             type="submit"
             disabled={submitting}
             variants={authFieldChild}
-            whileHover={submitting ? undefined : { scale: 1.005 }}
-            whileTap={submitting ? undefined : { scale: 0.985 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            whileHover={submitting ? undefined : { scale: 1.025, boxShadow: '0 12px 28px -10px rgba(11,29,52,0.55)' }}
+            whileTap={submitting ? undefined : { scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 18 }}
             className="w-full bg-navy text-white font-archivo font-extrabold text-[0.82rem] uppercase tracking-wide py-3.5 min-h-[48px] border-none cursor-pointer hover:bg-[#132d4a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {submitting ? (
