@@ -58,25 +58,24 @@ function ImageUploader({ value, onChange, disabled }) {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
-  const [showUrlInput, setShowUrlInput] = useState(false)
-  const [urlDraft, setUrlDraft] = useState('')
   const [dragOver, setDragOver] = useState(false)
-
-  const commitUrlDraft = () => {
-    const v = urlDraft.trim()
-    if (!v) return
-    onChange(v)
-    setUrlDraft('')
-  }
 
   const pickFile = () => {
     if (disabled || uploading) return
+    if (!CLOUDINARY_ENABLED) {
+      setError('Image uploads aren\'t configured yet on this site. Ask the admin to set up Cloudinary.')
+      return
+    }
     setError(null)
     fileInputRef.current?.click()
   }
 
   const takePhoto = () => {
     if (disabled || uploading) return
+    if (!CLOUDINARY_ENABLED) {
+      setError('Image uploads aren\'t configured yet on this site. Ask the admin to set up Cloudinary.')
+      return
+    }
     setError(null)
     cameraInputRef.current?.click()
   }
@@ -164,8 +163,12 @@ function ImageUploader({ value, onChange, disabled }) {
             </button>
           </div>
         </div>
-      ) : CLOUDINARY_ENABLED ? (
+      ) : (
         <div>
+          {/* Always render the same upload zone whether or not Cloudinary
+              is configured. When it's not, click + drop both reject with a
+              friendly setup message instead of silently falling back to a
+              URL paste field (which read as broken to real users). */}
           <button
             type="button"
             onClick={pickFile}
@@ -174,18 +177,23 @@ function ImageUploader({ value, onChange, disabled }) {
             onDragLeave={onDragLeave}
             onDrop={onDrop}
             disabled={disabled || uploading}
-            className={`w-full border border-dashed px-4 py-5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex flex-col items-center gap-1 ${
+            className={`w-full border border-dashed px-4 py-7 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex flex-col items-center gap-2 ${
               dragOver
                 ? 'border-navy bg-gold-pale/40 ring-2 ring-navy/20'
                 : 'border-lightgray bg-offwhite hover:border-navy hover:bg-white'
             }`}
           >
-            <span className="font-archivo font-extrabold text-[0.78rem] text-ink">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={dragOver ? 'text-navy' : 'text-gray'}>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+            <span className="font-archivo font-extrabold text-[0.82rem] text-ink">
               {uploading
                 ? `Uploading… ${progress}%`
                 : dragOver
                 ? 'Drop to upload'
-                : 'Click or drag an image here'}
+                : 'Drag an image here, or click to choose'}
             </span>
             <span className="text-[0.68rem] text-gray font-franklin">
               JPG, PNG, WEBP, or GIF · up to 10 MB
@@ -199,10 +207,10 @@ function ImageUploader({ value, onChange, disabled }) {
               </div>
             )}
           </button>
-          {/* Mobile-first secondary action — opens the camera viewfinder
-              directly on phones via the dedicated capture-attribute input.
-              On desktop the click no-ops (no camera attached), so we hide
-              the button on screens where it'd just confuse. */}
+          {/* Mobile-only secondary action — taps go straight to the rear
+              camera via capture="environment". Hidden on sm+ since desktop
+              browsers would just open a file picker (the main button
+              already covers that). */}
           <button
             type="button"
             onClick={takePhoto}
@@ -232,36 +240,7 @@ function ImageUploader({ value, onChange, disabled }) {
             className="hidden"
             disabled={disabled || uploading}
           />
-          <button
-            type="button"
-            onClick={() => setShowUrlInput((v) => !v)}
-            disabled={disabled || uploading}
-            className="mt-2 font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray hover:text-navy bg-transparent border-none cursor-pointer px-0"
-          >
-            {showUrlInput ? 'Hide URL field' : 'Or paste a URL →'}
-          </button>
-          {showUrlInput && (
-            <input
-              type="url"
-              value={urlDraft}
-              onChange={(e) => setUrlDraft(e.target.value)}
-              onBlur={commitUrlDraft}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitUrlDraft() } }}
-              disabled={disabled || uploading}
-              placeholder="https://... (press Enter to attach)"
-              className="mt-1.5 w-full border border-lightgray bg-white px-3 py-2 text-[0.88rem] font-franklin focus:border-navy focus:outline-none"
-            />
-          )}
         </div>
-      ) : (
-        <input
-          type="url"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder="https://... (paste a direct image link)"
-          className="w-full border border-lightgray bg-white px-3 py-2 text-[0.9rem] font-franklin focus:border-navy focus:outline-none"
-        />
       )}
       {error && (
         <div className="mt-1.5 text-[0.74rem] text-danger font-archivo font-bold" role="alert">
