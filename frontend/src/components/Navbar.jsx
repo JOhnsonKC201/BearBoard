@@ -9,17 +9,16 @@ function initialsFor(name) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('')
 }
 
-// Primary top-nav items. Hash entries route to /#<hash> so they navigate
-// to Home first when the user is on another page (Home.jsx handles the
-// scroll-to-hash on mount via ScrollToTop / native hash support).
+// Primary top-nav items. Each is a real route — no hash-to-section
+// navigation, so every nav button lands on its own page with its own URL.
 const PRIMARY_LINKS = [
-  { to: '/',             label: 'Feed' },
-  { to: '/#groups',      label: 'Groups',      hash: 'groups' },
-  { to: '/#events-showcase', label: 'Events', hash: 'events-showcase' },
-  { to: '/map',          label: 'Map' },
-  { to: '/professors',   label: 'Profs' },
-  { to: '/leaderboard',  label: 'Board' },
-  { to: '/#team',        label: 'Team',        hash: 'team' },
+  { to: '/',            label: 'Feed' },
+  { to: '/groups',      label: 'Groups' },
+  { to: '/events',      label: 'Events' },
+  { to: '/map',         label: 'Map' },
+  { to: '/professors',  label: 'Profs' },
+  { to: '/leaderboard', label: 'Board' },
+  { to: '/team',        label: 'Team' },
 ]
 
 // Items tucked into a "More" dropdown so the top bar doesn't get crowded
@@ -82,9 +81,11 @@ function Navbar() {
   }
 
   const isActive = (link) => {
-    if (link.hash) return false // hash links don't light up based on pathname
     if (link.to === '/' && (location.pathname === '/' || location.pathname === '/feed')) return true
-    return location.pathname === link.to
+    // Treat sub-pages as still under the parent (e.g. /groups/123 highlights
+    // the Groups tab) — except for /, which is matched explicitly above.
+    if (link.to !== '/' && location.pathname.startsWith(link.to)) return true
+    return false
   }
 
   const handleLogout = () => {

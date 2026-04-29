@@ -127,10 +127,10 @@ function BottomNav() {
     >
       <Tab to="/" label="Feed" Icon={IconFeed} active={isFeed} />
       <Tab
+        to="/events"
         label="Events"
         Icon={IconEvents}
-        active={false}
-        onClick={() => goToSection('upcoming')}
+        active={location.pathname === '/events'}
       />
 
       {/* Center + FAB, raised above the bar */}
@@ -146,10 +146,10 @@ function BottomNav() {
       </div>
 
       <Tab
+        to="/groups"
         label="Groups"
         Icon={IconGroups}
-        active={false}
-        onClick={() => goToSection('groups')}
+        active={location.pathname.startsWith('/groups')}
       />
       <Tab to={meTo} label="Me" Icon={IconMe} active={isMe} />
     </nav>
