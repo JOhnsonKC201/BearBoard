@@ -113,8 +113,13 @@ def get_leaderboard(
         .group_by(Post.author_id)
         .subquery()
     )
+    # Mirror the post-counting filter: anonymous comments don't get
+    # attributed to their author on the leaderboard either, otherwise
+    # we'd indirectly out the author by spiking their contribution count
+    # when they commented anonymously.
     comments_per_user = (
         db.query(Comment.author_id.label("uid"), func.count(Comment.id).label("cc"))
+        .filter(Comment.is_anonymous.is_(False))
         .group_by(Comment.author_id)
         .subquery()
     )
