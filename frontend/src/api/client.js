@@ -67,20 +67,26 @@ async function rawFetch(url, options, headers) {
   return response.json()
 }
 
-// Retry a single time after a short delay on a 1) network/TypeError or
-// 2) 502/503/504. Helps Render cold-boot requests succeed quietly instead of
-// surfacing "Failed to fetch" for the first 30-60s after an idle period.
+// Retry with exponential backoff on 1) network/TypeError or 2) 502/503/504.
+// Sized to absorb a Render free-tier cold boot (typically 30-60s) so the user
+// sees data instead of an error after the first request following idle.
+// Schedule: immediate, +2s, +4s, +8s, +16s, +32s — six attempts, ~62s budget.
 async function fetchWithRetry(url, options, headers) {
-  try {
-    return await rawFetch(url, options, headers)
-  } catch (err) {
-    const retryable =
-      err instanceof TypeError || // network error, CORS, DNS
-      err.status === 502 || err.status === 503 || err.status === 504
-    if (!retryable) throw err
-    await new Promise((r) => setTimeout(r, 3000))
-    return rawFetch(url, options, headers)
+  const delays = [0, 2000, 4000, 8000, 16000, 32000]
+  let lastErr
+  for (const delay of delays) {
+    if (delay) await new Promise((r) => setTimeout(r, delay))
+    try {
+      return await rawFetch(url, options, headers)
+    } catch (err) {
+      const retryable =
+        err instanceof TypeError || // network error, CORS, DNS
+        err.status === 502 || err.status === 503 || err.status === 504
+      if (!retryable) throw err
+      lastErr = err
+    }
   }
+  throw lastErr
 }
 
 export async function apiFetch(endpoint, options = {}) {
