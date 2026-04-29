@@ -53,8 +53,38 @@ def _safe(job_name: str, fn):
     return runner
 
 
+def _seed_professors_if_sparse():
+    """Run the curated MSU faculty seed when the professors table looks empty.
+
+    Idempotent twice over: the seed script itself dedupes case-insensitively,
+    and we only call it when the row count is below a low threshold so a
+    populated production DB never re-runs the script. This means a fresh
+    Render deploy lands with the full directory without anyone having to
+    SSH in and run the script by hand.
+    """
+    try:
+        from core.database import SessionLocal
+        from models.professor import Professor
+        db = SessionLocal()
+        try:
+            count = db.query(Professor).count()
+        finally:
+            db.close()
+        # 5 = "basically empty" — anything above that means a real DB and we
+        # leave it alone (admins extend via the UI from there).
+        if count >= 5:
+            logger.info("seed_professors: skipped (DB has %d profs)", count)
+            return
+        from seed_professors import main as run_seed
+        rc = run_seed()
+        logger.info("seed_professors: ran (exit %s)", rc)
+    except Exception:
+        logger.exception("seed_professors: startup seed failed (non-fatal)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _seed_professors_if_sparse()
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
     scheduler.add_job(
         _morgan_events_job,
