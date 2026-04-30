@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 venv/
 .env
+.env.bak
 .env.local
 .env.*.local
 *.db
