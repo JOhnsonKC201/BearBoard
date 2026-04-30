@@ -3,6 +3,39 @@
 Things that aren't bugs or features but matter for whoever's keeping
 the lights on. Add new entries at the top, dated.
 
+## Database moved to Neon (2026-04-29, later that day)
+
+After the Supabase access situation below, we migrated the Postgres
+database off Supabase onto Neon. The app is now running entirely on
+Neon (free tier).
+
+- New host: `ep-lively-forest-a4240m0c.us-east-1.aws.neon.tech`
+- Database: `neondb`, role: `neondb_owner`
+- SSL required: yes (`?sslmode=require` on the connection string)
+- Region: AWS US East 1 (N. Virginia)
+
+Migration was a one-shot via `backend/migrate_to_new_db.py` (the
+script is in the repo as documentation; no need to run it again).
+Row counts checked out post-copy on every table:
+
+    users 14, events 64, groups 1, group_members 1, professors 81,
+    posts 12, comments 2, votes 5, notifications 40,
+    password_reset_tokens 3
+
+The OLD Supabase project (`zyiwnoxuaxurazcfblao`) is still alive on
+the free tier as a fallback but is no longer being read or written.
+Delete it from the Supabase side whenever someone has access; until
+then it's harmless dead weight.
+
+`DATABASE_URL` is updated in two places:
+
+- Local `.env` (gitignored)
+- Render `bearboard-api` service → Environment
+
+The Render deploy completed and the live API serves Neon-backed data
+end to end (smoke-tested via `/api/stats` returning the post-migration
+counts).
+
 ## Supabase dashboard access (2026-04-29)
 
 Dashboard access to the Supabase project `zyiwnoxuaxurazcfblao` is
