@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import { warmBackend } from '../api/client'
 import AuthLayout, { AuthFieldsStagger, authFieldChild } from '../components/AuthLayout'
 
 const inputClass =
@@ -49,6 +50,11 @@ function Register() {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Wake the backend on mount so the form's eventual POST hits a warm
+  // process. The user spends 10–30s typing name/email/password — plenty
+  // of time for Render's cold boot to finish in the background.
+  useEffect(() => { warmBackend() }, [])
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })

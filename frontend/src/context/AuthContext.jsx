@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { apiFetch } from '../api/client'
+import { apiFetch, invalidateCache } from '../api/client'
 
 const TOKEN_KEY = 'bearboard_token'
 
@@ -63,6 +63,10 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
+    // Drop the persisted GET cache so the previous user's posts/profile
+    // don't sit in localStorage after sign-out. Different account on the
+    // same device shouldn't be able to peek at what was cached.
+    invalidateCache()
     setToken(null)
     setUser(null)
   }

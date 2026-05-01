@@ -33,6 +33,13 @@ export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL)
 
 const DEFAULT_TTL_MS = 30_000 // 30s feels fresh enough for a social feed
 const STALE_MULTIPLIER = 2    // data older than this is a miss, not stale
+// localStorage SWR window — much longer than the in-memory TTL because
+// stale-with-revalidate from disk is the difference between a 30-second
+// cold-start skeleton and an instant paint. Anything older than this we
+// drop on read so users don't see week-old data after a long absence.
+const PERSISTED_MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24h
+const STORAGE_KEY = 'bearboard_api_cache_v1'
+const STORAGE_MAX_BYTES = 1_000_000 // ~1MB cap — localStorage budget is ~5MB
 
 const cache = new Map()   // key -> { data, ts }
 const inflight = new Map() // key -> Promise (dedup in-flight)
@@ -44,15 +51,103 @@ function cacheKey(url, token) {
   return `${fp}::${url}`
 }
 
+// -- localStorage persistence -------------------------------------------------
+// Hydrates the in-memory cache from localStorage on module load, and writes
+// each successful GET back to localStorage. Survives page refreshes so the
+// first paint after navigation/reload can serve cached data while the network
+// catches up.
+
+function safeStorage() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null
+    return window.localStorage
+  } catch { return null }
+}
+
+function loadFromStorage() {
+  const ls = safeStorage()
+  if (!ls) return
+  try {
+    const raw = ls.getItem(STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return
+    const now = Date.now()
+    for (const [k, v] of Object.entries(parsed)) {
+      if (!v || typeof v.ts !== 'number') continue
+      if (now - v.ts > PERSISTED_MAX_AGE_MS) continue
+      cache.set(k, { data: v.data, ts: v.ts })
+    }
+  } catch { /* corrupted blob — ignore and overwrite on next write */ }
+}
+
+let writeScheduled = false
+function persistCacheSoon() {
+  if (writeScheduled) return
+  writeScheduled = true
+  // Coalesce bursts of cache writes (e.g. Promise.all of 4 GETs) into a
+  // single localStorage write at the end of the microtask. Cheap on the
+  // happy path, prevents O(n) JSON serialization on parallel fetches.
+  Promise.resolve().then(() => {
+    writeScheduled = false
+    const ls = safeStorage()
+    if (!ls) return
+    try {
+      const obj = {}
+      for (const [k, v] of cache.entries()) obj[k] = v
+      let serialized = JSON.stringify(obj)
+      // If we're over budget, drop oldest entries until we fit. Keeps
+      // localStorage from filling up after a long session.
+      if (serialized.length > STORAGE_MAX_BYTES) {
+        const sorted = [...cache.entries()].sort((a, b) => b[1].ts - a[1].ts)
+        const trimmed = {}
+        let size = 0
+        for (const [k, v] of sorted) {
+          const piece = JSON.stringify({ [k]: v }).length
+          if (size + piece > STORAGE_MAX_BYTES) break
+          trimmed[k] = v
+          size += piece
+        }
+        serialized = JSON.stringify(trimmed)
+      }
+      ls.setItem(STORAGE_KEY, serialized)
+    } catch { /* quota exceeded or serialization failure — drop silently */ }
+  })
+}
+
+function setCache(key, data) {
+  cache.set(key, { data, ts: Date.now() })
+  persistCacheSoon()
+}
+
+loadFromStorage()
+
+// Synchronous read of any cached entry (in-memory + persisted) for an
+// endpoint. Returns the raw data if anything is on disk for this user,
+// regardless of staleness, so callers can hydrate UI state without waiting
+// for the network. Use as initial state in useState() or useMemo() — pair
+// with a normal apiFetch() call to revalidate in the background.
+export function peekCache(endpoint) {
+  if (typeof endpoint !== 'string') return undefined
+  const url = `${API_URL}${endpoint}`
+  let token = null
+  try { token = safeStorage()?.getItem('bearboard_token') || null } catch {}
+  const entry = cache.get(cacheKey(url, token))
+  if (!entry) return undefined
+  if (Date.now() - entry.ts > PERSISTED_MAX_AGE_MS) return undefined
+  return entry.data
+}
+
 export function invalidateCache(prefix) {
   // Call after a POST/PUT/DELETE to drop stale reads. Pass a URL prefix like
   // `/api/posts` to drop every cached post response. No arg -> clear all.
-  if (!prefix) { cache.clear(); return }
+  if (!prefix) { cache.clear(); persistCacheSoon(); return }
   for (const k of Array.from(cache.keys())) {
     if (k.includes(`::${API_URL}${prefix}`) || k.includes(`::${prefix}`)) {
       cache.delete(k)
     }
   }
+  persistCacheSoon()
 }
 
 async function rawFetch(url, options, headers) {
@@ -127,8 +222,26 @@ export async function apiFetch(endpoint, options = {}) {
       inflight.set(
         key,
         fetchWithRetry(url, options, headers)
-          .then((data) => { cache.set(key, { data, ts: Date.now() }); return data })
+          .then((data) => { setCache(key, data); return data })
           .catch(() => entry.data) // swallow background-refresh errors
+          .finally(() => inflight.delete(key)),
+      )
+    }
+    return entry.data
+  }
+
+  // Miss in-memory but maybe present in localStorage (older than the SWR
+  // window but within PERSISTED_MAX_AGE_MS). If so, treat it like the stale
+  // branch above: serve cached data immediately, refresh in the background.
+  // This is the path that turns a 30-second cold-start skeleton into an
+  // instant paint after a page reload.
+  if (entry) {
+    if (!inflight.has(key)) {
+      inflight.set(
+        key,
+        fetchWithRetry(url, options, headers)
+          .then((data) => { setCache(key, data); return data })
+          .catch(() => entry.data)
           .finally(() => inflight.delete(key)),
       )
     }
@@ -138,7 +251,7 @@ export async function apiFetch(endpoint, options = {}) {
   // Miss: await the network. Dedup concurrent identical requests.
   if (inflight.has(key)) return inflight.get(key)
   const p = fetchWithRetry(url, options, headers)
-    .then((data) => { cache.set(key, { data, ts: Date.now() }); return data })
+    .then((data) => { setCache(key, data); return data })
     .finally(() => inflight.delete(key))
   inflight.set(key, p)
   return p

@@ -8,7 +8,7 @@ import SafetyBox from '../components/SafetyBox'
 import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
-import { apiFetch } from '../api/client'
+import { apiFetch, peekCache } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { flairSlug, flairLabel } from '../utils/avatar'
 import { formatRelativeTime } from '../utils/format'
@@ -158,6 +158,16 @@ const CAT_STYLES = {
 // link) silently degrades to 'new' so the page never breaks on a bad param.
 const VALID_SORTS = new Set(['new', 'popular', 'trending'])
 
+// URLs the page's effects fetch on mount with default filters. Used to seed
+// initial state from peekCache() so a returning visitor sees yesterday's
+// data instantly while the network revalidates in the background — instead
+// of staring at a 30-second cold-start skeleton.
+const INITIAL_POSTS_URL = '/api/posts?sort=newest&limit=50'
+const INITIAL_TRENDING_URL = '/api/trending'
+const INITIAL_EVENTS_URL = '/api/events?limit=24'
+const INITIAL_GROUPS_URL = '/api/groups'
+const INITIAL_STATS_URL = '/api/stats'
+
 function Home() {
   const [activeFilter, setActiveFilter] = useState('All')
   const { user: authedUser } = useAuth()
@@ -166,8 +176,11 @@ function Home() {
   const [showIdea, setShowIdea] = useState(true)
   const [showNewPost, setShowNewPost] = useState(false)
   const [postPreset, setPostPreset] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [postsLoading, setPostsLoading] = useState(true)
+  // Lazy initial state: synchronously read any persisted cache entry so the
+  // first paint can show real content. The mount effect still fires a fetch,
+  // which lands as a background revalidation (no skeleton flash).
+  const [posts, setPosts] = useState(() => peekCache(INITIAL_POSTS_URL) || [])
+  const [postsLoading, setPostsLoading] = useState(() => !peekCache(INITIAL_POSTS_URL))
   const [postsError, setPostsError] = useState(null)
 
   // Inline edit/delete handlers for the kebab menu on each card. Patches
@@ -180,11 +193,17 @@ function Home() {
     setPosts((cur) => cur.filter((p) => p.id !== id))
   }
   const [reloadKey, setReloadKey] = useState(0)
-  const [trending, setTrending] = useState([])
-  const [events, setEvents] = useState([])
-  const [groups, setGroups] = useState([])
-  const [sidebarLoading, setSidebarLoading] = useState(true)
-  const [stats, setStats] = useState(null)
+  const [trending, setTrending] = useState(() => peekCache(INITIAL_TRENDING_URL) || [])
+  const [events, setEvents] = useState(() => peekCache(INITIAL_EVENTS_URL) || [])
+  const [groups, setGroups] = useState(() => peekCache(INITIAL_GROUPS_URL) || [])
+  // If we have *any* of the three sidebar slices cached, drop the loading
+  // flag so the sidebar paints from cache instead of flashing skeletons.
+  const [sidebarLoading, setSidebarLoading] = useState(() => (
+    !peekCache(INITIAL_TRENDING_URL)
+    && !peekCache(INITIAL_EVENTS_URL)
+    && !peekCache(INITIAL_GROUPS_URL)
+  ))
+  const [stats, setStats] = useState(() => peekCache(INITIAL_STATS_URL) || null)
   const [groupSearch, setGroupSearch] = useState('')
   const [groupSearchActive, setGroupSearchActive] = useState(false)
   // Set of group ids the current user has joined. Loaded on mount (if
@@ -275,7 +294,16 @@ function Home() {
 
   useEffect(() => {
     let cancelled = false
-    setSidebarLoading(true)
+    // Only flash the skeleton if we have nothing cached to show. On revisits
+    // the lazy-init state already holds yesterday's data — flipping loading
+    // back to true here would cause a brief skeleton flash before the
+    // background revalidation lands.
+    const haveAnyCached = (
+      peekCache(INITIAL_TRENDING_URL)
+      || peekCache(INITIAL_EVENTS_URL)
+      || peekCache(INITIAL_GROUPS_URL)
+    )
+    if (!haveAnyCached) setSidebarLoading(true)
     Promise.all([
       apiFetch('/api/trending').catch(() => []),
       apiFetch('/api/events?limit=24').catch(() => []),
@@ -378,11 +406,22 @@ function Home() {
 
   useEffect(() => {
     let cancelled = false
-    setPostsLoading(true)
-    setPostsError(null)
     const params = new URLSearchParams({ sort: sortParam, limit: '50' })
     if (categoryParam) params.set('category', categoryParam)
-    apiFetch(`/api/posts?${params.toString()}`)
+    const url = `/api/posts?${params.toString()}`
+    // If this exact URL is already in the persisted cache, don't flip the
+    // skeleton on — we'll be returning the cached array on this tick and
+    // the network call is a background refresh. Skeleton still shows on a
+    // true cold load (no cache for this filter/sort combo).
+    const cached = peekCache(url)
+    if (cached !== undefined && cancelled === false) {
+      setPosts(cached)
+      setPostsLoading(false)
+    } else {
+      setPostsLoading(true)
+    }
+    setPostsError(null)
+    apiFetch(url)
       .then((data) => { if (!cancelled) setPosts(data) })
       .catch((err) => { if (!cancelled) setPostsError(err.message || 'Failed to load posts') })
       .finally(() => { if (!cancelled) setPostsLoading(false) })

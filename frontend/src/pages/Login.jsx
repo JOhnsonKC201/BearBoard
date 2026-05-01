@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import { warmBackend } from '../api/client'
 import AuthLayout, { AuthFieldsStagger, authFieldChild } from '../components/AuthLayout'
 
 const inputClass =
@@ -42,6 +43,12 @@ function Login() {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Wake Render's free-tier instance the moment the page loads. By the time
+  // the user finishes typing their credentials (5–15s of typing latency on
+  // average) the cold boot is done, and the actual /api/auth/login POST hits
+  // a warm process. Without this, "Sign in" hangs for 30–60s on a fresh tab.
+  useEffect(() => { warmBackend() }, [])
 
   const validate = () => {
     const e = {}

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
-import { apiFetch } from '../api/client'
+import { apiFetch, warmBackend } from '../api/client'
 
 const inputClass =
   'w-full border border-lightgray py-3 sm:py-[10px] px-3.5 text-[0.95rem] sm:text-[0.88rem] font-franklin bg-white focus:border-navy focus:ring-2 focus:ring-navy/10 transition-all placeholder:text-gray/60 min-h-[44px]'
@@ -17,6 +17,10 @@ function ResetPassword() {
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+
+  // Pre-warm Render's free-tier instance on page load so the eventual
+  // POST /api/auth/reset-password hits a warm process.
+  useEffect(() => { warmBackend() }, [])
 
   const validate = () => {
     const e = {}
