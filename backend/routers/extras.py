@@ -18,6 +18,7 @@ from services.morgan_events import sync_morgan_events
 from services.permissions import require_admin
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
+from core.memocache import ttl_cache
 
 router = APIRouter(prefix="/api", tags=["extras"])
 
@@ -52,7 +53,12 @@ def get_trending(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/events", response_model=list[EventResponse])
+@ttl_cache(ttl_seconds=60)
 def get_events(limit: int = 8, db: Session = Depends(get_db)):
+    # Cached 60s — events are user-agnostic and the home page hits this
+    # alongside /trending and /groups on every visit. Cuts ~3 DB round
+    # trips off a warm-instance home load. Cache key excludes the Session
+    # (handled by ttl_cache) and varies on `limit`.
     today = datetime.now(timezone.utc).date()
     limit = max(1, min(limit, 500))
     events = (
@@ -73,10 +79,9 @@ def sync_events(
     """Manual trigger for the Morgan State iCal sync. Admin-only — the
     endpoint makes an outbound HTTP call, so leaving it open would invite
     SSRF / DoS abuse."""
-    return sync_morgan_events(db)
-
-
-from core.memocache import ttl_cache
+    result = sync_morgan_events(db)
+    get_events.invalidate()  # newly synced events should appear immediately
+    return result
 
 
 @router.get("/stats")
@@ -118,6 +123,7 @@ def public_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/groups", response_model=list[GroupResponse])
+@ttl_cache(ttl_seconds=30)
 def get_groups(
     course: str | None = None,
     db: Session = Depends(get_db),
@@ -127,6 +133,10 @@ def get_groups(
 
     Private groups are excluded from this listing — they're invite-only and
     must be reached via direct link to /api/groups/{id}.
+
+    Cached 30s, keyed on the `course` query string (Session is excluded
+    automatically). Mutations invalidate via get_groups.invalidate() in
+    the create/join/leave handlers below.
     """
     from core.db_text import like_escape
     q = db.query(Group).filter(Group.is_private.is_(False))
@@ -193,6 +203,7 @@ def create_group(
     ))
     db.commit()
     db.refresh(group)
+    get_groups.invalidate()  # listing cache must reflect the new group
     return group
 
 
@@ -266,6 +277,7 @@ def join_group(
     group.member_count = (group.member_count or 0) + 1
     db.commit()
     db.refresh(group)
+    get_groups.invalidate()  # member_count change must show up in listing
     return group
 
 
@@ -298,6 +310,7 @@ def leave_group(
     group.member_count = max(0, (group.member_count or 1) - 1)
     db.commit()
     db.refresh(group)
+    get_groups.invalidate()  # member_count change must show up in listing
     return group
 
 
