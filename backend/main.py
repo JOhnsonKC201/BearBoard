@@ -82,9 +82,58 @@ def _seed_professors_if_sparse():
         logger.exception("seed_professors: startup seed failed (non-fatal)")
 
 
+def _seed_demo_data_if_sparse():
+    """Bootstrap a fresh deploy with team users + a few demo groups + a
+    few demo events so the Groups and Events pages aren't empty on day
+    one. Same posture as `_seed_professors_if_sparse`: only fires when
+    the relevant table has fewer rows than a low threshold, so a real
+    populated DB is never touched.
+
+    Skips the slow `seed_morgan` news scrape (HTTP) on purpose — we only
+    need DB-side rows here. Local devs who want the scraped Morgan news
+    posts still run `python seed.py` by hand.
+    """
+    try:
+        from core.database import SessionLocal
+        from models.event import Event
+        from models.group import Group
+        from seed import seed_demo_events, seed_demo_groups
+        from seed_morgan import ensure_team_users
+
+        db = SessionLocal()
+        try:
+            # Team users are a prerequisite for both groups and events
+            # (each row needs a created_by FK). Idempotent — the helper
+            # skips users that already exist by email match.
+            ensure_team_users(db)
+
+            group_count = db.query(Group).count()
+            event_count = db.query(Event).count()
+
+            # Threshold of 1: if there's even a single user-created group
+            # or event, leave the table alone. The seed only fires for
+            # the strictly-empty case.
+            if group_count == 0:
+                rc = seed_demo_groups(db)
+                logger.info("seed_demo_groups: ran (exit %s)", rc)
+            else:
+                logger.info("seed_demo_groups: skipped (DB has %d groups)", group_count)
+
+            if event_count == 0:
+                rc = seed_demo_events(db)
+                logger.info("seed_demo_events: ran (exit %s)", rc)
+            else:
+                logger.info("seed_demo_events: skipped (DB has %d events)", event_count)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("seed_demo_data: startup seed failed (non-fatal)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_professors_if_sparse()
+    _seed_demo_data_if_sparse()
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
     scheduler.add_job(
         _morgan_events_job,

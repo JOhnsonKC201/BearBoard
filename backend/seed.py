@@ -103,9 +103,13 @@ def _step(label: str, fn) -> int:
     return rc
 
 
-def _seed_events(db) -> int:
+def seed_demo_events(db) -> int:
     """Insert the demo events under whichever user shows up first
-    (typically the first team member after seed_morgan ran)."""
+    (typically the first team member after seed_morgan ran).
+
+    Public so backend/main.py's startup hook can call it idempotently
+    without re-importing the whole CLI orchestrator. Also called by
+    main() below when seed.py is invoked directly."""
     creator = db.query(User).order_by(User.id.asc()).first()
     if creator is None:
         print("  no users in DB — skipping events (run seed_morgan first).")
@@ -134,7 +138,9 @@ def _seed_events(db) -> int:
     return 0
 
 
-def _seed_groups(db) -> int:
+def seed_demo_groups(db) -> int:
+    """Insert the demo study groups. Public for the same reason as
+    seed_demo_events — main.py's startup hook reuses it."""
     creator = db.query(User).order_by(User.id.asc()).first()
     if creator is None:
         print("  no users in DB — skipping groups.")
@@ -186,9 +192,9 @@ def main() -> int:
     # 5. Events + groups (no dedicated scripts; inline so this PR stays small).
     db = SessionLocal()
     try:
-        if _step("seed_events (3 upcoming campus events)", lambda: _seed_events(db)):
+        if _step("seed_events (3 upcoming campus events)", lambda: seed_demo_events(db)):
             failures.append("seed_events")
-        if _step("seed_groups (3 study/interest groups)", lambda: _seed_groups(db)):
+        if _step("seed_groups (3 study/interest groups)", lambda: seed_demo_groups(db)):
             failures.append("seed_groups")
     finally:
         db.close()
