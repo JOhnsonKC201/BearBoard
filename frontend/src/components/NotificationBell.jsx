@@ -1,21 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { formatRelativeTime } from '../utils/format'
 
 const POLL_MS = 60000
-
-function formatRelative(iso) {
-  if (!iso) return ''
-  const t = new Date(iso).getTime()
-  if (Number.isNaN(t)) return ''
-  const s = Math.max(1, Math.floor((Date.now() - t) / 1000))
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 function bodyForKind(kind) {
   if (kind === 'resurface') return 'A post from someone in your major needs answers'
@@ -165,7 +153,7 @@ function NotificationBell() {
                     {n.post && (
                       <div className="text-[0.78rem] text-gray truncate">{n.post.title}</div>
                     )}
-                    <div className="text-[0.65rem] text-gray mt-[2px]">{formatRelative(n.created_at)}</div>
+                    <div className="text-[0.65rem] text-gray mt-[2px]">{formatRelativeTime(n.created_at)}</div>
                   </div>
                 </div>
               </button>
