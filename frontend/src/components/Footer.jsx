@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { LogoIcon } from './Logo'
+import TechStack from './TechStack'
 
 /* =============================================================================
  * Footer — "Broadsheet colophon"
@@ -352,8 +353,19 @@ function Footer() {
         </aside>
       </div>
 
+      {/* Built-with strip — slim row above the colophon. Sits on its own
+          dark band so the brand glyphs don't compete with the copyright line. */}
+      <div className="relative border-t border-white/12 bg-[#081426]">
+        <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+          <div className="font-archivo font-black text-gold/85 text-[0.6rem] uppercase tracking-[0.3em] shrink-0">
+            Built with
+          </div>
+          <TechStack />
+        </div>
+      </div>
+
       {/* Colophon strip */}
-      <div className="relative border-t border-white/15 bg-[#081426]">
+      <div className="relative border-t border-white/12 bg-[#06101f]">
         <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[0.7rem] text-white/55">
           <div className="font-archivo font-bold uppercase tracking-[0.18em]">
             © {year} BearBoard · Built for COSC 458
