@@ -11,6 +11,7 @@ import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import AuthorAvatar from '../components/AuthorAvatar'
 import EmojiPickerButton, { insertAtCursor } from '../components/EmojiPickerButton'
+import AIAssistantPanel from '../components/AIAssistantPanel'
 
 function PostDetail() {
   const { id } = useParams()
@@ -286,6 +287,11 @@ function PostDetail() {
               />
             </div>
           </article>
+
+          {/* AI assistant panel — wires up the existing /api/ai/summarize and
+              /api/ai/insights endpoints. Sits between the article and the
+              comments so the affordance reads as a tool on the post itself. */}
+          <AIAssistantPanel postId={post.id} isAuthed={isAuthed} />
 
           {/* Letters to the Editor — comments section. Placed directly
               under the article (before "More from") so the conversation
