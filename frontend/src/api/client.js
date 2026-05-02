@@ -164,7 +164,11 @@ export function invalidateCache(prefix) {
 }
 
 async function rawFetch(url, options, headers) {
-  const response = await fetch(url, { ...options, headers })
+  // Strip our own non-RequestInit options (cache=false, ttl=...) so they don't
+  // leak into native fetch — `cache` is a string enum there ('no-store' etc),
+  // a boolean throws "not a valid enum value of type RequestCache" silently.
+  const { cache: _ignoreCache, ttl: _ignoreTtl, ...fetchOpts } = options || {}
+  const response = await fetch(url, { ...fetchOpts, headers })
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     const error = new Error(errorData.detail || `Request failed with status ${response.status}`)
