@@ -96,7 +96,7 @@ def summarize(text: str) -> SummaryResult:
     try:
         # Comfortable budget so a fenced JSON reply doesn't get truncated
         # on longer threads. Cheap on gemini-2.5-flash-lite.
-        raw = complete(SUMMARIZE_SYSTEM, text, max_tokens=600)
+        raw = complete(SUMMARIZE_SYSTEM, text, max_tokens=220)
     except LLMUnavailable:
         return _heuristic_summary(text)
 
