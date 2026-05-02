@@ -102,15 +102,16 @@ function Navbar() {
         className="group inline-flex items-center gap-3.5 font-archivo font-black text-[1.55rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
         aria-label="BearBoard home"
       >
-        {/* Subtle warm glow behind the icon so it reads as a real brand
-            mark on the dark navbar instead of a shy little square. The
-            drop-shadow only paints inside the SVG silhouette so the
-            corners stay crisp. */}
+        {/* Orange variant of the mark — bright orange tile reads
+            unambiguously against the dark navy navbar where the
+            navy-on-navy variant was blending in. The drop-shadow
+            spreads a warm halo to give the tile presence; subtle
+            hover scale for tactile feedback. */}
         <span
           className="inline-flex shrink-0 transition-transform duration-200 group-hover:scale-[1.05]"
-          style={{ filter: 'drop-shadow(0 2px 10px rgba(240, 127, 36, 0.35))' }}
+          style={{ filter: 'drop-shadow(0 4px 14px rgba(240, 127, 36, 0.55))' }}
         >
-          <LogoIcon size={48} />
+          <LogoIcon size={52} variant="orange" />
         </span>
         <span className="leading-none inline-flex items-baseline">
           <span>BEAR</span>
