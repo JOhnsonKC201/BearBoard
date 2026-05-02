@@ -14,6 +14,7 @@ function initialsFor(name) {
 const PRIMARY_LINKS = [
   { to: '/',            label: 'Feed' },
   { to: '/groups',      label: 'Groups' },
+  { to: '/chat',        label: 'Chat' },
   { to: '/events',      label: 'Events' },
   { to: '/map',         label: 'Map' },
   { to: '/professors',  label: 'Profs' },

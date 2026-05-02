@@ -1,0 +1,1 @@
+Server-side WebSocket endpoint (HTTP Upgrade per RFC 6455)

@@ -16,6 +16,7 @@ from core.config import (
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
     RESET_TOKEN_EXPIRE_MINUTES, FRONTEND_URL,
 )
+from core.ws_auth import decode_jwt_user_id, InvalidToken
 from datetime import datetime, timedelta, timezone
 from services.email import send_password_reset_email
 
@@ -62,17 +63,9 @@ def get_current_user_dep(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    token = credentials.credentials
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        sub = payload.get("sub")
-        if sub is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        try:
-            user_id = int(sub)
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
+        user_id = decode_jwt_user_id(credentials.credentials)
+    except InvalidToken:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user = db.query(User).filter(User.id == user_id).first()

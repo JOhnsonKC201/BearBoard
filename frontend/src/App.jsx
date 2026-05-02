@@ -28,6 +28,7 @@ const GroupDetail = lazy(() => import('./pages/GroupDetail'))
 const Groups = lazy(() => import('./pages/Groups'))
 const Events = lazy(() => import('./pages/Events'))
 const Team = lazy(() => import('./pages/Team'))
+const Chat = lazy(() => import('./pages/Chat'))
 
 function WithNav({ children }) {
   // Bottom padding clears the fixed mobile BottomNav (56px tall) plus the
@@ -84,6 +85,8 @@ function App() {
             <Route path="/groups/:id" element={<WithNav><GroupDetail /></WithNav>} />
             <Route path="/events" element={<WithNav><Events /></WithNav>} />
             <Route path="/team" element={<WithNav><Team /></WithNav>} />
+            <Route path="/chat" element={<WithNav><Chat /></WithNav>} />
+            <Route path="/chat/:userId" element={<WithNav><Chat /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>
