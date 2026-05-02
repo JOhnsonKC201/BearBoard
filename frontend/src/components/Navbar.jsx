@@ -96,13 +96,22 @@ function Navbar() {
   }
 
   return (
-    <nav className="bg-navy h-[60px] flex items-center justify-between px-6 sticky top-0 z-[100]">
+    <nav className="bg-navy h-[72px] flex items-center justify-between px-6 sticky top-0 z-[100]">
       <Link
         to="/"
-        className="inline-flex items-center gap-3 font-archivo font-black text-[1.3rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+        className="group inline-flex items-center gap-3.5 font-archivo font-black text-[1.55rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
         aria-label="BearBoard home"
       >
-        <LogoIcon size={40} />
+        {/* Subtle warm glow behind the icon so it reads as a real brand
+            mark on the dark navbar instead of a shy little square. The
+            drop-shadow only paints inside the SVG silhouette so the
+            corners stay crisp. */}
+        <span
+          className="inline-flex shrink-0 transition-transform duration-200 group-hover:scale-[1.05]"
+          style={{ filter: 'drop-shadow(0 2px 10px rgba(240, 127, 36, 0.35))' }}
+        >
+          <LogoIcon size={48} />
+        </span>
         <span className="leading-none inline-flex items-baseline">
           <span>BEAR</span>
           <span className="text-gold inline-block">BOARD</span>
@@ -269,7 +278,7 @@ function Navbar() {
       {/* Mobile search sheet - full-width input that drops below the
           navbar when the icon button is tapped. */}
       {searchOpen && (
-        <div className="sm:hidden absolute left-0 right-0 top-[60px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
+        <div className="sm:hidden absolute left-0 right-0 top-[72px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
           <form
             onSubmit={(e) => {
               onSearchSubmit(e)
