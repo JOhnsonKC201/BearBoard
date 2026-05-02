@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import AuthorAvatar from '../components/AuthorAvatar'
+import FloatingParticles from '../components/FloatingParticles'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
@@ -473,6 +474,11 @@ function Home() {
           className="absolute -bottom-36 -right-16 w-[520px] h-[520px] rounded-full bg-gold/[0.09] blur-3xl pointer-events-none"
           aria-hidden
         />
+
+        {/* Floating gold particles — dense field drifts up the masthead
+            so the home hero feels as alive as the auth banner. Component
+            no-ops under reduced motion and is purely decorative. */}
+        <FloatingParticles count={24} seed={2026} />
 
         <div className="relative max-w-[1080px] xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-6 pt-5 pb-8 xl:pt-7 xl:pb-10">
           <div className="masthead-rise" style={{ '--mh-delay': '0ms' }}>
