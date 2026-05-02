@@ -96,15 +96,16 @@ function Navbar() {
   }
 
   return (
-    <nav className="bg-navy h-[52px] flex items-center justify-between px-6 sticky top-0 z-[100]">
+    <nav className="bg-navy h-[60px] flex items-center justify-between px-6 sticky top-0 z-[100]">
       <Link
         to="/"
-        className="inline-flex items-center gap-2 font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+        className="inline-flex items-center gap-3 font-archivo font-black text-[1.3rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
         aria-label="BearBoard home"
       >
-        <LogoIcon size={28} />
-        <span className="leading-none">
-          BEAR<span className="text-gold">BOARD</span>
+        <LogoIcon size={40} />
+        <span className="leading-none inline-flex items-baseline">
+          <span>BEAR</span>
+          <span className="text-gold inline-block">BOARD</span>
         </span>
       </Link>
 
@@ -268,7 +269,7 @@ function Navbar() {
       {/* Mobile search sheet - full-width input that drops below the
           navbar when the icon button is tapped. */}
       {searchOpen && (
-        <div className="sm:hidden absolute left-0 right-0 top-[52px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
+        <div className="sm:hidden absolute left-0 right-0 top-[60px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
           <form
             onSubmit={(e) => {
               onSearchSubmit(e)
