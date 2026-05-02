@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SafetyBox from './SafetyBox'
 import MobilePostCard from './MobilePostCard'
+import FloatingParticles from './FloatingParticles'
 import { paletteFor, catClassFor, flairLabel } from '../utils/avatar'
 import {
   initialsFor,
@@ -242,6 +243,10 @@ function MobileHome({
           className="absolute -bottom-28 -right-20 w-[320px] h-[320px] rounded-full bg-gold/15 blur-3xl pointer-events-none"
           aria-hidden
         />
+
+        {/* Floating gold particles — same atmosphere as the desktop and
+            auth heroes, scaled down a bit for the narrower mobile masthead. */}
+        <FloatingParticles count={14} seed={2027} />
 
         <div className="relative px-5 pt-6 pb-7">
           {/* Flag line: masthead + volume/issue */}

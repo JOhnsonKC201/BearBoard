@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import { LogoIcon } from './Logo'
+import FloatingParticles from './FloatingParticles'
 
 const STATS = [
   { value: '6', label: 'Founders' },
@@ -97,6 +98,11 @@ function AuthLayout({ title, subtitle, children }) {
           animate={prefersReducedMotion ? undefined : { backgroundPositionX: ['0px', '28px'], backgroundPositionY: ['0px', '-28px'] }}
           transition={prefersReducedMotion ? undefined : { duration: 12, repeat: Infinity, ease: 'linear' }}
         />
+
+        {/* Floating gold particles — dense field of tiny dots drift up
+            the hero with staggered durations. Pure decoration; component
+            no-ops under reduced motion. */}
+        <FloatingParticles count={26} seed={1337} />
 
         {/* Gold glow accents — bigger, more visible breathe so the navy
             background never reads as static. Skipped under reduced motion. */}
