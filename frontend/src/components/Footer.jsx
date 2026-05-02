@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LogoIcon } from './Logo'
 
 /* =============================================================================
  * Footer — "Broadsheet colophon"
@@ -135,11 +136,14 @@ function Wordmark() {
   return (
     <Link
       to="/"
-      className="inline-flex items-baseline gap-0 font-archivo font-black text-[1.45rem] tracking-[-0.02em] no-underline leading-none"
+      className="inline-flex items-center gap-3 font-archivo font-black text-[1.45rem] tracking-[-0.02em] no-underline leading-none"
       aria-label="BearBoard home"
     >
-      <span className="text-white">BEAR</span>
-      <span className="text-gold">BOARD</span>
+      <LogoIcon size={36} />
+      <span className="inline-flex items-baseline">
+        <span className="text-white">BEAR</span>
+        <span className="text-gold">BOARD</span>
+      </span>
     </Link>
   )
 }
