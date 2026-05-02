@@ -1,0 +1,1 @@
+ConnectionManager: per-user fan-out and presence

@@ -108,8 +108,9 @@ function Register() {
       <AuthFieldsStagger>
         <form onSubmit={handleSubmit} className="space-y-4">
           <motion.div variants={authFieldChild}>
-            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Full name</label>
-            <input type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} placeholder="Your full name" />
+            <label className="block font-archivo text-[0.66rem] font-extrabold uppercase tracking-wider text-gray mb-1.5">Name</label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} placeholder="e.g. Aisha Brown" />
+            <p className="mt-1 text-[0.7rem] font-franklin text-gray/70 leading-snug">Whatever name you'd like classmates to see.</p>
             <FieldError message={errors.name} />
           </motion.div>
 
