@@ -98,12 +98,6 @@ function AuthLayout({ title, subtitle, children }) {
           transition={prefersReducedMotion ? undefined : { duration: 12, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Floating gold particles — five tiny dots drift up the hero with
-            staggered durations + offsets so the motion never syncs into a
-            visible pattern. Each particle is its own motion component so
-            their lifecycles are independent. */}
-        {!prefersReducedMotion && <FloatingParticles />}
-
         {/* Gold glow accents — bigger, more visible breathe so the navy
             background never reads as static. Skipped under reduced motion. */}
         <motion.div
@@ -297,46 +291,6 @@ export const authFieldChild = {
   animate: { opacity: 1, y: 0, x: 0, transition: { duration: 0.5, ease: easeBack } },
 }
 
-// FloatingParticles — five small gold dots drift up the navy hero with
-// staggered delays + durations so the motion never syncs into a visible
-// pattern. Pure decoration, pointer-events-none, hidden under reduced motion.
-const PARTICLE_SPECS = [
-  { left: '12%', size: 6, duration: 18, delay: 0, opacity: 0.55 },
-  { left: '32%', size: 4, duration: 22, delay: 4, opacity: 0.4 },
-  { left: '58%', size: 7, duration: 16, delay: 2, opacity: 0.5 },
-  { left: '74%', size: 3, duration: 26, delay: 7, opacity: 0.35 },
-  { left: '88%', size: 5, duration: 20, delay: 5, opacity: 0.45 },
-]
-
-function FloatingParticles() {
-  return (
-    <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
-      {PARTICLE_SPECS.map((p, i) => (
-        <motion.span
-          key={i}
-          className="absolute rounded-full bg-gold blur-[1px]"
-          style={{
-            left: p.left,
-            bottom: -20,
-            width: p.size,
-            height: p.size,
-          }}
-          animate={{
-            y: ['0vh', '-110vh'],
-            opacity: [0, p.opacity, p.opacity, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            repeat: Infinity,
-            ease: 'linear',
-            delay: p.delay,
-            times: [0, 0.15, 0.85, 1],
-          }}
-        />
-      ))}
-    </div>
-  )
-}
 
 // ShimmerWord — wraps a word in a span that periodically gets a moving
 // gradient sweep across it. Used for the gold "BOARD" in the wordmark so
