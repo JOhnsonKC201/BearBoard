@@ -162,7 +162,11 @@ const VALID_SORTS = new Set(['new', 'popular', 'trending'])
 // initial state from peekCache() so a returning visitor sees yesterday's
 // data instantly while the network revalidates in the background — instead
 // of staring at a 30-second cold-start skeleton.
-const INITIAL_POSTS_URL = '/api/posts?sort=newest&limit=50'
+//
+// `/api/posts/` (trailing slash) is the canonical FastAPI path. Calling
+// `/api/posts?...` returns a 307 redirect, which adds an extra round-trip
+// before the feed paints. Same for the live URL builder below.
+const INITIAL_POSTS_URL = '/api/posts/?sort=newest&limit=50'
 const INITIAL_TRENDING_URL = '/api/trending'
 const INITIAL_EVENTS_URL = '/api/events?limit=24'
 const INITIAL_GROUPS_URL = '/api/groups'
@@ -408,7 +412,8 @@ function Home() {
     let cancelled = false
     const params = new URLSearchParams({ sort: sortParam, limit: '50' })
     if (categoryParam) params.set('category', categoryParam)
-    const url = `/api/posts?${params.toString()}`
+    // Trailing slash matches the canonical FastAPI route and skips a 307.
+    const url = `/api/posts/?${params.toString()}`
     // If this exact URL is already in the persisted cache, don't flip the
     // skeleton on — we'll be returning the cached array on this tick and
     // the network call is a background refresh. Skeleton still shows on a

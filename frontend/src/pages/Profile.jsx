@@ -814,7 +814,7 @@ function Profile() {
 
     Promise.all([
       apiFetch(`/api/users/${id}`),
-      apiFetch(`/api/posts?author_id=${id}`),
+      apiFetch(`/api/posts/?author_id=${id}`),
     ])
       .then(([userData, postsData]) => {
         if (cancelled) return

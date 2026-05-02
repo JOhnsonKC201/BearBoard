@@ -19,17 +19,29 @@ export function AuthProvider({ children }) {
     let cancelled = false
     setLoading(true)
     apiFetch('/api/auth/me')
-      .then(async (data) => {
+      .then((data) => {
         if (cancelled) return
-        // Fire-and-forget daily checkin so streaks count even on a passive
-        // visit. Refetch /me afterward so the new streak shows immediately.
-        try {
-          await apiFetch('/api/users/me/checkin', { method: 'POST' })
-          const fresh = await apiFetch('/api/auth/me')
-          if (!cancelled) setUser(fresh)
-        } catch {
-          if (!cancelled) setUser(data)
-        }
+        // Render with what we have RIGHT NOW. The streak number on screen
+        // is correct unless the user is logging in for the first time
+        // today, in which case the background checkin a few lines down
+        // will bump it within a second.
+        setUser(data)
+        setLoading(false)
+
+        // Fire-and-forget daily checkin so streaks count on a passive
+        // visit. Then refresh /me to update the streak count in the
+        // navbar. Both happen in the background — they do NOT block the
+        // initial paint, which was the old behavior and added ~400 ms to
+        // the time-to-first-render on every page load.
+        ;(async () => {
+          try {
+            await apiFetch('/api/users/me/checkin', { method: 'POST' })
+            const fresh = await apiFetch('/api/auth/me', { cache: false })
+            if (!cancelled) setUser(fresh)
+          } catch {
+            // Background work; surface nothing to the user.
+          }
+        })()
       })
       .catch((err) => {
         if (cancelled) return
@@ -38,8 +50,8 @@ export function AuthProvider({ children }) {
           setToken(null)
         }
         setUser(null)
+        setLoading(false)
       })
-      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [token])
 
