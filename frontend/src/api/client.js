@@ -122,6 +122,19 @@ function setCache(key, data) {
 
 loadFromStorage()
 
+// Manually seed the cache for an endpoint after an out-of-band fetch.
+// Used by the /api/home/initial bundle: one network call returns data
+// for five separate endpoints, and we want subsequent peekCache() reads
+// of those endpoints to hit warm rather than re-fetching. Keyed by the
+// current auth token so a different user's tab doesn't see this data.
+export function primeCache(endpoint, data) {
+  if (typeof endpoint !== 'string' || data === undefined) return
+  const url = `${API_URL}${endpoint}`
+  let token = null
+  try { token = safeStorage()?.getItem('bearboard_token') || null } catch {}
+  setCache(cacheKey(url, token), data)
+}
+
 // Synchronous read of any cached entry (in-memory + persisted) for an
 // endpoint. Returns the raw data if anything is on disk for this user,
 // regardless of staleness, so callers can hydrate UI state without waiting
@@ -262,4 +275,34 @@ export async function apiFetch(endpoint, options = {}) {
 export function warmBackend() {
   if (typeof fetch === 'undefined') return
   fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {})
+}
+
+// Race the React mount: kick off the home-bundle fetch as early as
+// possible (called from main.jsx, before createRoot). Primes the SWR
+// cache so Home.jsx's peekCache() reads return data with no network
+// wait. Falls through silently if the request fails — Home.jsx still
+// runs its granular per-endpoint fetches as fallbacks.
+const HOME_INITIAL_URL = '/api/home/initial'
+const HOME_BUNDLE_KEYS = {
+  posts: '/api/posts/?sort=newest&limit=50',
+  trending: '/api/trending',
+  events: '/api/events?limit=24',
+  groups: '/api/groups',
+  stats: '/api/stats',
+}
+
+export function prefetchHomeInitial() {
+  // Use apiFetch so the response respects the SWR cache semantics
+  // (token-keyed, retried on 502/503 cold starts). Then fan the bundled
+  // payload out to the per-endpoint cache keys so the rest of the app
+  // can read each slice via peekCache as if it had been fetched
+  // separately.
+  apiFetch(HOME_INITIAL_URL)
+    .then((bundle) => {
+      if (!bundle || typeof bundle !== 'object') return
+      for (const [field, endpoint] of Object.entries(HOME_BUNDLE_KEYS)) {
+        if (bundle[field] !== undefined) primeCache(endpoint, bundle[field])
+      }
+    })
+    .catch(() => { /* network or backend unreachable — granular fetches handle it */ })
 }

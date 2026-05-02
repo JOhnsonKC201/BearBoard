@@ -27,6 +27,13 @@
          first paint isn't gated on it. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- API preconnect — opens the TCP + TLS connection to the backend
+         while the HTML is still parsing, so the first /api/home/initial
+         fetch (kicked off by main.jsx) doesn't pay DNS/TLS overhead.
+         Saves ~100–250ms on cold visits. dns-prefetch as a fallback for
+         very old browsers. -->
+    <link rel="preconnect" href="https://bearboard-api.onrender.com" crossorigin />
+    <link rel="dns-prefetch" href="https://bearboard-api.onrender.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Libre+Franklin:wght@400;500;600&display=swap"
       rel="stylesheet"
