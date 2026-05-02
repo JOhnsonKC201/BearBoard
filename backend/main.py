@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -130,10 +131,27 @@ def _seed_demo_data_if_sparse():
         logger.exception("seed_demo_data: startup seed failed (non-fatal)")
 
 
+async def _bootstrap_seeds():
+    """Run the optional sparse-table seeders in a background task so a slow
+    or paused database does not hold up the server boot. Each helper already
+    swallows its own exceptions, so we just dispatch them off the event
+    loop to keep `/health` reachable from the moment uvicorn binds."""
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, _seed_professors_if_sparse)
+        await loop.run_in_executor(None, _seed_demo_data_if_sparse)
+    except Exception:
+        logger.exception("background seed bootstrap failed (non-fatal)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _seed_professors_if_sparse()
-    _seed_demo_data_if_sparse()
+    # Seeds used to run inline here, which meant any DB stall (paused
+    # Supabase, slow cold connection) blocked the server from binding —
+    # users would see the API as completely unresponsive instead of just
+    # a slow first query. Dispatching to a background task keeps boot
+    # snappy; the seeds finish on their own and post the same log lines.
+    asyncio.create_task(_bootstrap_seeds())
     scheduler.add_job(_resurface_job, "interval", hours=1, id="resurface", replace_existing=True)
     scheduler.add_job(
         _morgan_events_job,

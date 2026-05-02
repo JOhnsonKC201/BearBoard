@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, or_
 from core.database import get_db
@@ -21,6 +21,81 @@ from datetime import datetime, timedelta, timezone
 from core.memocache import ttl_cache
 
 router = APIRouter(prefix="/api", tags=["extras"])
+
+
+class HomeInitialResponse(BaseModel):
+    """Bundled payload for the landing-page cold paint. Lets the client
+    make a single round-trip instead of fanning out to /api/posts/,
+    /api/trending, /api/events, /api/groups, /api/stats — which on
+    Render's free tier costs ~150-300ms per extra trip in TLS + queueing
+    overhead before the feed can paint."""
+    posts: list[PostResponse]
+    trending: list[PostResponse]
+    events: list[EventResponse]
+    groups: list[GroupResponse]
+    stats: dict
+
+
+def _home_initial_posts(db: Session, request: Request) -> list[Post]:
+    """Default-feed query — same shape as get_posts(sort=newest, limit=50,
+    no filters). Kept inline so we don't recursively call the FastAPI
+    handler (which would re-resolve dependencies). Reuses the comment-count
+    aggregation from posts.py to stay consistent."""
+    from routers.posts import _anonymize_list, _try_get_user, _viewer_is_mod
+    from sqlalchemy import desc, case
+    sos_first = case((Post.is_sos.is_(True) & Post.sos_resolved.is_(False), 0), else_=1)
+    posts = (
+        db.query(Post)
+        .options(joinedload(Post.author))
+        .order_by(sos_first, desc(Post.created_at))
+        .limit(50)
+        .all()
+    )
+    if posts:
+        post_ids = [p.id for p in posts]
+        counts = dict(
+            db.query(Comment.post_id, func.count(Comment.id))
+            .filter(Comment.post_id.in_(post_ids))
+            .group_by(Comment.post_id)
+            .all()
+        )
+        for p in posts:
+            p.comment_count = counts.get(p.id, 0)
+    viewer = _try_get_user(request, db)
+    return _anonymize_list(
+        posts,
+        viewer_id=viewer.id if viewer else None,
+        viewer_is_mod=_viewer_is_mod(viewer),
+    )
+
+
+@router.get("/home/initial", response_model=HomeInitialResponse)
+def home_initial(request: Request, response: Response, db: Session = Depends(get_db)):
+    """One-shot bundle for the landing-page first paint. Saves 4 round-trips
+    on cold loads. Each slice still respects the same anonymization /
+    cache rules as its standalone endpoint — events/groups/stats reuse
+    their @ttl_cache decorators automatically because we just call the
+    handler functions in-process."""
+    posts = _home_initial_posts(db, request)
+    trending = get_trending(request, db)
+    events = get_events(limit=24, db=db)
+    groups = get_groups(course=None, db=db)
+    stats = public_stats(db=db)
+    # Browser/CDN caching layered on top of the in-process ttl_cache. 30s
+    # fresh + 120s stale-while-revalidate means a returning visitor's
+    # browser can serve this instantly from disk while the network
+    # revalidates in the background. Logged-in viewers see anonymization
+    # variations, but the underlying public-feed shape is identical for
+    # everyone — Vary on Authorization keeps per-user caches separate.
+    response.headers["Cache-Control"] = "private, max-age=30, stale-while-revalidate=120"
+    response.headers["Vary"] = "Authorization"
+    return {
+        "posts": posts,
+        "trending": trending,
+        "events": events,
+        "groups": groups,
+        "stats": stats,
+    }
 
 
 @router.get("/trending", response_model=list[PostResponse])
