@@ -87,7 +87,13 @@ def _call_openai(system: str, user: str, max_tokens: int = 400) -> str:
 
 
 def complete(system: str, user: str, max_tokens: int = 400) -> str:
-    """Run a single-turn completion. Raises LLMUnavailable if no provider works."""
+    """Run a single-turn completion. Raises LLMUnavailable if no provider works.
+
+    Catches ANY exception from a provider (HTTP errors, quota / billing /
+    permission denials, network timeouts) and falls through to the next one.
+    Without this, a depleted Gemini key would 500 the route instead of
+    letting the caller serve its deterministic fallback.
+    """
     order = ["gemini", "anthropic", "openai"]
     providers = [LLM_PROVIDER] + [p for p in order if p != LLM_PROVIDER]
     last_error: Optional[Exception] = None
@@ -100,6 +106,9 @@ def complete(system: str, user: str, max_tokens: int = 400) -> str:
             if provider == "openai":
                 return _call_openai(system, user, max_tokens=max_tokens)
         except LLMUnavailable as e:
+            last_error = e
+            continue
+        except Exception as e:
             last_error = e
             continue
     raise LLMUnavailable(str(last_error) if last_error else "no LLM provider configured")
