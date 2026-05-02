@@ -116,7 +116,7 @@ def reply(message: str) -> ChatReply:
         return _stub_reply(cleaned)
 
     try:
-        raw = complete(CHAT_SYSTEM, cleaned, max_tokens=350)
+        raw = complete(CHAT_SYSTEM, cleaned, max_tokens=180)
     except LLMUnavailable:
         return _stub_reply(cleaned)
 

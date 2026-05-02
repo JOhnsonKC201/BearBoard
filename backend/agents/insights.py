@@ -124,7 +124,7 @@ def advise(text: str) -> InsightResult:
         return _heuristic_insight(text)
 
     try:
-        raw = complete(INSIGHTS_SYSTEM, text, max_tokens=500)
+        raw = complete(INSIGHTS_SYSTEM, text, max_tokens=200)
     except LLMUnavailable:
         return _heuristic_insight(text)
 
