@@ -96,15 +96,31 @@ function Navbar() {
   }
 
   return (
-    <nav className="bg-navy h-[52px] flex items-center justify-between px-6 sticky top-0 z-[100]">
+    <nav className="bg-navy h-[56px] lg:h-[72px] flex items-center justify-between px-3 sm:px-4 lg:px-6 sticky top-0 z-[100] gap-2">
       <Link
         to="/"
-        className="inline-flex items-center gap-2 font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+        className="group inline-flex items-center gap-2 lg:gap-3.5 font-archivo font-black text-[1.05rem] sm:text-[1.2rem] lg:text-[1.55rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm shrink-0 min-w-0"
         aria-label="BearBoard home"
       >
-        <LogoIcon size={28} />
-        <span className="leading-none">
-          BEAR<span className="text-gold">BOARD</span>
+        {/* Orange variant of the mark — bright orange tile reads
+            unambiguously against the dark navy navbar where the
+            navy-on-navy variant was blending in. The drop-shadow
+            spreads a warm halo to give the tile presence; subtle
+            hover scale for tactile feedback. SVG size is driven by
+            Tailwind w-/h- classes so the mark scales down on mobile
+            without wrecking the navbar layout. */}
+        <span
+          className="inline-flex shrink-0 transition-transform duration-200 group-hover:scale-[1.05]"
+          style={{ filter: 'drop-shadow(0 3px 12px rgba(240, 127, 36, 0.5))' }}
+        >
+          <LogoIcon
+            variant="orange"
+            className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[52px] lg:h-[52px]"
+          />
+        </span>
+        <span className="leading-none inline-flex items-baseline">
+          <span>BEAR</span>
+          <span className="text-gold inline-block">BOARD</span>
         </span>
       </Link>
 
@@ -175,7 +191,7 @@ function Navbar() {
           onClick={() => setSearchOpen((v) => !v)}
           aria-label={searchOpen ? 'Close search' : 'Open search'}
           aria-expanded={searchOpen}
-          className="sm:hidden w-10 h-10 flex items-center justify-center rounded bg-white/[0.08] border border-white/10 text-white/80 hover:text-white cursor-pointer"
+          className="sm:hidden w-9 h-9 shrink-0 flex items-center justify-center rounded bg-white/[0.08] border border-white/10 text-white/80 hover:text-white cursor-pointer"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <circle cx="11" cy="11" r="7" />
@@ -247,16 +263,16 @@ function Navbar() {
             </button>
           </>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Link
               to="/login"
-              className="text-white/70 hover:text-white text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-2.5 lg:py-[7px] no-underline"
+              className="text-white/70 hover:text-white text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-2.5 sm:px-3 py-2 lg:py-[7px] no-underline whitespace-nowrap"
             >
               Sign In
             </Link>
             <Link
               to="/register"
-              className="bg-gold text-navy text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-3 py-2.5 lg:py-[7px] no-underline hover:bg-[#E5A92E] transition-colors"
+              className="bg-gold text-navy text-[0.72rem] font-archivo font-extrabold uppercase tracking-wide px-2.5 sm:px-3 py-2 lg:py-[7px] no-underline hover:bg-[#E5A92E] transition-colors whitespace-nowrap"
             >
               Join
             </Link>
@@ -268,7 +284,7 @@ function Navbar() {
       {/* Mobile search sheet - full-width input that drops below the
           navbar when the icon button is tapped. */}
       {searchOpen && (
-        <div className="sm:hidden absolute left-0 right-0 top-[52px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
+        <div className="sm:hidden absolute left-0 right-0 top-[56px] bg-navy border-t border-white/10 px-4 py-3 z-[90]">
           <form
             onSubmit={(e) => {
               onSearchSubmit(e)
