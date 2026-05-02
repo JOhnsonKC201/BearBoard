@@ -1,40 +1,112 @@
-import { useState } from 'react'
-import { apiFetch } from '../api/client'
+import { useEffect, useRef, useState } from 'react'
+import { API_URL } from '../api/client'
 
-// Two-button panel that calls /api/ai/summarize and /api/ai/insights for the
-// current post. Lives between the article body and the comments section so the
-// affordance reads as a tool you can pull on the post itself, not a footer.
-//
-// Both endpoints are auth-gated and rate-limited on the backend. They also
-// return {provider: "heuristic"} when no LLM key is configured, which is a
-// real result — surface it rather than treating it as a failure.
+// Two-tab assistant pinned under the post body.
+// - Summarize: streams Gemini tokens via SSE so the TL;DR appears live as it generates.
+// - Suggest next steps: still a JSON POST against /api/ai/insights, but uses raw fetch
+//   (no apiFetch cache) so a single bad request can't poison subsequent clicks.
 function AIAssistantPanel({ postId, isAuthed }) {
   const [activeTab, setActiveTab] = useState(null) // 'summary' | 'insights' | null
-  const [summary, setSummary] = useState(null)
+  const [streamText, setStreamText] = useState('')
+  const [streamProvider, setStreamProvider] = useState(null)
+  const [streamKeyPoints, setStreamKeyPoints] = useState([])
   const [insights, setInsights] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const abortRef = useRef(null)
 
-  const run = async (kind) => {
+  useEffect(() => () => { if (abortRef.current) abortRef.current.abort() }, [])
+
+  const runSummary = async () => {
     if (!isAuthed) {
       setError('Log in to use the AI assistant.')
-      setActiveTab(kind)
+      setActiveTab('summary')
+      return
+    }
+    if (abortRef.current) abortRef.current.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setError(null)
+    setActiveTab('summary')
+    setLoading(true)
+    setStreamText('')
+    setStreamProvider(null)
+    setStreamKeyPoints([])
+
+    const token = localStorage.getItem('bearboard_token') || ''
+    const url = `${API_URL}/api/ai/summarize/stream?post_id=${encodeURIComponent(postId)}&token=${encodeURIComponent(token)}`
+
+    try {
+      const resp = await fetch(url, { signal: ctrl.signal })
+      if (!resp.ok || !resp.body) {
+        throw new Error(`stream failed (${resp.status})`)
+      }
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        // SSE frames are separated by blank lines
+        let idx
+        while ((idx = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, idx)
+          buffer = buffer.slice(idx + 2)
+          const lines = frame.split('\n')
+          let event = 'message'
+          let dataLine = ''
+          for (const line of lines) {
+            if (line.startsWith('event:')) event = line.slice(6).trim()
+            else if (line.startsWith('data:')) dataLine += line.slice(5).trim()
+          }
+          if (!dataLine) continue
+          let payload = {}
+          try { payload = JSON.parse(dataLine) } catch { continue }
+          if (event === 'provider') setStreamProvider(payload.provider)
+          else if (event === 'delta') setStreamText((t) => t + (payload.text || ''))
+          else if (event === 'keypoint') setStreamKeyPoints((kp) => [...kp, payload.text])
+          else if (event === 'error') setError(payload.detail || 'AI provider error')
+          else if (event === 'done') { /* close handled below */ }
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Stream failed')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const runInsights = async () => {
+    if (!isAuthed) {
+      setError('Log in to use the AI assistant.')
+      setActiveTab('insights')
       return
     }
     setError(null)
+    setActiveTab('insights')
     setLoading(true)
-    setActiveTab(kind)
+    setInsights(null)
     try {
-      const endpoint = kind === 'summary' ? '/api/ai/summarize' : '/api/ai/insights'
-      const data = await apiFetch(endpoint, {
+      const token = localStorage.getItem('bearboard_token') || ''
+      const resp = await fetch(`${API_URL}/api/ai/insights`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ post_id: postId }),
-        cache: false,
       })
-      if (kind === 'summary') setSummary(data)
-      else setInsights(data)
+      if (!resp.ok) {
+        const txt = await resp.text()
+        throw new Error(resp.status === 429 ? 'Too many AI requests — slow down a sec.' : (txt || `failed (${resp.status})`))
+      }
+      const data = await resp.json()
+      setInsights(data)
     } catch (err) {
-      setError(err.status === 429 ? 'Too many AI requests — slow down a sec.' : (err.message || 'AI request failed'))
+      setError(err.message || 'AI request failed')
     } finally {
       setLoading(false)
     }
@@ -64,7 +136,7 @@ function AIAssistantPanel({ postId, isAuthed }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => run('summary')}
+            onClick={runSummary}
             disabled={loading}
             className={`px-3 py-2 min-h-[36px] font-archivo text-mini font-extrabold uppercase tracking-[0.14em] border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               showSummaryPanel
@@ -77,7 +149,7 @@ function AIAssistantPanel({ postId, isAuthed }) {
           </button>
           <button
             type="button"
-            onClick={() => run('insights')}
+            onClick={runInsights}
             disabled={loading}
             className={`px-3 py-2 min-h-[36px] font-archivo text-mini font-extrabold uppercase tracking-[0.14em] border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               showInsightsPanel
@@ -99,17 +171,16 @@ function AIAssistantPanel({ postId, isAuthed }) {
             </div>
           )}
 
-          {showSummaryPanel && summary && !loading && !error && (
+          {showSummaryPanel && (streamText || streamProvider) && !error && (
             <div className="mt-3">
-              <ProviderBadge provider={summary.provider} />
-              <p className="mt-2 font-prose text-[1rem] text-ink leading-[1.55]">
-                {summary.tldr}
+              {streamProvider && <ProviderBadge provider={streamProvider} />}
+              <p className="mt-2 font-prose text-[1rem] text-ink leading-[1.55] whitespace-pre-wrap">
+                {streamText || (loading ? '' : '(no summary)')}
+                {loading && <span className="inline-block w-2 h-4 align-middle bg-gold/60 ml-1 animate-pulse" />}
               </p>
-              {summary.key_points?.length > 0 && (
+              {streamKeyPoints.length > 0 && (
                 <ul className="mt-3 list-disc pl-5 space-y-1.5 font-prose text-[0.95rem] text-ink/90">
-                  {summary.key_points.map((p, i) => (
-                    <li key={i}>{p}</li>
-                  ))}
+                  {streamKeyPoints.map((p, i) => (<li key={i}>{p}</li>))}
                 </ul>
               )}
             </div>
@@ -123,9 +194,7 @@ function AIAssistantPanel({ postId, isAuthed }) {
               </p>
               {insights.guidance?.length > 0 && (
                 <ol className="mt-3 list-decimal pl-5 space-y-1.5 font-prose text-[0.95rem] text-ink/90">
-                  {insights.guidance.map((g, i) => (
-                    <li key={i}>{g}</li>
-                  ))}
+                  {insights.guidance.map((g, i) => (<li key={i}>{g}</li>))}
                 </ol>
               )}
               {insights.resources?.length > 0 && (
@@ -148,7 +217,7 @@ function AIAssistantPanel({ postId, isAuthed }) {
             </div>
           )}
 
-          {loading && (
+          {loading && !streamText && (
             <p className="mt-3 text-mini text-gray font-archivo uppercase tracking-wider">
               Asking the assistant…
             </p>
@@ -159,9 +228,6 @@ function AIAssistantPanel({ postId, isAuthed }) {
   )
 }
 
-// Tiny pill that names where the answer came from. Heuristic / noop responses
-// are real, just keyword-driven — labeling them keeps the UI honest without
-// looking like an error state.
 function ProviderBadge({ provider }) {
   const label =
     provider === 'llm' ? 'AI'
