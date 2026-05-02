@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
+import { LogoIcon } from './Logo'
 
 const STATS = [
   { value: '6', label: 'Founders' },
@@ -134,14 +135,15 @@ function AuthLayout({ title, subtitle, children }) {
         <motion.div className="relative flex items-center gap-3" variants={safe(heroChildLeft)}>
           <Link
             to="/"
-            className="inline-flex items-center gap-2 font-archivo font-black text-[1.35rem] lg:text-[1.3rem] text-white no-underline tracking-tight uppercase group"
+            className="inline-flex items-center gap-3 font-archivo font-black text-[1.35rem] lg:text-[1.3rem] text-white no-underline tracking-tight uppercase group"
+            aria-label="BearBoard home"
           >
             <motion.span
-              className="w-9 h-9 rounded-full bg-gold text-navy flex items-center justify-center text-[1.1rem] font-black shrink-0"
-              whileHover={prefersReducedMotion ? undefined : { rotate: -8, scale: 1.06 }}
+              className="shrink-0 inline-flex"
+              whileHover={prefersReducedMotion ? undefined : { rotate: -6, scale: 1.06 }}
               transition={{ type: 'spring', stiffness: 320, damping: 18 }}
             >
-              B
+              <LogoIcon size={40} />
             </motion.span>
             BEAR<ShimmerWord text="BOARD" enabled={!prefersReducedMotion} />
           </Link>

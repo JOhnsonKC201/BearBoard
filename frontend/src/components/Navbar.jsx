@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import HealthDot from './HealthDot'
+import { LogoIcon } from './Logo'
 import { useAuth } from '../context/AuthContext'
 
 function initialsFor(name) {
@@ -98,9 +99,13 @@ function Navbar() {
     <nav className="bg-navy h-[52px] flex items-center justify-between px-6 sticky top-0 z-[100]">
       <Link
         to="/"
-        className="font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+        className="inline-flex items-center gap-2 font-archivo font-black text-[1.15rem] text-white no-underline tracking-tight uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-sm"
+        aria-label="BearBoard home"
       >
-        BEAR<span className="text-gold">BOARD</span>
+        <LogoIcon size={28} />
+        <span className="leading-none">
+          BEAR<span className="text-gold">BOARD</span>
+        </span>
       </Link>
 
       {/* Desktop nav links (lg+; bottom nav covers smaller screens) */}
