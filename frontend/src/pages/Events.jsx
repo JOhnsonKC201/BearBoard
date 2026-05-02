@@ -36,7 +36,7 @@ export default function Events() {
       apiFetch('/api/events?limit=200', { cache: false }).catch(() => []),
       // User-created event posts. Fetch a wide window so the page reads as
       // a real calendar; cap at the API's max limit.
-      apiFetch('/api/posts?category=events&limit=100', { cache: false }).catch(() => []),
+      apiFetch('/api/posts/?category=events&limit=100', { cache: false }).catch(() => []),
     ]).then(([syncedEvents, eventPosts]) => {
       if (cancelled) return
       setEvents(syncedEvents || [])

@@ -126,7 +126,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
         payload.contact_info = contactInfo.trim()
       }
       if (imageUrl.trim()) payload.image_url = imageUrl.trim()
-      const post = await apiFetch('/api/posts', {
+      const post = await apiFetch('/api/posts/', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
