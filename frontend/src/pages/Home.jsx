@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import AuthorAvatar from '../components/AuthorAvatar'
@@ -168,7 +168,10 @@ const VALID_SORTS = new Set(['new', 'popular', 'trending'])
 // `/api/posts/` (trailing slash) is the canonical FastAPI path. Calling
 // `/api/posts?...` returns a 307 redirect, which adds an extra round-trip
 // before the feed paints. Same for the live URL builder below.
-const INITIAL_POSTS_URL = '/api/posts/?sort=newest&limit=50'
+// First feed page. Subsequent pages are loaded by the IntersectionObserver
+// sentinel when the user scrolls near the bottom (see fetchPostsPage).
+const FEED_PAGE_SIZE = 20
+const INITIAL_POSTS_URL = `/api/posts/?sort=newest&limit=${FEED_PAGE_SIZE}`
 const INITIAL_TRENDING_URL = '/api/trending'
 const INITIAL_EVENTS_URL = '/api/events?limit=24'
 const INITIAL_GROUPS_URL = '/api/groups'
@@ -188,6 +191,14 @@ function Home() {
   const [posts, setPosts] = useState(() => peekCache(INITIAL_POSTS_URL) || [])
   const [postsLoading, setPostsLoading] = useState(() => !peekCache(INITIAL_POSTS_URL))
   const [postsError, setPostsError] = useState(null)
+  // Pagination state: nextOffset is the offset to send on the *next* page
+  // request, hasMore flips false once the server returns a short page,
+  // loadingMore guards against duplicate requests while a fetch is in
+  // flight. Reset on filter / sort change.
+  const [nextOffset, setNextOffset] = useState(FEED_PAGE_SIZE)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadMoreErrorRef = useRef(null)
 
   // Inline edit/delete handlers for the kebab menu on each card. Patches
   // local state so the feed stays in sync without a refetch.
@@ -410,9 +421,12 @@ function Home() {
   // to the backend, which only knows the alphanumeric slug "lostfound".
   const categoryParam = activeFilter === 'All' ? null : flairSlug(activeFilter)
 
+  // First-page fetch (also fires when sort/filter changes — those reset
+  // pagination since the server's offset is meaningless after the query
+  // shape changes).
   useEffect(() => {
     let cancelled = false
-    const params = new URLSearchParams({ sort: sortParam, limit: '50' })
+    const params = new URLSearchParams({ sort: sortParam, limit: String(FEED_PAGE_SIZE) })
     if (categoryParam) params.set('category', categoryParam)
     // Trailing slash matches the canonical FastAPI route and skips a 307.
     const url = `/api/posts/?${params.toString()}`
@@ -428,12 +442,90 @@ function Home() {
       setPostsLoading(true)
     }
     setPostsError(null)
+    // Reset pagination cursor — every filter/sort flip starts at offset 0.
+    setNextOffset(FEED_PAGE_SIZE)
+    setHasMore(true)
+    setLoadingMore(false)
+    loadMoreErrorRef.current = null
     apiFetch(url)
-      .then((data) => { if (!cancelled) setPosts(data) })
+      .then((data) => {
+        if (cancelled) return
+        const arr = Array.isArray(data) ? data : []
+        setPosts(arr)
+        // If the first page came back short, there's nothing more to load.
+        setHasMore(arr.length >= FEED_PAGE_SIZE)
+      })
       .catch((err) => { if (!cancelled) setPostsError(err.message || 'Failed to load posts') })
       .finally(() => { if (!cancelled) setPostsLoading(false) })
     return () => { cancelled = true }
   }, [reloadKey, sortParam, categoryParam])
+
+  // Fetch the next page. Idempotent guards: bails if a request is in flight,
+  // if hasMore is false, or if the initial page hasn't landed yet.
+  const loadMorePosts = useCallback(async () => {
+    if (loadingMore || !hasMore || postsLoading) return
+    setLoadingMore(true)
+    loadMoreErrorRef.current = null
+    try {
+      const params = new URLSearchParams({
+        sort: sortParam,
+        limit: String(FEED_PAGE_SIZE),
+        offset: String(nextOffset),
+      })
+      if (categoryParam) params.set('category', categoryParam)
+      const url = `/api/posts/?${params.toString()}`
+      const data = await apiFetch(url)
+      const arr = Array.isArray(data) ? data : []
+      // De-dupe in case a post appears in both the previous and new page —
+      // happens when something was newly inserted between fetches and the
+      // server slid by one row. Keep the existing copy (which already has
+      // the user's vote attached, etc.).
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p.id))
+        const fresh = arr.filter((p) => !seen.has(p.id))
+        return prev.concat(fresh)
+      })
+      setNextOffset((cur) => cur + FEED_PAGE_SIZE)
+      setHasMore(arr.length >= FEED_PAGE_SIZE)
+    } catch (err) {
+      loadMoreErrorRef.current = err?.message || 'Failed to load more posts'
+      // Don't flip hasMore here — let the user retry by scrolling back into
+      // the sentinel.
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMore, postsLoading, sortParam, categoryParam, nextOffset])
+
+  // IntersectionObserver-based load-more sentinel. The ref setter pattern
+  // is the React-idiomatic way to swap observers when the target node
+  // changes (e.g. switching between desktop and mobile layouts).
+  const observerRef = useRef(null)
+  const sentinelRefCb = useCallback((node) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+      observerRef.current = null
+    }
+    if (!node) return
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          loadMorePosts()
+          break
+        }
+      }
+    }, {
+      // Pre-fetch when the sentinel enters within ~600px of the viewport
+      // so the user never sees an obvious "loading…" stall on a fast scroll.
+      rootMargin: '0px 0px 600px 0px',
+      threshold: 0,
+    })
+    obs.observe(node)
+    observerRef.current = obs
+  }, [loadMorePosts])
+
+  useEffect(() => () => {
+    if (observerRef.current) observerRef.current.disconnect()
+  }, [])
 
   return (
     <div>
@@ -452,6 +544,9 @@ function Home() {
             onPostUpdated={handlePostUpdated}
             onPostDeleted={handlePostDeleted}
             loading={postsLoading || sidebarLoading}
+            loadMoreRef={sentinelRefCb}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
           />
         </Suspense>
       )}
@@ -619,6 +714,21 @@ function Home() {
                   <PostCard post={post} onUpdated={handlePostUpdated} onDeleted={handlePostDeleted} />
                 </div>
               ))}
+              {/* Pagination sentinel + status. The IntersectionObserver
+                  attached via sentinelRefCb fires loadMorePosts when this
+                  div enters within ~600px of the viewport. The status
+                  text below it gives the user explicit feedback so the
+                  fetch never feels silent. */}
+              <div ref={sentinelRefCb} aria-hidden style={{ height: 1 }} />
+              {hasMore ? (
+                <div className="text-center text-[0.78rem] text-gray font-archivo uppercase tracking-wider py-4">
+                  {loadingMore ? 'Loading more dispatches…' : 'Scroll for more'}
+                </div>
+              ) : regularPosts.length > 0 ? (
+                <div className="text-center text-[0.74rem] text-gray font-franklin italic py-4">
+                  — End of feed —
+                </div>
+              ) : null}
             </>
           )}
         </div>
