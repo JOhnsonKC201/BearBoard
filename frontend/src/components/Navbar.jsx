@@ -213,13 +213,15 @@ function Navbar() {
         {isAuthed ? (
           <>
             {user?.streak_count > 0 && (
-              <div
-                className="hidden lg:flex items-center gap-1 px-2 py-1 rounded bg-gold/15 text-gold text-[0.7rem] font-archivo font-extrabold"
-                title={`${user.streak_count}-day activity streak`}
+              <Link
+                to="/streak"
+                className="hidden lg:flex items-center gap-1 px-2 py-1 rounded bg-gold/15 text-gold text-[0.7rem] font-archivo font-extrabold no-underline hover:bg-gold/25 transition-colors"
+                title={`${user.streak_count}-day activity streak — view details`}
+                aria-label={`View your ${user.streak_count}-day activity streak`}
               >
                 <span aria-hidden="true">🔥</span>
                 <span>{user.streak_count}</span>
-              </div>
+              </Link>
             )}
             <NotificationBell />
             {user && (
