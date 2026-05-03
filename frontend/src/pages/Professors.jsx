@@ -597,6 +597,25 @@ function ProfessorDetail({ profId, onBack, reloadKey, onReload }) {
     onReload?.()
   }
 
+  // Inline delete for the viewer's own rating. Backend has supported this
+  // since the original schema (DELETE /api/professors/:id/ratings/mine);
+  // this just gives users a one-click affordance from inside their own
+  // review card so they don't have to hunt for it.
+  const deleteMyRating = async () => {
+    if (!isAuthed || !myRating) return
+    if (!window.confirm('Delete your review of this professor? This can\'t be undone.')) {
+      return
+    }
+    try {
+      await apiFetch(`/api/professors/${profId}/ratings/mine`, { method: 'DELETE' })
+      onReload?.()
+    } catch (err) {
+      // Surface the failure but don't trap the user — most likely cause
+      // is a stale session or a 404 if they already deleted in another tab.
+      window.alert(err?.message || 'Could not delete your review.')
+    }
+  }
+
   if (loading) {
     return <div className="bg-card border border-lightgray h-[400px] animate-pulse" />
   }
@@ -699,7 +718,15 @@ function ProfessorDetail({ profId, onBack, reloadKey, onReload }) {
           </div>
         ) : (
           <ul className="list-none p-0 m-0 space-y-3">
-            {prof.ratings.map((r) => <ReviewCard key={r.id} review={r} />)}
+            {prof.ratings.map((r) => (
+              <ReviewCard
+                key={r.id}
+                review={r}
+                mineUserId={user?.id || null}
+                onEdit={openForm}
+                onDelete={deleteMyRating}
+              />
+            ))}
           </ul>
         )}
       </section>
@@ -721,16 +748,27 @@ function Stat({ label, value, tone = 'neutral' }) {
 }
 
 
-function ReviewCard({ review }) {
+function ReviewCard({ review, mineUserId = null, onEdit, onDelete }) {
   const courseLabel = [review.course_code, review.course_title].filter(Boolean).join(' · ')
   const recLabel = recommendationLabel(review.recommendation)
+  // A review is "mine" when the logged-in user wrote it — only then do we
+  // render the inline Edit / Delete affordance. Both backend endpoints
+  // (the upsert POST and DELETE .../mine) already enforce ownership server
+  // side, so this is purely a UI gate to avoid showing dead buttons to
+  // viewers who can't act on them.
+  const isMine = mineUserId != null && review.user_id === mineUserId
   return (
-    <li className="bg-card border border-lightgray border-l-[3px] border-l-navy/60 p-4 sm:p-5">
+    <li className={`bg-card border border-lightgray border-l-[3px] p-4 sm:p-5 ${isMine ? 'border-l-gold' : 'border-l-navy/60'}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Stars value={review.rating} size="1.05rem" />
             <span className="font-archivo font-extrabold text-[0.92rem] tabular-nums text-ink">{review.rating}.0</span>
+            {isMine && (
+              <span className="font-archivo text-2xs font-extrabold uppercase tracking-wider py-[2px] px-2 rounded-sm bg-gold/15 text-gold">
+                Your review
+              </span>
+            )}
             {review.difficulty != null && (
               <span className="text-2xs text-gray font-archivo uppercase tracking-wider">
                 · Difficulty {review.difficulty}/5
@@ -796,6 +834,33 @@ function ReviewCard({ review }) {
           <PromptedQuote prompt="Comment" body={review.comment} />
         )}
       </div>
+
+      {/* Owner-only action row. Edit reuses the form opener already wired
+          on the parent — the form's `existing` prop is set from myRating
+          so it pre-fills with the current review. Delete hits the
+          existing DELETE .../ratings/mine endpoint after a confirm. */}
+      {isMine && (onEdit || onDelete) && (
+        <div className="mt-4 pt-3 border-t border-lightgray flex items-center gap-2">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="font-archivo text-2xs font-extrabold uppercase tracking-wider py-1.5 px-3 bg-navy text-white border-0 cursor-pointer hover:bg-[#13284a] transition-colors"
+            >
+              Edit
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="font-archivo text-2xs font-extrabold uppercase tracking-wider py-1.5 px-3 bg-transparent text-danger border border-danger/40 cursor-pointer hover:bg-danger hover:text-white transition-colors"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </li>
   )
 }
