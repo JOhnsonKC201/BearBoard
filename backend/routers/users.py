@@ -2,14 +2,36 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from core.database import get_db
 from schemas.user import UserResponse, UserPublicResponse, UserUpdate
 from models.user import User
+from models.post import Post
+from models.comment import Comment
+from models.vote import Vote
+from models.comment_vote import CommentVote
+from models.group_member import GroupMember
 from routers.auth import get_current_user_dep
 from services.streak import bump_streak
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+class UserStatsResponse(BaseModel):
+    """Aggregated activity counts for a user's profile.
+
+    Anonymous posts/comments are NOT counted in the totals shown to other
+    viewers — surfacing a count that doesn't match the public posts list
+    would silently let a curious classmate infer how many anonymous posts
+    a target student has filed. The author themselves (and moderators)
+    see the real total."""
+    posts: int
+    comments: int
+    groups: int
+    votes_cast: int
+    upvotes_received: int
+    karma: int
 
 
 # Avatar uploads come in as base64 data URLs because the existing frontend
@@ -55,6 +77,90 @@ def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+@router.get("/{user_id}/stats", response_model=UserStatsResponse)
+def get_user_stats(
+    user_id: int,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Aggregated profile activity. Counts respect the anonymity contract:
+    anonymous posts/comments are excluded from public counts so a viewer
+    can't infer how many anonymous items a target user has filed by
+    diffing the stat against the visible posts list. The author and
+    moderators see the real total."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_self_or_mod = (
+        current_user.id == user_id
+        or getattr(current_user, "role", None) in ("admin", "moderator")
+    )
+
+    posts_q = db.query(func.count(Post.id)).filter(Post.author_id == user_id)
+    comments_q = db.query(func.count(Comment.id)).filter(Comment.author_id == user_id)
+    if not is_self_or_mod:
+        # Mirror the public-feed visibility rule from posts.py: hide both the
+        # explicit boolean and the legacy 'anonymous' category.
+        posts_q = posts_q.filter(
+            Post.is_anonymous.is_(False),
+            Post.category != "anonymous",
+        )
+        comments_q = comments_q.filter(Comment.is_anonymous.is_(False))
+
+    posts_count = posts_q.scalar() or 0
+    comments_count = comments_q.scalar() or 0
+
+    groups_count = (
+        db.query(func.count(GroupMember.id))
+        .filter(GroupMember.user_id == user_id, GroupMember.status == "active")
+        .scalar()
+        or 0
+    )
+
+    # Votes cast: posts + comments. Counts the user's own action regardless
+    # of where it landed; this is "how engaged is this user" not "what did
+    # other people do to them."
+    post_votes_cast = (
+        db.query(func.count(Vote.id)).filter(Vote.user_id == user_id).scalar() or 0
+    )
+    comment_votes_cast = (
+        db.query(func.count(CommentVote.id))
+        .filter(CommentVote.user_id == user_id)
+        .scalar()
+        or 0
+    )
+
+    # Upvotes received: sum of upvote counters on the user's own posts +
+    # comments. Anonymous content is excluded from public totals for the
+    # same reason posts/comments are.
+    post_upvotes_q = db.query(func.coalesce(func.sum(Post.upvotes), 0)).filter(
+        Post.author_id == user_id
+    )
+    comment_upvotes_q = db.query(func.coalesce(func.sum(Comment.upvotes), 0)).filter(
+        Comment.author_id == user_id
+    )
+    if not is_self_or_mod:
+        post_upvotes_q = post_upvotes_q.filter(
+            Post.is_anonymous.is_(False),
+            Post.category != "anonymous",
+        )
+        comment_upvotes_q = comment_upvotes_q.filter(Comment.is_anonymous.is_(False))
+
+    upvotes_received = int(post_upvotes_q.scalar() or 0) + int(
+        comment_upvotes_q.scalar() or 0
+    )
+
+    return UserStatsResponse(
+        posts=posts_count,
+        comments=comments_count,
+        groups=groups_count,
+        votes_cast=post_votes_cast + comment_votes_cast,
+        upvotes_received=upvotes_received,
+        karma=int(getattr(user, "karma", 0) or 0),
+    )
 
 
 @router.post("/me/avatar", response_model=UserResponse)

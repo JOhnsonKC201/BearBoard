@@ -700,14 +700,20 @@ function PostCard({ post, featured = false }) {
 /* =========================================================================
  * Sidebar atoms.
  * ========================================================================= */
-function StatLedger({ karma, postCount, streak, totalVotes }) {
+function StatLedger({ karma, postCount, streak, totalVotes, comments, groups, votesCast }) {
   // Typewriter/ledger-style stats. Monospace-feeling through tracking + uppercase.
+  // The bottom three rows render only when the /stats endpoint returned data
+  // — older deploys without the endpoint stay backward-compatible with the
+  // four-row ledger.
   const rows = [
     { label: 'Karma', value: karma },
     { label: 'Dispatches', value: postCount },
     { label: 'Streak', value: `${streak}d` },
     { label: 'Total upvotes', value: totalVotes },
   ]
+  if (typeof comments === 'number') rows.push({ label: 'Comments', value: comments })
+  if (typeof groups === 'number') rows.push({ label: 'Groups', value: groups })
+  if (typeof votesCast === 'number') rows.push({ label: 'Votes cast', value: votesCast })
   return (
     <div className="bg-card border border-lightgray">
       <div className="bg-navy text-gold px-4 py-3 font-archivo font-extrabold text-[0.7rem] uppercase tracking-widest">
@@ -797,6 +803,7 @@ function Profile() {
   const id = rawId
   const [user, setUser] = useState(null)
   const [posts, setPosts] = useState([])
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('writings')
@@ -835,6 +842,13 @@ function Profile() {
         if (!cancelled) setLoading(false)
       })
 
+    // Aggregated activity counts. Non-fatal: the page still renders if this
+    // 404s (older deploys without the endpoint) — the ledger just falls
+    // back to client-side derivations.
+    apiFetch(`/api/users/${id}/stats`)
+      .then((data) => { if (!cancelled) setStats(data) })
+      .catch(() => { /* non-fatal — sidebar derives best-effort numbers */ })
+
     apiFetch('/api/stats')
       .then((data) => { if (!cancelled) setSiteStats(data) })
       .catch(() => { /* non-fatal */ })
@@ -853,7 +867,11 @@ function Profile() {
 
   const palette = getPalette(user)
   const isSelf = currentUser?.id === user.id
-  const totalVotes = posts.reduce((sum, p) => sum + ((p.upvotes ?? 0) - (p.downvotes ?? 0)), 0)
+  // Prefer the server's authoritative count (covers anonymous-aware totals
+  // and includes upvotes from comments, not just posts). Fall back to the
+  // post-list-derived approximation when the endpoint isn't available.
+  const totalVotes = stats?.upvotes_received
+    ?? posts.reduce((sum, p) => sum + ((p.upvotes ?? 0) - (p.downvotes ?? 0)), 0)
 
   // Editor's pick = highest-scored post. Keep it only if it actually scored.
   const rankedPosts = [...posts].sort((a, b) => {
@@ -929,9 +947,9 @@ function Profile() {
   }
 
   const tabs = [
-    { key: 'writings', label: 'Writings', count: posts.length },
+    { key: 'writings', label: 'Writings', count: stats?.posts ?? posts.length },
     { key: 'activity', label: 'Activity' },
-    { key: 'comments', label: 'Comments' },
+    { key: 'comments', label: 'Comments', count: stats?.comments },
     { key: 'dossier', label: 'Dossier' },
   ]
 
@@ -1094,10 +1112,13 @@ function Profile() {
           {/* SIDEBAR */}
           <aside className="space-y-5">
             <StatLedger
-              karma={user.karma ?? 0}
-              postCount={posts.length}
+              karma={stats?.karma ?? user.karma ?? 0}
+              postCount={stats?.posts ?? posts.length}
               streak={user.streak_count ?? 0}
               totalVotes={totalVotes}
+              comments={stats?.comments}
+              groups={stats?.groups}
+              votesCast={stats?.votes_cast}
             />
 
             <ActivityRibbon posts={posts} />
