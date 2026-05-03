@@ -34,6 +34,8 @@ from agents import moderation
 from datetime import datetime, timedelta, timezone
 
 SOS_NOTIFICATION_KIND = "sos"
+COMMENT_NOTIFICATION_KIND = "comment"
+REPLY_NOTIFICATION_KIND = "reply"
 
 logger = logging.getLogger("bearboard.posts")
 
@@ -89,17 +91,23 @@ def _anonymize_if_needed(post: Post, viewer_id: int | None = None, viewer_is_mod
     """Strip author identity from anonymous posts before returning.
 
     The Post row always keeps author_id so moderators can investigate abuse
-    at the DB layer, but the API response for anonymous posts must not
-    leak the author — otherwise the 'Anonymous' label is cosmetic only.
+    at the DB layer (out-of-band SQL queries), but the API response for
+    anonymous posts must not leak the author to *anyone* except the author
+    themselves — otherwise the 'Anonymous' label is cosmetic only.
 
-    The author themselves and any moderator/admin can still see real
-    identity so they can manage their own posts (delete/edit) and so
-    moderators can act on rule violations. Everyone else gets nulled-out
-    author fields.
+    Note: mods used to be exempt from this scrub so they could moderate
+    on-feed, but that broke the anonymity contract from the perspective of
+    a normal user (an admin viewing your post saw your name even though you
+    chose Anonymous). Moderation actions don't actually need the identity
+    visible in the feed — they need to be able to delete the row, which
+    they still can via the comment/post id alone. `viewer_is_mod` is kept
+    as a parameter so call sites don't need to be updated and so we can
+    revisit the policy later without touching every endpoint.
     """
+    del viewer_is_mod  # intentionally unused; see docstring
     if post and _post_is_anon(post):
         post.is_anonymous = True  # normalize for response
-        if not viewer_is_mod and (viewer_id is None or post.author_id != viewer_id):
+        if viewer_id is None or post.author_id != viewer_id:
             # Shadow attributes override the ORM values only for the serialization pass.
             post.author_id = None
             post.author = None
@@ -114,10 +122,12 @@ def _anonymize_list(posts: list[Post], viewer_id: int | None = None, viewer_is_m
 
 def _anonymize_comment(comment: Comment, viewer_id: int | None = None, viewer_is_mod: bool = False) -> Comment:
     """Same shape as _anonymize_if_needed, applied to comments. The author
-    themselves and moderators see the real author; everyone else sees a
-    nulled-out author so the 'Anonymous' label is enforced server-side."""
+    themselves sees the real author; everyone else (including mods and the
+    post owner) sees a nulled-out author. See _anonymize_if_needed for why
+    we no longer bypass the scrub for mods."""
+    del viewer_is_mod  # intentionally unused; see _anonymize_if_needed docstring
     if comment and bool(getattr(comment, "is_anonymous", False)):
-        if not viewer_is_mod and (viewer_id is None or comment.author_id != viewer_id):
+        if viewer_id is None or comment.author_id != viewer_id:
             comment.author_id = None
             comment.author = None
     return comment
@@ -463,6 +473,52 @@ def create_comment(
     bump_streak(db, current_user)
     if post.is_sos and not post.sos_resolved:
         post.sos_resolved = True
+
+    # Notify the post author about new activity on their post (and, if this
+    # is a reply, the parent comment's author too). We dedupe per
+    # (recipient, post, kind): the unique constraint already enforces this,
+    # so we just upsert by re-flagging an existing unread row instead of
+    # erroring or spamming. The notification body never names the commenter
+    # — the anonymity contract has to hold here too.
+    notif_recipients: dict[int, str] = {}
+    if post.author_id and post.author_id != current_user.id:
+        notif_recipients[post.author_id] = COMMENT_NOTIFICATION_KIND
+    if parent_id is not None:
+        parent_author_id = (
+            db.query(Comment.author_id).filter(Comment.id == parent_id).scalar()
+        )
+        if parent_author_id and parent_author_id != current_user.id:
+            # Reply notifications take precedence over the generic
+            # comment kind for the same recipient: a reply is more
+            # specific signal than "your post got a comment".
+            notif_recipients[parent_author_id] = REPLY_NOTIFICATION_KIND
+
+    for recipient_id, kind in notif_recipients.items():
+        existing = (
+            db.query(Notification)
+            .filter(
+                Notification.recipient_id == recipient_id,
+                Notification.post_id == post_id,
+                Notification.kind == kind,
+            )
+            .first()
+        )
+        if existing is None:
+            db.add(Notification(
+                recipient_id=recipient_id,
+                post_id=post_id,
+                kind=kind,
+                read=False,
+            ))
+        else:
+            # Re-arm the existing notification so the bell pops again
+            # rather than silently leaving it as already-read. Also bump
+            # created_at so it floats back to the top of the list — the
+            # default ordering is desc(created_at), and a stale row would
+            # quietly appear among week-old notifications.
+            existing.read = False
+            existing.created_at = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(new_comment)
 
