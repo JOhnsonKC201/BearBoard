@@ -29,6 +29,7 @@ const Groups = lazy(() => import('./pages/Groups'))
 const Events = lazy(() => import('./pages/Events'))
 const Team = lazy(() => import('./pages/Team'))
 const Chat = lazy(() => import('./pages/Chat'))
+const Streak = lazy(() => import('./pages/Streak'))
 // Mounted globally inside WithNav so the AI tab in BottomNav can summon
 // it from any page. Lazy so it doesn't compete with first-paint.
 const ChatWidget = lazy(() => import('./components/ChatWidget'))
@@ -98,6 +99,7 @@ function App() {
             <Route path="/team" element={<WithNav><Team /></WithNav>} />
             <Route path="/chat" element={<WithNav><Chat /></WithNav>} />
             <Route path="/chat/:userId" element={<WithNav><Chat /></WithNav>} />
+            <Route path="/streak" element={<WithNav><Streak /></WithNav>} />
           </Routes>
         </Suspense>
       </Router>
