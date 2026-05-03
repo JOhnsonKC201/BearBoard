@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api/client'
@@ -6,6 +6,11 @@ import { useChatSocket } from '../hooks/useChatSocket'
 import ConversationList from '../components/chat/ConversationList'
 import ChatPanel from '../components/chat/ChatPanel'
 import NewChatModal from '../components/chat/NewChatModal'
+
+// Mobile-only single-pane experience. Lazy-loaded so desktop visitors don't
+// download the mobile tree on first paint, and so any failure inside it can't
+// take down the desktop chat path.
+const MobileChatExperience = lazy(() => import('../components/chat/MobileChatExperience'))
 
 /**
  * /chat — BearChat home.
@@ -26,6 +31,21 @@ function Chat() {
   const navigate = useNavigate()
   const params = useParams()
   const urlPeerId = params.userId ? Number(params.userId) : null
+
+  // Render only the layout that matches the viewport instead of mounting both
+  // trees and hiding one with CSS. Synchronous init keeps the first paint
+  // free of layout-flash. Mirrors the same pattern used in pages/Home.jsx.
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 1024px)').matches
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e) => setIsDesktop(e.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
 
   const [conversations, setConversations] = useState([])
   const [convosLoading, setConvosLoading] = useState(true)
@@ -325,6 +345,54 @@ function Chat() {
         || conversations.find((c) => c.other_user.id === activePeerId)?.peer_last_seen
         || null)
     : null
+
+  // Mobile back-arrow handler: drop the active peer + URL param so the list
+  // view re-mounts. Stays inside Chat.jsx so the routing stays consistent
+  // with onSelect.
+  const onBackToList = () => {
+    setActivePeerId(null)
+    navigate('/chat', { replace: true })
+  }
+
+  if (!isDesktop) {
+    return (
+      <div className="bg-white">
+        <Suspense
+          fallback={
+            <div className="min-h-[60vh] flex items-center justify-center font-franklin text-gray/70">
+              Loading…
+            </div>
+          }
+        >
+          <MobileChatExperience
+            meId={user?.id}
+            conversations={conversations}
+            online={online}
+            activePeerId={activePeerId}
+            peer={activePeer}
+            messages={activeThread}
+            isPeerTyping={isPeerTyping}
+            status={status}
+            errorMessage={chatError}
+            loading={convosLoading}
+            error={convosError}
+            onRetry={refetchConversations}
+            onSelect={onSelect}
+            onNewChat={() => setShowNew(true)}
+            onSend={onSend}
+            onTypingPing={onTypingPing}
+            onEdit={onEdit}
+            onBack={onBackToList}
+          />
+        </Suspense>
+        <NewChatModal
+          open={showNew}
+          onClose={() => setShowNew(false)}
+          onPick={onPickNewUser}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-2 lg:px-6 py-4 lg:py-6">
