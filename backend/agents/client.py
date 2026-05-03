@@ -94,6 +94,14 @@ def complete(system: str, user: str, max_tokens: int = 400) -> str:
     Without this, a depleted Gemini key would 500 the route instead of
     letting the caller serve its deterministic fallback.
     """
+    # Daily-budget gate. Reserving up front (before we know which provider
+    # will succeed) is fine: a single user call should consume one budget
+    # unit regardless of which provider answers it. If exhausted, raise
+    # LLMUnavailable so every agent's existing heuristic fallback kicks in.
+    from core.ai_budget import try_consume
+    if not try_consume():
+        raise LLMUnavailable("daily AI request budget exhausted")
+
     order = ["gemini", "anthropic", "openai"]
     providers = [LLM_PROVIDER] + [p for p in order if p != LLM_PROVIDER]
     last_error: Optional[Exception] = None
