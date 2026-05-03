@@ -117,7 +117,8 @@ def insights_endpoint(
 @router.get("/health")
 def ai_health():
     from agents.client import is_configured
-    return {"llm_configured": is_configured()}
+    from core.ai_budget import snapshot
+    return {"llm_configured": is_configured(), "budget": snapshot()}
 
 
 # --- SSE streaming summary ---
@@ -126,8 +127,13 @@ def ai_health():
 # token is accepted as a query param. The endpoint pulls the post + comments,
 # streams Gemini token-by-token as SSE events, and falls through to the
 # heuristic if Gemini fails. The frontend renders text live as it arrives.
+#
+# Rate-limited because each connection holds a streaming LLM call open and
+# could be opened concurrently from one tab; without this an attacker could
+# fan out 100 tabs and burn paid tokens.
 @router.get("/summarize/stream")
-def summarize_stream(post_id: int, token: str, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def summarize_stream(request: Request, post_id: int, token: str, db: Session = Depends(get_db)):
     try:
         user_id = decode_jwt_user_id(token)
     except InvalidToken:
@@ -144,8 +150,20 @@ def summarize_stream(post_id: int, token: str, db: Session = Depends(get_db)):
         return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
     def _gen():
-        # Heuristic fallback computed up front; we yield it if every provider fails.
+        # Heuristic fallback computed up front; we yield it if every provider fails
+        # OR if the daily budget is exhausted before we even open a stream.
         heuristic = _heuristic_summary(payload)
+
+        # Daily-budget gate: short-circuit straight to heuristic delivery. Reserving
+        # one unit here mirrors the non-streaming path in agents.client.complete().
+        from core.ai_budget import try_consume
+        if not try_consume():
+            yield _sse_event("provider", {"provider": "heuristic"})
+            yield _sse_event("delta", {"text": heuristic.tldr})
+            for kp in heuristic.key_points:
+                yield _sse_event("keypoint", {"text": kp})
+            yield _sse_event("done", {})
+            return
 
         # Friendly prose-only prompt — the JSON-only system prompt would emit
         # ugly partial tokens until the closing brace lands.
