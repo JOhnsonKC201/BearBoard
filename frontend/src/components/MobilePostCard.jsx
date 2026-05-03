@@ -48,13 +48,16 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
   const [expanded, setExpanded] = useState(false)
-  // Show short/medium posts fully inline like Reddit's mobile feed —
-  // a "Read more" toggle on every 3-paragraph post made the cards feel
-  // empty (only 2-3 lines before truncation). The collapse now only
-  // kicks in on genuinely long posts (essays, manifestos), so most
-  // student posts read in full without an extra tap.
+  // Match Reddit's mobile feed behavior:
+  //   - Short posts (≤ ~400 chars) render in full, no toggle needed.
+  //   - Longer posts collapse to a ~6-line preview with "Read more →"
+  //     so the feed stays scrollable without burying short posts under
+  //     long ones.
+  // Reddit truncates around 250-400 chars; 400 here is the upper end
+  // since BearBoard's body font is slightly tighter than Reddit's,
+  // so 400 chars fits 5-6 lines comfortably.
   const bodyRaw = post.body || ''
-  const bodyTooLong = bodyRaw.length > 2500
+  const bodyTooLong = bodyRaw.length > 400
 
   const [saved, setSaved] = useState(() => {
     try {
@@ -258,7 +261,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
               <div className="relative">
                 <div
                   className={`text-[0.92rem] text-ink/85 leading-[1.55] whitespace-pre-wrap font-prose overflow-hidden ${
-                    collapsed ? 'max-h-[20rem]' : ''
+                    collapsed ? 'max-h-[10rem]' : ''
                   }`}
                 >
                   {cleaned}
@@ -266,7 +269,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
                 {collapsed && (
                   // Fade overlay so the truncation reads as intentional.
                   <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-transparent"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
                     aria-hidden
                   />
                 )}
