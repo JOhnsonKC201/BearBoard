@@ -62,6 +62,18 @@ function ChatWidget() {
     }
   }, [messages, typing])
 
+  // Mobile entry point — the AI tab in BottomNav dispatches this event.
+  // We open the modal in place so the mobile flow mirrors the desktop
+  // floating-bubble UX without needing a separate /assistant route.
+  useEffect(() => {
+    const handler = () => {
+      setOpen(true)
+      setBadgeVisible(false)
+    }
+    window.addEventListener('bb:open-ai-widget', handler)
+    return () => window.removeEventListener('bb:open-ai-widget', handler)
+  }, [])
+
   const sendMessage = async (text) => {
     if (!text.trim()) return
     setMessages((prev) => [...prev, { from: 'user', text }])
@@ -91,12 +103,12 @@ function ChatWidget() {
 
   return (
     <>
-      {/* Chat bubble — pushed above the mobile BottomNav (56px tall) on
-          <lg so the bubble doesn't overlap the bottom-tab buttons. Returns
-          to bottom-6 on lg+ where BottomNav doesn't render. */}
+      {/* Chat bubble — desktop only. On mobile, the AI tab in BottomNav
+          summons the same modal via the bb:open-ai-widget event, so the
+          floating bubble would just be redundant clutter on a phone. */}
       <div
         onClick={toggle}
-        className="fixed bottom-[88px] right-4 lg:bottom-6 lg:right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold flex items-center justify-center cursor-pointer z-[160] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
+        className="hidden lg:flex fixed lg:bottom-6 lg:right-6 w-[56px] h-[56px] bg-navy rounded-full ring-2 ring-gold items-center justify-center cursor-pointer z-[160] hover:scale-105 transition-transform shadow-[0_6px_20px_-6px_rgba(11,29,52,0.5)]"
         aria-label={open ? 'Close chat' : 'Open BearBoard chat'}
       >
         {open ? (

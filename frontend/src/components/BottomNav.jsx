@@ -42,6 +42,28 @@ function IconMe({ active }) {
   )
 }
 
+function IconAI({ active }) {
+  // Four-pointed sparkle — recognizably "AI" in modern UIs without
+  // depending on a brand glyph (no robot emoji, no "AI" text inside).
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z" />
+      <path d="M19 14l0.7 1.8L21.5 17l-1.8 0.7L19 19l-0.7-1.3L16.5 17l1.8-1.2z" />
+    </svg>
+  )
+}
+
+function IconChat({ active }) {
+  // Speech-bubble icon. Matches the existing BottomNav stroke-style so
+  // the new tab visually belongs with the others (Feed / Events / etc.)
+  // rather than looking like an imported foreign asset.
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a8 8 0 0 1-12 6.9L4 20l1.1-4A8 8 0 1 1 21 12z" />
+    </svg>
+  )
+}
+
 function Tab({ to, label, Icon, active, onClick }) {
   const body = (
     <>
@@ -119,12 +141,26 @@ function BottomNav() {
     window.dispatchEvent(new CustomEvent('bearboard:newpost'))
   }
 
+  const openAIWidget = (e) => {
+    e.preventDefault()
+    // ChatWidget listens for this event and opens its modal. Same
+    // event-bus pattern as the + FAB above so we don't need a global
+    // store just to open one widget. Available without auth — the AI
+    // assistant is a public guide, not a user-data feature.
+    window.dispatchEvent(new CustomEvent('bb:open-ai-widget'))
+  }
+
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 bg-navy border-t border-white/10 flex items-stretch justify-around z-[150]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Primary mobile navigation"
     >
+      {/* AI assistant — opens the existing ChatWidget instead of routing,
+          so the conversation modal mirrors the desktop bubble UX. Active
+          state isn't tracked here (it's an action, not a route), matching
+          the convention used by the + FAB. */}
+      <Tab label="AI" Icon={IconAI} active={false} onClick={openAIWidget} />
       <Tab to="/" label="Feed" Icon={IconFeed} active={isFeed} />
       <Tab
         to="/events"
@@ -152,6 +188,14 @@ function BottomNav() {
         active={location.pathname.startsWith('/groups')}
       />
       <Tab to={meTo} label="Me" Icon={IconMe} active={isMe} />
+      {/* Chat — direct messaging. Routes to /chat (and /chat/:userId).
+          startsWith match so the tab stays active inside individual threads. */}
+      <Tab
+        to="/chat"
+        label="Chat"
+        Icon={IconChat}
+        active={location.pathname.startsWith('/chat')}
+      />
     </nav>
   )
 }

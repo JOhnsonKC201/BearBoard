@@ -17,7 +17,8 @@ import { formatRelativeTime, parseUtcDate } from '../utils/format'
 // Lazy: these only mount on explicit user action (button click, >=lg viewport).
 // Splitting them out keeps the first-paint bundle lean.
 const MobileHome = lazy(() => import('../components/MobileHome'))
-const ChatWidget = lazy(() => import('../components/ChatWidget'))
+// ChatWidget moved to global mount in App.jsx so the BottomNav AI tab
+// can summon it from any page (not just the feed).
 const NewPostModal = lazy(() => import('../components/NewPostModal'))
 const CreateGroupModal = lazy(() => import('../components/CreateGroupModal'))
 const PostAuthorMenu = lazy(() => import('../components/PostAuthorMenu'))
@@ -886,13 +887,9 @@ function Home() {
         </Suspense>
       )}
 
-      {/* Chat Widget - desktop only (on small screens it would collide with
-          BottomNav). Lazy-loaded so it never competes with first-paint. */}
-      {isDesktop && (
-        <Suspense fallback={null}>
-          <ChatWidget />
-        </Suspense>
-      )}
+      {/* ChatWidget is now mounted globally in App.jsx's WithNav so the
+          BottomNav AI tab can summon it from any page. Removed from here
+          to avoid double-mount on the feed. */}
     </div>
   )
 }
