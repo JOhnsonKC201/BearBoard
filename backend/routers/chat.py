@@ -219,6 +219,20 @@ async def _handle_inbound(sender_id: int, frame: dict[str, Any], ws: WebSocket) 
         await _handle_edit(sender_id, frame, ws)
         return
 
+    if kind == "group_send":
+        # Late import keeps the module-level dependency graph one-way:
+        # group_chat depends on chat (via SessionLocal etc), not the other
+        # way around. Avoids any circular-import risk if group_chat ever
+        # needs to reuse helpers from this module.
+        from routers.group_chat import handle_group_send
+        await handle_group_send(sender_id, frame, ws)
+        return
+
+    if kind == "group_edit":
+        from routers.group_chat import handle_group_edit
+        await handle_group_edit(sender_id, frame, ws)
+        return
+
     if kind == "typing":
         peer = frame.get("to")
         if isinstance(peer, int) and peer != sender_id:

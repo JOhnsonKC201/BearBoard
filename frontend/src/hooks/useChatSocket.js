@@ -20,7 +20,19 @@ import { API_URL } from '../api/client'
  * Subscribers register handlers via `on(type, fn)`; the hook returns the
  * `on` function and the consumer calls it inside useEffect with cleanup.
  */
-export function useChatSocket({ token, onMessage, onMessageUpdated, onTyping, onRead, onError }) {
+export function useChatSocket({
+  token,
+  onMessage,
+  onMessageUpdated,
+  onTyping,
+  onRead,
+  onError,
+  // Group chat handlers — same socket carries both DMs and group frames so
+  // the user only pays for one WebSocket connection regardless of how many
+  // group memberships they have.
+  onGroupMessage,
+  onGroupMessageUpdated,
+}) {
   const [status, setStatus] = useState('connecting')
   const [online, setOnline] = useState(() => new Set())
   // userId -> ISO string of last time we saw them go offline.
@@ -29,12 +41,18 @@ export function useChatSocket({ token, onMessage, onMessageUpdated, onTyping, on
   const retryRef = useRef(0)
   const heartbeatRef = useRef(null)
   const closedByConsumerRef = useRef(false)
-  const handlersRef = useRef({ onMessage, onMessageUpdated, onTyping, onRead, onError })
+  const handlersRef = useRef({
+    onMessage, onMessageUpdated, onTyping, onRead, onError,
+    onGroupMessage, onGroupMessageUpdated,
+  })
 
   // Keep latest handler closures available without retriggering the effect.
   useEffect(() => {
-    handlersRef.current = { onMessage, onMessageUpdated, onTyping, onRead, onError }
-  }, [onMessage, onMessageUpdated, onTyping, onRead, onError])
+    handlersRef.current = {
+      onMessage, onMessageUpdated, onTyping, onRead, onError,
+      onGroupMessage, onGroupMessageUpdated,
+    }
+  }, [onMessage, onMessageUpdated, onTyping, onRead, onError, onGroupMessage, onGroupMessageUpdated])
 
   const wsUrl = useCallback(() => {
     if (!token) return null
@@ -101,6 +119,8 @@ export function useChatSocket({ token, onMessage, onMessageUpdated, onTyping, on
       else if (t === 'message_updated' && h.onMessageUpdated) h.onMessageUpdated(frame)
       else if (t === 'typing' && h.onTyping) h.onTyping(frame)
       else if (t === 'read' && h.onRead) h.onRead(frame)
+      else if (t === 'group_message' && h.onGroupMessage) h.onGroupMessage(frame)
+      else if (t === 'group_message_updated' && h.onGroupMessageUpdated) h.onGroupMessageUpdated(frame)
       else if (t === 'error' && h.onError) h.onError(frame)
     }
 
