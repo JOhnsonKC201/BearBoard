@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import GroupChatPanel from '../components/GroupChatPanel'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -186,6 +187,11 @@ export default function GroupDetail() {
         onDeclineInvite={declineInvite}
         onToggleMute={toggleMute}
       />
+
+      {/* Group chat — Phase 1. Members-only; banned users are filtered
+          out by the backend membership check, muted users see history
+          but can't post. */}
+      {isMember && <GroupChatPanel groupId={Number(id)} />}
 
       {isMember && (
         <MemberList
