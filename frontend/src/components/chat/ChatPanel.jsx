@@ -94,8 +94,10 @@ function ChatPanel({
   peerLastSeen,
   isPeerTyping,
   status,
+  errorMessage,
   onSend,
   onTypingPing,
+  onEdit,
 }) {
   const [draft, setDraft] = useState('')
   const scrollerRef = useRef(null)
@@ -217,6 +219,7 @@ function ChatPanel({
                 lastInGroup={item.lastInGroup}
                 showSeen={m.id === lastMineReadId}
                 peerName={peer.name}
+                onEdit={onEdit}
               />
             )
           })
@@ -229,6 +232,12 @@ function ChatPanel({
           </div>
         )}
       </div>
+
+      {errorMessage && (
+        <div className="border-t border-red-200 bg-red-50 text-red-700 px-4 py-2 text-[0.78rem] font-franklin">
+          {errorMessage}
+        </div>
+      )}
 
       <form
         onSubmit={submit}

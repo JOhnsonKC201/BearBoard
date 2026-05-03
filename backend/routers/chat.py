@@ -41,6 +41,7 @@ from models.user import User
 from routers.auth import get_current_user_dep
 from schemas.chat import (
     ChatMessageCreate,
+    ChatMessageEdit,
     ChatMessageOut,
     ConversationOut,
     MarkReadRequest,
@@ -54,6 +55,10 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 CHAT_NOTIFICATION_KIND = "chat"
 MAX_BODY_LEN = 4000
+# Window in which the sender may edit a message. Slack's window is the same
+# 15 min by default; the cap stops people from rewriting old DMs out from
+# under a recipient who's already read and possibly screenshotted them.
+EDIT_WINDOW_SECONDS = 15 * 60
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +76,7 @@ def _serialize_message(m: ChatMessage) -> dict[str, Any]:
         "body": m.body,
         "created_at": (m.created_at or datetime.now(timezone.utc)).isoformat(),
         "read_at": m.read_at.isoformat() if m.read_at else None,
+        "edited_at": m.edited_at.isoformat() if m.edited_at else None,
     }
 
 
@@ -209,6 +215,10 @@ async def _handle_inbound(sender_id: int, frame: dict[str, Any], ws: WebSocket) 
         await _handle_send(sender_id, frame, ws)
         return
 
+    if kind == "edit":
+        await _handle_edit(sender_id, frame, ws)
+        return
+
     if kind == "typing":
         peer = frame.get("to")
         if isinstance(peer, int) and peer != sender_id:
@@ -267,6 +277,66 @@ async def _handle_send(sender_id: int, frame: dict[str, Any], ws: WebSocket) -> 
     # Echo to sender (all their devices) and push to recipient.
     await manager.send_to(sender_id, out)
     await manager.send_to(payload.recipient_id, out)
+
+
+async def _handle_edit(sender_id: int, frame: dict[str, Any], ws: WebSocket) -> None:
+    """Edit a message the current user previously sent. Validates ownership
+    and the time window, persists the new body, then broadcasts the updated
+    serialized message to both sides as `{type: "message_updated"}`."""
+    raw_id = frame.get("message_id")
+    try:
+        message_id = int(raw_id)
+    except (TypeError, ValueError):
+        await ws.send_json({"type": "error", "code": "bad_edit", "detail": "invalid message_id"})
+        return
+
+    try:
+        payload = ChatMessageEdit(body=str(frame.get("body", "")))
+    except (ValidationError, TypeError, ValueError):
+        await ws.send_json({"type": "error", "code": "bad_edit", "detail": "invalid body"})
+        return
+
+    new_body = payload.body.strip()
+    if not new_body:
+        await ws.send_json({"type": "error", "code": "bad_edit", "detail": "body empty"})
+        return
+
+    with SessionLocal() as db:
+        msg = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+        if msg is None:
+            await ws.send_json(
+                {"type": "error", "code": "not_found", "detail": "message not found"}
+            )
+            return
+        if msg.sender_id != sender_id:
+            await ws.send_json(
+                {"type": "error", "code": "forbidden", "detail": "not your message"}
+            )
+            return
+
+        # Reject edits to messages older than the window. We compare in UTC
+        # because created_at lands in the DB without timezone info on SQLite
+        # but with UTC semantics everywhere we care.
+        now = datetime.now(timezone.utc)
+        created = msg.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        if (now - created).total_seconds() > EDIT_WINDOW_SECONDS:
+            await ws.send_json(
+                {"type": "error", "code": "edit_window", "detail": "edit window has passed"}
+            )
+            return
+
+        msg.body = new_body
+        msg.edited_at = now
+        db.commit()
+        db.refresh(msg)
+        wire = _serialize_message(msg)
+        recipient_id = msg.recipient_id
+
+    out = {"type": "message_updated", **wire}
+    await manager.send_to(sender_id, out)
+    await manager.send_to(recipient_id, out)
 
 
 async def _handle_read(reader_id: int, peer_id: int) -> None:
@@ -436,6 +506,44 @@ async def mark_read(
     if body.with_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="cannot mark self-thread")
     await _handle_read(current_user.id, body.with_user_id)
+
+
+@router.patch("/messages/{message_id}", response_model=ChatMessageOut)
+async def edit_message(
+    message_id: int,
+    body: ChatMessageEdit,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """REST counterpart to the WS `edit` event. Same ownership + time-window
+    rules; broadcasts the updated message to both peers if either is online."""
+    new_body = body.body.strip()
+    if not new_body:
+        raise HTTPException(status_code=400, detail="body empty")
+
+    msg = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="message not found")
+    if msg.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="not your message")
+
+    now = datetime.now(timezone.utc)
+    created = msg.created_at
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if (now - created).total_seconds() > EDIT_WINDOW_SECONDS:
+        raise HTTPException(status_code=400, detail="edit window has passed")
+
+    msg.body = new_body
+    msg.edited_at = now
+    db.commit()
+    db.refresh(msg)
+
+    wire = _serialize_message(msg)
+    out = {"type": "message_updated", **wire}
+    await manager.send_to(msg.sender_id, out)
+    await manager.send_to(msg.recipient_id, out)
+    return msg
 
 
 @router.get("/users/search", response_model=list[UserPublicResponse])
