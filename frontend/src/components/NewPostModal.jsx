@@ -19,6 +19,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
   const [category, setCategory] = useState(preset?.category || 'General')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
+  const [eventLocation, setEventLocation] = useState('')
   const [price, setPrice] = useState('')
   const [contactInfo, setContactInfo] = useState('')
   const [imageUrl, setImageUrl] = useState('')
@@ -62,6 +63,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
       setCategory(preset?.category || 'General')
       setEventDate('')
       setEventTime('')
+      setEventLocation('')
       setPrice('')
       setContactInfo('')
       setImageUrl('')
@@ -90,6 +92,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
     if (isEvent) {
       if (!eventDate) next.eventDate = 'Event date is required'
       if (!eventTime) next.eventTime = 'Event time is required'
+      if (!eventLocation.trim()) next.eventLocation = 'Where is it happening?'
     }
     if (isListing && !contactInfo.trim()) {
       next.contactInfo = 'Add how readers should reach you'
@@ -120,6 +123,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
       if (isEvent) {
         payload.event_date = eventDate
         payload.event_time = eventTime
+        payload.event_location = eventLocation.trim()
       }
       if (isListing) {
         if (price.trim()) payload.price = price.trim()
@@ -265,6 +269,14 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                             {errors.eventTime && <div className="text-mini text-danger font-archivo font-bold mt-1">{errors.eventTime}</div>}
                           </div>
                         </div>
+                        <div className="mt-3">
+                          <Sublabel>Location</Sublabel>
+                          <input type="text" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} disabled={submitting}
+                            maxLength={200}
+                            placeholder="Carl Murphy Hall · Room 201"
+                            className="w-full border border-lightgray bg-white px-3 py-2 text-[0.92rem] font-franklin focus:border-navy focus:outline-none" />
+                          {errors.eventLocation && <div className="text-mini text-danger font-archivo font-bold mt-1">{errors.eventLocation}</div>}
+                        </div>
                       </FormSection>
                     )}
 
@@ -361,6 +373,7 @@ function NewPostModal({ open, onClose, onCreated, preset }) {
                       isEvent={isEvent}
                       eventDate={eventDate}
                       eventTime={eventTime}
+                      eventLocation={eventLocation}
                       price={price}
                       imageUrl={imageUrl}
                     />
@@ -472,7 +485,7 @@ function CharCount({ value, max }) {
 // Live preview card — mirrors the broadsheet feel of the post detail page
 // but at modal scale. Shows what the article will look like in the feed
 // the moment the student hits Publish.
-function PreviewCard({ hasContent, category, title, body, bylineName, isAnonymous, isSos, isEvent, eventDate, eventTime, price, imageUrl }) {
+function PreviewCard({ hasContent, category, title, body, bylineName, isAnonymous, isSos, isEvent, eventDate, eventTime, eventLocation, price, imageUrl }) {
   if (!hasContent && !imageUrl) {
     return (
       <div className="border border-dashed border-lightgray bg-card px-5 py-10 text-center">
@@ -505,6 +518,7 @@ function PreviewCard({ hasContent, category, title, body, bylineName, isAnonymou
       <div className="mt-2 text-2xs text-gray font-archivo uppercase tracking-wider">
         By <strong className="text-ink">{bylineName}</strong>
         {isEvent && eventDate ? <> · {eventDate}{eventTime ? ` at ${eventTime}` : ''}</> : null}
+        {isEvent && eventLocation ? <> · 📍 {eventLocation}</> : null}
         {price && <> · {price}</>}
       </div>
       {imageUrl && (

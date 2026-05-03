@@ -66,6 +66,7 @@ class PostCreate(BaseModel):
     category: str = Field(max_length=50)
     event_date: Optional[date] = None
     event_time: Optional[str] = Field(default=None, max_length=20)
+    event_location: Optional[str] = Field(default=None, max_length=200)
     is_sos: bool = False
     # Toggle on the post composer. When true, the API strips author identity
     # from responses (DB still retains author_id for moderation). Decoupled
@@ -178,6 +179,7 @@ class PostResponse(BaseModel):
     downvotes: int
     event_date: Optional[date] = None
     event_time: Optional[str] = None
+    event_location: Optional[str] = None
     is_sos: bool = False
     sos_resolved: bool = False
     is_anonymous: bool = False

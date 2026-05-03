@@ -1361,9 +1361,21 @@ function PostCard({ post, onUpdated, onDeleted }) {
             )}
           </div>
         )}
-        {isEvent && eventLabel && (
-          <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-warning flex items-center gap-2">
-            <IconClock /> {eventLabel}
+        {isEvent && (eventLabel || post.event_location) && (
+          <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.8rem] text-warning flex flex-wrap items-center gap-x-2 gap-y-1">
+            {eventLabel && (
+              <span className="inline-flex items-center gap-1.5">
+                <IconClock />
+                {eventLabel}
+              </span>
+            )}
+            {post.event_location && (
+              <span className="inline-flex items-center gap-1.5">
+                {eventLabel && <span aria-hidden className="text-warning/60">·</span>}
+                <span aria-hidden>📍</span>
+                {post.event_location}
+              </span>
+            )}
           </div>
         )}
         {post.body && (() => {
