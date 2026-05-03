@@ -238,3 +238,107 @@ def test_search_users_excludes_self(client, two_users):
     ids = {u["id"] for u in res.json()}
     assert alice.id not in ids
     assert bob.id in ids
+
+
+def test_edit_message_owner_via_rest(client, two_users, db):
+    """Sender can edit their own message via PATCH; body changes and
+    edited_at is set; the GET history reflects the new body."""
+    alice, bob = two_users
+    msg = ChatMessage(sender_id=alice.id, recipient_id=bob.id, body="orig")
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+
+    token = _make_token(alice.id)
+    res = client.patch(
+        f"/api/chat/messages/{msg.id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"body": "edited body"},
+    )
+    assert res.status_code == 200, res.text
+    payload = res.json()
+    assert payload["body"] == "edited body"
+    assert payload["edited_at"] is not None
+
+    # History endpoint should now return the updated body.
+    res2 = client.get(
+        f"/api/chat/messages?with={bob.id}&limit=10",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res2.status_code == 200
+    bodies = [m["body"] for m in res2.json()]
+    assert "edited body" in bodies
+    assert "orig" not in bodies
+
+
+def test_edit_message_rejects_non_owner(client, two_users, db):
+    """Recipient cannot edit a message they didn't send."""
+    alice, bob = two_users
+    msg = ChatMessage(sender_id=alice.id, recipient_id=bob.id, body="alice wrote this")
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+
+    bob_token = _make_token(bob.id)
+    res = client.patch(
+        f"/api/chat/messages/{msg.id}",
+        headers={"Authorization": f"Bearer {bob_token}"},
+        json={"body": "bob trying to rewrite"},
+    )
+    assert res.status_code == 403
+
+
+def test_edit_message_rejects_after_window(client, two_users, db):
+    """Edits to messages older than the 15-minute window are rejected."""
+    alice, bob = two_users
+    old = datetime.now(timezone.utc) - timedelta(minutes=20)
+    msg = ChatMessage(
+        sender_id=alice.id,
+        recipient_id=bob.id,
+        body="too old to edit",
+        created_at=old.replace(tzinfo=None),  # match SQLite naive storage
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+
+    token = _make_token(alice.id)
+    res = client.patch(
+        f"/api/chat/messages/{msg.id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"body": "trying anyway"},
+    )
+    assert res.status_code == 400
+
+
+def test_ws_edit_broadcasts_to_both_peers(client, two_users):
+    """Editing via the WS `edit` frame yields a `message_updated` frame to
+    both sender and recipient with the new body and an edited_at stamp."""
+    alice, bob = two_users
+    a_token = _make_token(alice.id)
+    b_token = _make_token(bob.id)
+
+    with client.websocket_connect(f"/api/chat/ws?token={a_token}") as a_ws:
+        with client.websocket_connect(f"/api/chat/ws?token={b_token}") as b_ws:
+            # Drain hellos and the presence frame from alice's socket.
+            a_ws.receive_json()
+            b_ws.receive_json()
+            a_ws.receive_json()  # presence: bob came online
+
+            a_ws.send_json({"type": "send", "to": bob.id, "body": "hi v1"})
+            a_echo = a_ws.receive_json()
+            b_recv = b_ws.receive_json()
+            assert a_echo["type"] == "message"
+            assert a_echo["edited_at"] is None
+            msg_id = a_echo["id"]
+
+            a_ws.send_json({"type": "edit", "message_id": msg_id, "body": "hi v2"})
+            a_upd = a_ws.receive_json()
+            b_upd = b_ws.receive_json()
+            for frame in (a_upd, b_upd):
+                assert frame["type"] == "message_updated"
+                assert frame["id"] == msg_id
+                assert frame["body"] == "hi v2"
+                assert frame["edited_at"] is not None
+            # Original recipient frame did not have edited_at.
+            assert b_recv["edited_at"] is None

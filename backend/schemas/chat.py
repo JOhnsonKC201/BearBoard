@@ -22,9 +22,16 @@ class ChatMessageOut(BaseModel):
     body: str
     created_at: datetime
     read_at: Optional[datetime] = None
+    edited_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class ChatMessageEdit(BaseModel):
+    """REST body for `PATCH /api/chat/messages/{id}` and the WS `edit` event."""
+
+    body: str = Field(min_length=1, max_length=4000)
 
 
 class ConversationOut(BaseModel):

@@ -21,6 +21,10 @@ class ChatMessage(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     # NULL until the recipient acks via a `read` WS event or POST .../read.
     read_at = Column(DateTime, nullable=True)
+    # NULL unless the sender has edited the message via the `edit` WS event
+    # or PATCH endpoint. The body column itself holds the latest text — we
+    # do not keep an edit history in this sprint.
+    edited_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         # History pulls (`messages between A and B, ordered by created_at`)

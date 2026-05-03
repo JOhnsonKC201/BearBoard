@@ -35,7 +35,19 @@ function Chat() {
   const [threads, setThreads] = useState({})  // peerId -> Message[]
   const [typingPeers, setTypingPeers] = useState(() => new Set())
   const [showNew, setShowNew] = useState(false)
+  const [chatError, setChatError] = useState(null)
   const typingTimersRef = useRef({})
+  const errorTimerRef = useRef(null)
+
+  // If the URL routes to the user's own id (e.g. someone shared a /chat/:id
+  // link both ways without realizing :id is a peer-id, not a thread id),
+  // strip the param so the empty-state shows instead of a confusing self-chat
+  // screen where every send is rejected with `self_send`.
+  useEffect(() => {
+    if (user && urlPeerId && urlPeerId === user.id) {
+      navigate('/chat', { replace: true })
+    }
+  }, [user, urlPeerId, navigate])
 
   // ---------------------------------------------------------------------
   // WS handlers
@@ -114,11 +126,54 @@ function Chat() {
     })
   }, [user])
 
+  // A message was edited (by either party). Patch it in place in whichever
+  // thread it lives in, and update the conversation list's last_message
+  // preview if this was the most recent message.
+  const handleMessageUpdated = useCallback((frame) => {
+    if (!user) return
+    const peerId = frame.from === user.id ? frame.to : frame.from
+    setThreads((prev) => {
+      const existing = prev[peerId]
+      if (!existing) return prev
+      let mutated = false
+      const updated = existing.map((m) => {
+        if (m.id === frame.id) {
+          mutated = true
+          return { ...m, body: frame.body, edited_at: frame.edited_at }
+        }
+        return m
+      })
+      return mutated ? { ...prev, [peerId]: updated } : prev
+    })
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.other_user.id !== peerId) return c
+        if (c.last_message?.id !== frame.id) return c
+        return {
+          ...c,
+          last_message: { ...c.last_message, body: frame.body, edited_at: frame.edited_at },
+        }
+      })
+    )
+  }, [user])
+
+  // Surface server-side errors (self_send, edit_window, forbidden, etc.) as
+  // an inline banner so users aren't left wondering why their action did
+  // nothing. Self-clearing after 4s.
+  const handleError = useCallback((frame) => {
+    const detail = frame?.detail || frame?.code || 'Something went wrong.'
+    setChatError(String(detail))
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+    errorTimerRef.current = setTimeout(() => setChatError(null), 4000)
+  }, [])
+
   const { status, send, online, lastSeen } = useChatSocket({
     token,
     onMessage: handleMessage,
+    onMessageUpdated: handleMessageUpdated,
     onTyping: handleTyping,
     onRead: handleRead,
+    onError: handleError,
   })
 
   // ---------------------------------------------------------------------
@@ -225,13 +280,18 @@ function Chat() {
 
   const onSend = useCallback((body) => {
     if (!activePeerId) return false
+    if (user && activePeerId === user.id) return false  // belt-and-suspenders
     return send({ type: 'send', to: activePeerId, body })
-  }, [activePeerId, send])
+  }, [activePeerId, send, user])
 
   const onTypingPing = useCallback(() => {
     if (!activePeerId) return
     send({ type: 'typing', to: activePeerId })
   }, [activePeerId, send])
+
+  const onEdit = useCallback((messageId, body) => {
+    return send({ type: 'edit', message_id: messageId, body })
+  }, [send])
 
   // ---------------------------------------------------------------------
   // Render
@@ -294,8 +354,10 @@ function Chat() {
           peerLastSeen={peerLastSeen}
           isPeerTyping={isPeerTyping}
           status={status}
+          errorMessage={chatError}
           onSend={onSend}
           onTypingPing={onTypingPing}
+          onEdit={onEdit}
         />
       </div>
       <NewChatModal

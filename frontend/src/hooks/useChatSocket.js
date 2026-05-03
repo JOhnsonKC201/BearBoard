@@ -20,7 +20,7 @@ import { API_URL } from '../api/client'
  * Subscribers register handlers via `on(type, fn)`; the hook returns the
  * `on` function and the consumer calls it inside useEffect with cleanup.
  */
-export function useChatSocket({ token, onMessage, onTyping, onRead }) {
+export function useChatSocket({ token, onMessage, onMessageUpdated, onTyping, onRead, onError }) {
   const [status, setStatus] = useState('connecting')
   const [online, setOnline] = useState(() => new Set())
   // userId -> ISO string of last time we saw them go offline.
@@ -29,12 +29,12 @@ export function useChatSocket({ token, onMessage, onTyping, onRead }) {
   const retryRef = useRef(0)
   const heartbeatRef = useRef(null)
   const closedByConsumerRef = useRef(false)
-  const handlersRef = useRef({ onMessage, onTyping, onRead })
+  const handlersRef = useRef({ onMessage, onMessageUpdated, onTyping, onRead, onError })
 
   // Keep latest handler closures available without retriggering the effect.
   useEffect(() => {
-    handlersRef.current = { onMessage, onTyping, onRead }
-  }, [onMessage, onTyping, onRead])
+    handlersRef.current = { onMessage, onMessageUpdated, onTyping, onRead, onError }
+  }, [onMessage, onMessageUpdated, onTyping, onRead, onError])
 
   const wsUrl = useCallback(() => {
     if (!token) return null
@@ -98,8 +98,10 @@ export function useChatSocket({ token, onMessage, onTyping, onRead }) {
       }
       const h = handlersRef.current
       if (t === 'message' && h.onMessage) h.onMessage(frame)
+      else if (t === 'message_updated' && h.onMessageUpdated) h.onMessageUpdated(frame)
       else if (t === 'typing' && h.onTyping) h.onTyping(frame)
       else if (t === 'read' && h.onRead) h.onRead(frame)
+      else if (t === 'error' && h.onError) h.onError(frame)
     }
 
     ws.onclose = (ev) => {
