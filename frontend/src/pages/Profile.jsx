@@ -8,7 +8,7 @@ import { VerifiedBadge } from '../components/VerifiedBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import EditProfileModal from '../components/EditProfileModal'
 import { useAuth } from '../context/AuthContext'
-import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo } from '../utils/format'
+import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo, parseUtcDate } from '../utils/format'
 import { catClassFor } from '../utils/avatar'
 import {
   IconCaretUp,
@@ -55,15 +55,15 @@ function getPalette(user) {
 
 function formatJoinDate(iso) {
   if (!iso) return ''
-  const dt = new Date(iso)
-  if (Number.isNaN(dt.getTime())) return ''
+  const dt = parseUtcDate(iso)
+  if (!dt || Number.isNaN(dt.getTime())) return ''
   return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 /** "VOL. III · ISSUE #247 · THURSDAY APRIL 23, 2026" — the folio strip. */
 function folioFor(user) {
   const now = new Date()
-  const joined = user?.created_at ? new Date(user.created_at) : now
+  const joined = user?.created_at ? parseUtcDate(user.created_at) : now
   const issue = Math.max(1, Math.floor((now - joined) / (1000 * 60 * 60 * 24)) + 1)
   const year = joined.getFullYear() || now.getFullYear()
   const vol = Math.max(1, now.getFullYear() - year + 1)
@@ -576,7 +576,8 @@ function ActivityRibbon({ posts }) {
     const byDay = new Map()
     for (const p of posts) {
       if (!p.created_at) continue
-      const d = new Date(p.created_at)
+      const d = parseUtcDate(p.created_at)
+      if (!d) continue
       d.setHours(0, 0, 0, 0)
       const k = d.getTime()
       byDay.set(k, (byDay.get(k) || 0) + 1)

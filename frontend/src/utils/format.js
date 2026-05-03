@@ -11,6 +11,24 @@ export function initialsFor(name) {
     .join('')
 }
 
+// Parse an ISO timestamp from the API as UTC.
+//
+// Backend Pydantic schemas serialize naive `DateTime` columns (e.g.
+// posts.created_at) as ISO 8601 without a timezone marker, like
+// "2026-05-03T03:30:00". The Date constructor reads those as LOCAL time,
+// not UTC — so an hour-old post made at 03:30 UTC would look 4 hours in
+// the future on a US East Coast user's clock and clamp to "Just now"
+// in formatRelativeTime. Appending "Z" forces UTC parsing.
+//
+// We only append when no timezone marker is already present (Z, +HH:MM,
+// or -HH:MM at the end), so already-correct strings pass through
+// unchanged.
+export function parseUtcDate(iso) {
+  if (!iso) return null
+  const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/.test(iso)
+  return new Date(hasTimezone ? iso : iso + 'Z')
+}
+
 // "Just now", "1 second ago", "10 minutes ago", "3 hours ago", "2 days ago",
 // "5 months ago", "1 year ago". Spelled out so the feed reads naturally
 // rather than like log lines. Singular vs plural handled per unit.
@@ -20,7 +38,8 @@ function plural(n, word) {
 
 export function formatRelativeTime(iso) {
   if (!iso) return ''
-  const then = new Date(iso).getTime()
+  const dt = parseUtcDate(iso)
+  const then = dt ? dt.getTime() : NaN
   if (Number.isNaN(then)) return ''
   const seconds = Math.floor((Date.now() - then) / 1000)
   // Sub-second / clock-skew: treat as "just now" so we never show negative

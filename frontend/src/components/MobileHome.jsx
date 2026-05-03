@@ -9,6 +9,7 @@ import {
   initialsFor,
   formatRelativeShort as formatRelative,
   eventDateParts,
+  parseUtcDate,
 } from '../utils/format'
 import { safeHref } from '../utils/safeUrl'
 
@@ -196,11 +197,13 @@ function MobileHome({
   const stats = useMemo(() => {
     const todayStr = new Date().toDateString()
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-    const newToday = posts.filter(
-      (p) => new Date(p.created_at).toDateString() === todayStr,
-    ).length
+    const newToday = posts.filter((p) => {
+      const d = parseUtcDate(p.created_at)
+      return d && d.toDateString() === todayStr
+    }).length
     const unread = posts.filter((p) => {
-      const t = new Date(p.created_at).getTime()
+      const d = parseUtcDate(p.created_at)
+      const t = d ? d.getTime() : NaN
       return !Number.isNaN(t) && t > dayAgo && (!user || p.author?.id !== user.id)
     }).length
     return { newToday, unread, total: posts.length }

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { PostDetailSkeleton } from '../components/Skeletons'
-import { formatRelativeTime as formatRelative, initialsFor } from '../utils/format'
+import { formatRelativeTime as formatRelative, initialsFor, parseUtcDate } from '../utils/format'
 import { catClassFor, paletteFor, flairLabel } from '../utils/avatar'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck } from '../components/ActionIcons'
 import PostAuthorMenu from '../components/PostAuthorMenu'
@@ -32,7 +32,8 @@ function PostDetail() {
   const issueDate = useMemo(() => {
     if (!post?.created_at) return ''
     try {
-      const d = new Date(post.created_at)
+      const d = parseUtcDate(post.created_at)
+      if (!d || Number.isNaN(d.getTime())) return ''
       return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     } catch { return '' }
   }, [post?.created_at])
@@ -135,7 +136,9 @@ function PostDetail() {
     }
     const score = (c) => (c.upvotes ?? 0) - (c.downvotes ?? 0)
     const ts = (c) => {
-      const t = c.created_at ? new Date(c.created_at).getTime() : 0
+      if (!c.created_at) return 0
+      const d = parseUtcDate(c.created_at)
+      const t = d ? d.getTime() : 0
       return Number.isNaN(t) ? 0 : t
     }
     if (commentSort === 'best') {

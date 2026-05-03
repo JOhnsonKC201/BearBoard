@@ -12,7 +12,7 @@ import { VerifiedBadge } from '../components/VerifiedBadge'
 import { apiFetch, peekCache } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { flairSlug, flairLabel } from '../utils/avatar'
-import { formatRelativeTime } from '../utils/format'
+import { formatRelativeTime, parseUtcDate } from '../utils/format'
 
 // Lazy: these only mount on explicit user action (button click, >=lg viewport).
 // Splitting them out keeps the first-paint bundle lean.
@@ -1054,7 +1054,8 @@ function TrendingItem({ post, rank, featured = false }) {
   const replies = post.comment_count ?? 0
   const ageH = (() => {
     if (!post.created_at) return Infinity
-    const ms = Date.now() - new Date(post.created_at).getTime()
+    const d = parseUtcDate(post.created_at)
+    const ms = d ? Date.now() - d.getTime() : NaN
     return Number.isFinite(ms) ? ms / 36e5 : Infinity
   })()
 
