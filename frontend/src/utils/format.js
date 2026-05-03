@@ -11,6 +11,24 @@ export function initialsFor(name) {
     .join('')
 }
 
+// Parse a date-only ISO string ("YYYY-MM-DD") as a LOCAL date.
+//
+// Why this exists: per ECMAScript, `new Date("2026-05-04")` is parsed as
+// UTC midnight, not local midnight. For a US East Coast user, UTC midnight
+// on May 4 is 8 PM EDT on May 3 — so calling .getDate() / .toLocaleDateString()
+// on it returns "May 3". The Events page hit exactly this on every row.
+//
+// We tolerate datetime-shaped input too (slice to first 10 chars) so a
+// caller that accidentally passes "2026-05-04T18:00:00" still gets a
+// sensible date object.
+export function parseDateOnly(iso) {
+  if (!iso) return null
+  const s = String(iso).slice(0, 10)
+  const [y, m, d] = s.split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
 // Parse an ISO timestamp from the API as UTC.
 //
 // Backend Pydantic schemas serialize naive `DateTime` columns (e.g.
