@@ -107,6 +107,9 @@ def _serialize(msg: GroupMessage) -> dict[str, Any]:
         "author_id": msg.author_id,
         "author": author_payload,
         "body": msg.body,
+        "attachment_url": msg.attachment_url,
+        "attachment_name": msg.attachment_name,
+        "attachment_kind": msg.attachment_kind,
         "created_at": created.isoformat(),
         "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
     }
@@ -155,25 +158,34 @@ async def send_message(
     if member.muted:
         raise HTTPException(status_code=403, detail="You are muted in this group")
 
-    body = payload.body.strip()
-    if not body:
+    body = (payload.body or "").strip()
+    has_attachment = bool(payload.attachment_url)
+    # The schema's model_validator already rejects empty-text-and-no-
+    # attachment, but defense-in-depth here keeps the rule local to
+    # the route too.
+    if not body and not has_attachment:
         raise HTTPException(status_code=400, detail="empty body")
 
-    # Block egregious content via the existing moderator (LLM with heuristic
-    # fallback). flag/allow still post — only block is rejected.
-    try:
-        verdict = moderation.moderate(body)
-        if verdict.verdict == "block":
-            raise HTTPException(status_code=400, detail="Message rejected by moderation")
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("group_chat moderation failed; allowing message through")
+    # Block egregious content via the existing moderator. Skip when there's
+    # no text — moderating filenames is noisy and the file's content is
+    # outside the model's scope anyway.
+    if body:
+        try:
+            verdict = moderation.moderate(body)
+            if verdict.verdict == "block":
+                raise HTTPException(status_code=400, detail="Message rejected by moderation")
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("group_chat moderation failed; allowing message through")
 
     msg = GroupMessage(
         group_id=group_id,
         author_id=current_user.id,
-        body=body,
+        body=body or None,
+        attachment_url=payload.attachment_url,
+        attachment_name=(payload.attachment_name or None) if has_attachment else None,
+        attachment_kind=payload.attachment_kind if has_attachment else None,
     )
     db.add(msg)
     db.commit()
@@ -270,14 +282,22 @@ async def handle_group_send(sender_id: int, frame: dict[str, Any], ws: WebSocket
         await ws.send_json({"type": "error", "code": "bad_group_send", "detail": "invalid group_id"})
         return
 
+    # Pass attachment fields through too. The schema's model_validator
+    # enforces "text or attachment" and runs the SSRF guard on the URL.
     try:
-        body_obj = GroupMessageCreate(body=str(frame.get("body", "")))
-    except (ValidationError, TypeError, ValueError):
-        await ws.send_json({"type": "error", "code": "bad_group_send", "detail": "invalid body"})
+        body_obj = GroupMessageCreate(
+            body=str(frame.get("body", "") or ""),
+            attachment_url=frame.get("attachment_url"),
+            attachment_name=frame.get("attachment_name"),
+            attachment_kind=frame.get("attachment_kind"),
+        )
+    except (ValidationError, TypeError, ValueError) as e:
+        await ws.send_json({"type": "error", "code": "bad_group_send", "detail": str(e) or "invalid frame"})
         return
 
-    body = body_obj.body.strip()
-    if not body:
+    body = (body_obj.body or "").strip()
+    has_attachment = bool(body_obj.attachment_url)
+    if not body and not has_attachment:
         await ws.send_json({"type": "error", "code": "bad_group_send", "detail": "empty body"})
         return
 
@@ -294,17 +314,25 @@ async def handle_group_send(sender_id: int, frame: dict[str, Any], ws: WebSocket
             )
             return
 
-        try:
-            verdict = moderation.moderate(body)
-            if verdict.verdict == "block":
-                await ws.send_json(
-                    {"type": "error", "code": "blocked", "detail": "Message blocked by moderation"}
-                )
-                return
-        except Exception:
-            logger.exception("group_chat WS moderation failed; allowing through")
+        if body:
+            try:
+                verdict = moderation.moderate(body)
+                if verdict.verdict == "block":
+                    await ws.send_json(
+                        {"type": "error", "code": "blocked", "detail": "Message blocked by moderation"}
+                    )
+                    return
+            except Exception:
+                logger.exception("group_chat WS moderation failed; allowing through")
 
-        msg = GroupMessage(group_id=group_id, author_id=sender_id, body=body)
+        msg = GroupMessage(
+            group_id=group_id,
+            author_id=sender_id,
+            body=body or None,
+            attachment_url=body_obj.attachment_url,
+            attachment_name=(body_obj.attachment_name or None) if has_attachment else None,
+            attachment_kind=body_obj.attachment_kind if has_attachment else None,
+        )
         db.add(msg)
         db.commit()
         db.refresh(msg)

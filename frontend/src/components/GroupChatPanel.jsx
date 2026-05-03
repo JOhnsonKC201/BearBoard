@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useChatSocket } from '../hooks/useChatSocket'
 import { parseUtcDate } from '../utils/format'
 
-// Group chat — Phase 1.
+// Group chat — Phase 1, plus US-2 attachments.
 //
 // Reuses the existing chat WebSocket (`/api/chat/ws?token=...`) by listening
 // for the new `group_message` and `group_message_updated` frame types and
@@ -18,8 +18,78 @@ import { parseUtcDate } from '../utils/format'
 // 1-on-1 chat already has. The server enforces it; the client mirrors the
 // window to gate the Edit affordance so we don't render a button for a
 // message we know the server will reject.
+//
+// Attachments (US-2): a member can attach a single file (image / PDF /
+// document) per message via the paperclip button. Bytes go directly to
+// Cloudinary (the backend never sees them). The send frame carries
+// attachment_url / attachment_name / attachment_kind alongside the body.
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000
+
+// Cloudinary unsigned upload — same env-var contract as ImageUploader.jsx.
+// When unconfigured (local dev / CI), the paperclip button is disabled with
+// a tooltip rather than silently failing.
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+const CLOUDINARY_ENABLED = Boolean(CLOUD_NAME && UPLOAD_PRESET)
+const ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024 // 15 MB — fits a typical lecture-slide PDF
+const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const PDF_MIMES = new Set(['application/pdf'])
+const DOC_MIMES = new Set([
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'text/markdown',
+])
+
+function classifyKind(file) {
+  if (!file) return 'other'
+  if (IMAGE_MIMES.has(file.type)) return 'image'
+  if (PDF_MIMES.has(file.type)) return 'pdf'
+  if (DOC_MIMES.has(file.type)) return 'doc'
+  return 'other'
+}
+
+function endpointForKind(kind) {
+  // Cloudinary serves images via `/image/upload` and everything else via
+  // `/raw/upload`. Mismatching the endpoint leads to a 400 and a useless
+  // error, so we route off the kind we already classified.
+  return kind === 'image' ? 'image' : 'raw'
+}
+
+function uploadAttachment(file, kind, onProgress) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('upload_preset', UPLOAD_PRESET)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${endpointForKind(kind)}/upload`)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
+    }
+    xhr.onload = () => {
+      try {
+        const res = JSON.parse(xhr.responseText || '{}')
+        if (xhr.status >= 200 && xhr.status < 300 && res.secure_url) resolve(res.secure_url)
+        else reject(new Error(res?.error?.message || `Upload failed (${xhr.status})`))
+      } catch {
+        reject(new Error('Upload response could not be parsed'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Network error during upload'))
+    xhr.send(form)
+  })
+}
+
+function humanSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function fmtTime(iso) {
   if (!iso) return ''
@@ -47,6 +117,12 @@ function GroupChatPanel({ groupId }) {
   const [errorMsg, setErrorMsg] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState('')
+  // Staged attachment: a single file the user has uploaded but not yet sent.
+  // Cleared after a successful send (or when they hit the X).
+  const [pendingAttachment, setPendingAttachment] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const fileInputRef = useRef(null)
   const scrollerRef = useRef(null)
   const errorTimerRef = useRef(null)
 
@@ -118,29 +194,84 @@ function GroupChatPanel({ groupId }) {
     }
   }, [messages.length])
 
+  // File ingest: classify, validate size, upload to Cloudinary, then stash
+  // as `pendingAttachment` so the user can still type a caption and review
+  // before hitting Send.
+  const ingestFile = async (file) => {
+    if (!file || uploading || !CLOUDINARY_ENABLED) return
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      setErrorMsg(`File is ${humanSize(file.size)} — max is ${humanSize(ATTACHMENT_MAX_BYTES)}`)
+      return
+    }
+    const kind = classifyKind(file)
+    setUploading(true)
+    setUploadProgress(0)
+    setErrorMsg(null)
+    try {
+      const url = await uploadAttachment(file, kind, setUploadProgress)
+      setPendingAttachment({ url, name: file.name, kind })
+    } catch (err) {
+      setErrorMsg(err?.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const onPickFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file after removal
+    await ingestFile(file)
+  }
+
+  const clearPendingAttachment = () => setPendingAttachment(null)
+
   const submit = (e) => {
     e.preventDefault()
     const body = draft.trim()
-    if (!body || sending) return
+    const hasAttachment = Boolean(pendingAttachment?.url)
+    // Either text or an attachment is required — mirrors the backend
+    // model_validator. Don't fire an empty send.
+    if ((!body && !hasAttachment) || sending || uploading) return
     setSending(true)
     setErrorMsg(null)
-    const ok = send({ type: 'group_send', group_id: groupId, body })
+
+    const wireFrame = {
+      type: 'group_send',
+      group_id: groupId,
+      body,
+      ...(hasAttachment && {
+        attachment_url: pendingAttachment.url,
+        attachment_name: pendingAttachment.name,
+        attachment_kind: pendingAttachment.kind,
+      }),
+    }
+    const restPayload = {
+      body,
+      ...(hasAttachment && {
+        attachment_url: pendingAttachment.url,
+        attachment_name: pendingAttachment.name,
+        attachment_kind: pendingAttachment.kind,
+      }),
+    }
+    const ok = send(wireFrame)
     if (!ok) {
       // Socket isn't open — fall back to the REST endpoint so the message
       // still goes through. The server will broadcast to other members.
       apiFetch(`/api/groups/${groupId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ body }),
+        body: JSON.stringify(restPayload),
       })
         .then((msg) => {
           // Echo into our own list since the WS isn't there to do it for us.
           setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
           setDraft('')
+          setPendingAttachment(null)
         })
         .catch((err) => setErrorMsg(err?.message || 'Send failed'))
         .finally(() => setSending(false))
     } else {
       setDraft('')
+      setPendingAttachment(null)
       setSending(false)
     }
   }
@@ -254,7 +385,18 @@ function GroupChatPanel({ groupId }) {
                       </div>
                     </div>
                   ) : (
-                    m.body
+                    <>
+                      {m.body && <div>{m.body}</div>}
+                      {m.attachment_url && (
+                        <MessageAttachment
+                          url={m.attachment_url}
+                          name={m.attachment_name}
+                          kind={m.attachment_kind}
+                          mine={mine}
+                          hasBody={Boolean(m.body)}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
                 {canEdit && !editing && (
@@ -286,32 +428,138 @@ function GroupChatPanel({ groupId }) {
 
       <form
         onSubmit={submit}
-        className="border-t border-lightgray bg-white px-4 py-3 flex items-end gap-2"
+        className="border-t border-lightgray bg-white px-4 py-3 flex flex-col gap-2"
       >
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              submit(e)
+        {/* Staged attachment preview — sits above the input row so the user
+            sees what's about to be sent. Removing it doesn't unwind the
+            Cloudinary upload (we just don't reference the URL); orphan
+            uploads are tolerable for unsigned uploads. */}
+        {pendingAttachment && (
+          <div className="flex items-center gap-3 bg-offwhite border border-lightgray rounded-md px-3 py-2 text-[0.82rem] font-franklin">
+            <span aria-hidden className="text-[1.05rem] leading-none">
+              {pendingAttachment.kind === 'image' ? '🖼️' : pendingAttachment.kind === 'pdf' ? '📄' : '📎'}
+            </span>
+            <span className="flex-1 truncate text-ink">{pendingAttachment.name}</span>
+            <button
+              type="button"
+              onClick={clearPendingAttachment}
+              aria-label="Remove attachment"
+              className="text-gray hover:text-danger bg-transparent border-0 cursor-pointer text-[0.78rem] font-archivo font-extrabold uppercase tracking-[0.08em]"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+        {uploading && (
+          <div className="text-[0.74rem] text-gray font-franklin">
+            Uploading… {uploadProgress}%
+            <div className="mt-1 h-[3px] bg-lightgray overflow-hidden rounded">
+              <div className="h-full bg-navy transition-[width] duration-150" style={{ width: `${uploadProgress}%` }} />
+            </div>
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          {/* Paperclip — opens the file picker. Disabled when Cloudinary
+              isn't configured so the click never silently fails. */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!CLOUDINARY_ENABLED || uploading || sending || Boolean(pendingAttachment)}
+            title={
+              !CLOUDINARY_ENABLED
+                ? 'File uploads aren\'t configured on this site'
+                : pendingAttachment
+                ? 'Remove the current attachment first'
+                : 'Attach a file (image, PDF, doc) — up to 15 MB'
             }
-          }}
-          rows={1}
-          maxLength={4000}
-          placeholder="Message the group…"
-          disabled={sending}
-          className="flex-1 resize-none rounded-xl border border-lightgray bg-offwhite px-4 py-2.5 font-franklin text-[0.92rem] text-ink leading-snug focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-gold/20 min-h-[42px] disabled:opacity-60"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim() || sending}
-          className="bg-navy text-white font-archivo font-black uppercase tracking-[0.08em] text-[0.7rem] px-5 py-2.5 rounded-xl hover:bg-[#13284a] disabled:opacity-30 disabled:cursor-not-allowed transition-all border-0 cursor-pointer h-[42px]"
-        >
-          Send
-        </button>
+            aria-label="Attach a file"
+            className="shrink-0 h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-lightgray bg-offwhite text-gray hover:text-navy hover:border-navy/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md"
+            onChange={onPickFile}
+            className="hidden"
+            disabled={uploading || sending}
+          />
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                submit(e)
+              }
+            }}
+            rows={1}
+            maxLength={4000}
+            placeholder={pendingAttachment ? 'Add a caption (optional)…' : 'Message the group…'}
+            disabled={sending}
+            className="flex-1 resize-none rounded-xl border border-lightgray bg-offwhite px-4 py-2.5 font-franklin text-[0.92rem] text-ink leading-snug focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-gold/20 min-h-[42px] disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={(!draft.trim() && !pendingAttachment) || sending || uploading}
+            className="bg-navy text-white font-archivo font-black uppercase tracking-[0.08em] text-[0.7rem] px-5 py-2.5 rounded-xl hover:bg-[#13284a] disabled:opacity-30 disabled:cursor-not-allowed transition-all border-0 cursor-pointer h-[42px]"
+          >
+            Send
+          </button>
+        </div>
       </form>
     </section>
+  )
+}
+
+// Inline image preview for image kinds, download-chip for everything else.
+// Sits inside the message bubble, so styling adapts to mine vs. theirs.
+function MessageAttachment({ url, name, kind, mine, hasBody }) {
+  const safeName = name || url.split('/').pop() || 'attachment'
+  const wrapperMargin = hasBody ? 'mt-2' : ''
+  if (kind === 'image') {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className={`block ${wrapperMargin} rounded-lg overflow-hidden border ${mine ? 'border-white/20' : 'border-lightgray'}`}
+        title={safeName}
+      >
+        <img
+          src={url}
+          alt={safeName}
+          loading="lazy"
+          decoding="async"
+          className="block max-w-[280px] max-h-[280px] w-auto h-auto object-contain bg-black/5"
+        />
+      </a>
+    )
+  }
+  // Generic download chip — used for pdf / doc / other.
+  const icon = kind === 'pdf' ? '📄' : kind === 'doc' ? '📝' : '📎'
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      download={safeName}
+      className={`${wrapperMargin} flex items-center gap-2 rounded-md px-2.5 py-2 text-[0.82rem] no-underline ${
+        mine
+          ? 'bg-white/10 text-white hover:bg-white/15'
+          : 'bg-offwhite text-navy hover:bg-gold-pale/40 border border-lightgray'
+      }`}
+      title={safeName}
+    >
+      <span aria-hidden className="text-[1rem] leading-none">{icon}</span>
+      <span className="flex-1 truncate font-franklin">{safeName}</span>
+      <span className={`text-[0.62rem] font-archivo font-extrabold uppercase tracking-[0.08em] ${mine ? 'text-white/70' : 'text-gold'}`}>
+        Open
+      </span>
+    </a>
   )
 }
 

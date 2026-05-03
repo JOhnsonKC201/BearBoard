@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime, Index
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -21,7 +21,22 @@ class GroupMessage(Base):
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    body = Column(Text, nullable=False)
+    # `body` was originally NOT NULL because every message had to have text.
+    # When attachments shipped (US-2 — group note sharing), we relaxed the
+    # rule so a message can be just a file. The application code still
+    # enforces "body OR attachment_url, but not neither" so we never get
+    # an empty message row.
+    body = Column(Text, nullable=True)
+    # Optional file attachment. `attachment_url` is a Cloudinary HTTPS URL
+    # uploaded directly from the browser (the backend never sees the bytes).
+    # `attachment_name` is the original filename so the UI can render
+    # "study-guide.pdf" rather than the opaque Cloudinary asset id.
+    # `attachment_kind` is one of 'image' | 'pdf' | 'doc' | 'other' so the
+    # client can pick between an inline preview and a download chip
+    # without parsing the URL.
+    attachment_url = Column(String(500), nullable=True)
+    attachment_name = Column(String(200), nullable=True)
+    attachment_kind = Column(String(20), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     # NULL unless the author has edited the message via the WS edit frame
     # or PATCH endpoint. Same 15-min window contract as 1-on-1 chat.
