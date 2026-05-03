@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { catClassFor } from '../utils/avatar'
-import { formatRelativeShort as formatRelative } from '../utils/format'
+import { formatRelativeShort as formatRelative, formatEventDateTime } from '../utils/format'
 import { VerifiedBadge } from './VerifiedBadge'
 import PostAuthorMenu from './PostAuthorMenu'
 import {
@@ -13,6 +13,9 @@ import {
   IconBookmark,
   IconShare,
   IconCheck,
+  IconClock,
+  IconSiren,
+  IconFire,
 } from './ActionIcons'
 
 // Mobile post card - Reddit-mobile inspired. Full-bleed media, header
@@ -32,13 +35,24 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
   const { isAuthed } = useAuth()
   const navigate = useNavigate()
   const hasImage = Boolean(post.image_url)
+  const isEvent = (post.category || '').toLowerCase() === 'events'
+  const eventLabel = isEvent ? formatEventDateTime(post.event_date, post.event_time) : ''
   const initialScore =
     (post.upvote_count ?? post.upvotes ?? 0) -
     (post.downvote_count ?? post.downvotes ?? 0)
   const [score, setScore] = useState(initialScore)
-  const [userVote, setUserVote] = useState(null)
+  // Initialize from server-provided vote so the active arrow survives a
+  // re-login on mobile too. PR #101 fixed this on desktop but missed
+  // the mobile card. See Home.jsx PostCard for the same pattern.
+  const [userVote, setUserVote] = useState(post.user_vote || null)
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
+  const [expanded, setExpanded] = useState(false)
+  // Long posts collapse with a "Read more" toggle so the feed doesn't
+  // turn into a single tall scroll-trap. 1200 chars (vs desktop's 1500)
+  // because mobile screens fit fewer characters at the same line height.
+  const bodyRaw = post.body || ''
+  const bodyTooLong = bodyRaw.length > 1200
 
   const [saved, setSaved] = useState(() => {
     try {
@@ -83,10 +97,14 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
     setPending(true)
     setVoteError(null)
     try {
-      await apiFetch(`/api/posts/${post.id}/vote`, {
+      const result = await apiFetch(`/api/posts/${post.id}/vote`, {
         method: 'POST',
         body: JSON.stringify({ vote_type: voteType }),
       })
+      // Reconcile against the server's authoritative count (matches PR #101).
+      if (result && typeof result.upvotes === 'number') {
+        setScore((result.upvotes ?? 0) - (result.downvotes ?? 0))
+      }
     } catch (err) {
       setScore(prevScore)
       setUserVote(prevVote)
@@ -134,23 +152,48 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
 
   const upActive = userVote === 'up'
   const downActive = userVote === 'down'
+  const isHot = score >= 20
 
   return (
-    <article className="bg-card border-t border-ink/10 first:border-t-0 relative">
+    <article className={`bg-card border-t border-ink/10 first:border-t-0 relative ${
+      post.is_sos && !post.sos_resolved ? 'border-l-[3px] border-l-[#8B1A1A] bg-[#FBF3F2]' : ''
+    }`}>
       {/* Kebab — sits above the tappable header Link. PostAuthorMenu only
           renders for the author or moderators, so non-authors see nothing. */}
       <div className="absolute top-2 right-2 z-10">
         <PostAuthorMenu post={post} onUpdated={onUpdated} onDeleted={onDeleted} />
       </div>
+
+      {/* SOS banner — only when active. Resolved SOS doesn't need the
+          attention-grab; the resolved variant is stylistically lighter. */}
+      {post.is_sos && (
+        <div className={`px-4 pt-3 ${post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'}`}>
+          <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-sm font-archivo font-extrabold text-[0.6rem] uppercase tracking-wider ${
+            post.sos_resolved ? 'bg-success-bg' : 'bg-danger text-white'
+          }`}>
+            <IconSiren />
+            {post.sos_resolved ? 'SOS resolved' : 'SOS needs help'}
+          </span>
+        </div>
+      )}
+
       {/* Metadata + title - tappable to post detail */}
       <Link
         to={`/post/${post.id}`}
-        className="block px-4 pt-4 pb-3 pr-12 no-underline text-ink"
+        className="block px-4 pt-3 pb-3 pr-12 no-underline text-ink"
       >
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {post.category && (
             <span className={`font-archivo font-extrabold text-[0.58rem] uppercase tracking-[0.1em] px-2 py-[3px] ${catClassFor(post.category)}`}>
               {post.category}
+            </span>
+          )}
+          {isHot && (
+            <span
+              className="font-archivo text-[0.56rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#D4962A] text-white inline-flex items-center gap-1 shrink-0"
+              title="High engagement"
+            >
+              <IconFire /> Hot
             </span>
           )}
           <span className="text-[0.66rem] text-gray font-archivo font-bold uppercase tracking-wider truncate inline-flex items-center gap-1">
@@ -176,6 +219,75 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
             className="w-full aspect-[16/10] object-cover"
           />
         </Link>
+      )}
+
+      {/* Inline content — what makes the feed feel like Reddit's mobile feed
+          rather than a list of headlines. Skipped entirely when the post has
+          no body, no listing chip, and no event metadata so plain title +
+          image posts stay visually clean. */}
+      {(bodyRaw || post.price || post.contact_info || (isEvent && eventLabel)) && (
+        <div className="px-4 pt-2.5 pb-1">
+          {(post.price || post.contact_info) && (
+            <div className="flex flex-wrap items-center gap-2 mb-2 text-[0.74rem]">
+              {post.price && (
+                <span className="font-archivo font-extrabold text-navy bg-gold-pale border border-gold/40 px-2 py-[3px] rounded-sm">
+                  {post.price}
+                </span>
+              )}
+              {post.contact_info && (
+                <span className="text-gray">
+                  <span aria-hidden="true">&#9993;</span> {post.contact_info}
+                </span>
+              )}
+            </div>
+          )}
+          {isEvent && eventLabel && (
+            <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.78rem] text-warning flex items-center gap-2">
+              <IconClock /> {eventLabel}
+            </div>
+          )}
+          {bodyRaw && (() => {
+            // Strip leading whitespace + collapse 3+ newlines to 2 so a
+            // body that was visually loose on desktop reads tighter on
+            // mobile without losing intentional paragraph breaks.
+            const cleaned = bodyRaw.replace(/^\s+/, '').replace(/\n{2,}/g, '\n')
+            const collapsed = bodyTooLong && !expanded
+            return (
+              <div className="relative">
+                <div
+                  className={`text-[0.92rem] text-ink/85 leading-[1.55] whitespace-pre-wrap font-prose overflow-hidden ${
+                    collapsed ? 'max-h-[12rem]' : ''
+                  }`}
+                >
+                  {cleaned}
+                </div>
+                {collapsed && (
+                  // Fade overlay so the truncation reads as intentional.
+                  <div
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
+                    aria-hidden
+                  />
+                )}
+                {bodyTooLong && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      // Stop the event from bubbling — the surrounding
+                      // article doesn't navigate, but defensive in case
+                      // a future wrapper adds tap-to-expand.
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setExpanded((v) => !v)
+                    }}
+                    className="relative mt-1 font-archivo text-[0.68rem] font-extrabold uppercase tracking-wider text-navy hover:text-gold bg-transparent border-none cursor-pointer px-0"
+                  >
+                    {expanded ? 'Show less' : 'Read more →'}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
+        </div>
       )}
 
       {/* Action row - buttons outside the Link so they fire instead
