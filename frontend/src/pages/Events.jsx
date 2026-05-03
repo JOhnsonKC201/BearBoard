@@ -2,24 +2,30 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { safeHref } from '../utils/safeUrl'
+import { parseDateOnly, eventDateParts } from '../utils/format'
 
 // Full Morgan State events page. Pulls from /api/events (which is fed by
 // the Morgan iCal sync), groups by month, and surfaces user-created event
 // posts inline with their date alongside the synced ones. Synced and
 // user-event posts share the same shape because the user-event posts
 // schema mirrors EventResponse.
+//
+// All date rendering goes through parseDateOnly / eventDateParts because
+// `event_date` from the API is a pure YYYY-MM-DD string. Using `new Date(iso)`
+// on it would parse as UTC midnight and shift back a day in any negative-UTC
+// timezone (every US zone), so an event on May 4 would render under May 3.
 
 function formatLongDate(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
+  const d = parseDateOnly(iso)
+  if (!d || Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 function monthKey(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
+  const d = parseDateOnly(iso)
+  if (!d || Number.isNaN(d.getTime())) return ''
   return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }
 
@@ -132,15 +138,26 @@ export default function Events() {
             {items.map((it) => (
               <li key={it.id} className="bg-card border border-lightgray border-l-[3px] border-l-gold p-4 flex gap-4">
                 <div className="shrink-0 text-center w-[60px] border-r border-lightgray pr-3">
-                  <div className="font-archivo font-extrabold text-2xs uppercase tracking-wider text-gray">
-                    {new Date(it.date).toLocaleDateString(undefined, { weekday: 'short' })}
-                  </div>
-                  <div className="font-editorial font-black text-[1.6rem] leading-none mt-0.5 text-navy">
-                    {new Date(it.date).getDate()}
-                  </div>
-                  <div className="font-archivo font-bold text-2xs uppercase tracking-wider text-gray mt-0.5">
-                    {new Date(it.date).toLocaleDateString(undefined, { month: 'short' })}
-                  </div>
+                  {(() => {
+                    // eventDateParts splits "YYYY-MM-DD" into local components
+                    // without ever going through UTC, so the displayed weekday
+                    // and day match the database's date for every viewer
+                    // regardless of timezone. (See parseDateOnly's comment.)
+                    const parts = eventDateParts(it.date)
+                    return (
+                      <>
+                        <div className="font-archivo font-extrabold text-2xs uppercase tracking-wider text-gray">
+                          {parts.weekday}
+                        </div>
+                        <div className="font-editorial font-black text-[1.6rem] leading-none mt-0.5 text-navy">
+                          {parts.day}
+                        </div>
+                        <div className="font-archivo font-bold text-2xs uppercase tracking-wider text-gray mt-0.5">
+                          {parts.month}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
