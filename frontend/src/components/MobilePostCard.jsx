@@ -48,11 +48,16 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
   const [expanded, setExpanded] = useState(false)
-  // Long posts collapse with a "Read more" toggle so the feed doesn't
-  // turn into a single tall scroll-trap. 1200 chars (vs desktop's 1500)
-  // because mobile screens fit fewer characters at the same line height.
+  // Match Reddit's mobile feed behavior:
+  //   - Short posts (≤ ~400 chars) render in full, no toggle needed.
+  //   - Longer posts collapse to a ~6-line preview with "Read more →"
+  //     so the feed stays scrollable without burying short posts under
+  //     long ones.
+  // Reddit truncates around 250-400 chars; 400 here is the upper end
+  // since BearBoard's body font is slightly tighter than Reddit's,
+  // so 400 chars fits 5-6 lines comfortably.
   const bodyRaw = post.body || ''
-  const bodyTooLong = bodyRaw.length > 1200
+  const bodyTooLong = bodyRaw.length > 400
 
   const [saved, setSaved] = useState(() => {
     try {
@@ -256,7 +261,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
               <div className="relative">
                 <div
                   className={`text-[0.92rem] text-ink/85 leading-[1.55] whitespace-pre-wrap font-prose overflow-hidden ${
-                    collapsed ? 'max-h-[12rem]' : ''
+                    collapsed ? 'max-h-[10rem]' : ''
                   }`}
                 >
                   {cleaned}
