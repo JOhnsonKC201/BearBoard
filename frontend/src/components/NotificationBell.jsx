@@ -8,6 +8,8 @@ const POLL_MS = 60000
 function bodyForKind(kind) {
   if (kind === 'resurface') return 'A post from someone in your major needs answers'
   if (kind === 'sos') return '🚨 Someone in your major needs help right now'
+  if (kind === 'comment') return 'New reply on your post'
+  if (kind === 'reply') return 'Someone replied to your comment'
   return 'New activity'
 }
 
