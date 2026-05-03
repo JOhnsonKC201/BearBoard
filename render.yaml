@@ -71,3 +71,16 @@ services:
         # fromService returns just the service name in this direction too.
         # Update if the API service is renamed.
         value: https://bearboard-api.onrender.com
+      # Cloudinary unsigned upload preset for in-browser image uploads on
+      # the post composer. These are PUBLIC values — Vite bakes them into
+      # the JS bundle that ships to every visitor — so committing them
+      # here is fine and matches the deploy convention. The unsigned
+      # preset itself MUST be locked down in the Cloudinary dashboard
+      # (allowed formats, max file size, folder), since anyone reading
+      # the frontend bundle could otherwise upload arbitrary files to
+      # the account. See frontend/.env.example for the recommended
+      # preset settings.
+      - key: VITE_CLOUDINARY_CLOUD_NAME
+        value: dc26gt1eg
+      - key: VITE_CLOUDINARY_UPLOAD_PRESET
+        value: bearboard_unsigned
