@@ -459,7 +459,10 @@ function PostVoteRail({ post, onUpdate, horizontal = false }) {
   const navigate = useNavigate()
   const initialScore = (post.upvotes ?? 0) - (post.downvotes ?? 0)
   const [score, setScore] = useState(initialScore)
-  const [userVote, setUserVote] = useState(null)
+  // Initialized from the server-provided viewer vote — see Home.jsx for
+  // why this is required (re-login losing the active-arrow state masked
+  // the backend's existing one-vote-per-user dedup).
+  const [userVote, setUserVote] = useState(post.user_vote || null)
   const [pending, setPending] = useState(false)
   const [err, setErr] = useState(null)
   const [popKey, setPopKey] = useState(0)
@@ -485,10 +488,13 @@ function PostVoteRail({ post, onUpdate, horizontal = false }) {
     setScore(nextScore); setUserVote(nextVote); setPopKey((k) => k + 1)
     setPending(true); setErr(null)
     try {
-      await apiFetch(`/api/posts/${post.id}/vote`, {
+      const result = await apiFetch(`/api/posts/${post.id}/vote`, {
         method: 'POST',
         body: JSON.stringify({ vote_type: voteType }),
       })
+      if (result && typeof result.upvotes === 'number') {
+        setScore((result.upvotes ?? 0) - (result.downvotes ?? 0))
+      }
       onUpdate?.({})
     } catch (e) {
       setScore(prevScore); setUserVote(prevVote)
@@ -852,14 +858,14 @@ function CommentSortBar({ value, onChange, count }) {
 /*  Optimistic update + rollback on failure mirrors the post vote rail. The   */
 /*  parent owns the persisted score (CommentResponse.upvotes/downvotes) and   */
 /*  passes onVote(commentId, voteType) which returns {upvotes, downvotes}.    */
-/*  We track the user's vote locally — the API doesn't currently surface      */
-/*  per-user vote state on read, so a hard refresh forgets your previous      */
-/*  click. Same UX as the post rail.                                          */
+/*  initialUserVote comes from CommentResponse.user_vote so the active arrow  */
+/*  survives a page reload / re-login — without it the UI defaulted to        */
+/*  neutral and masked the backend's existing one-vote-per-user dedup.        */
 /* -------------------------------------------------------------------------- */
-function CommentVotePill({ commentId, upvotes = 0, downvotes = 0, onVote, isAuthed, compact = false }) {
+function CommentVotePill({ commentId, upvotes = 0, downvotes = 0, onVote, isAuthed, compact = false, initialUserVote = null }) {
   const navigate = useNavigate()
   const [score, setScore] = useState((upvotes ?? 0) - (downvotes ?? 0))
-  const [userVote, setUserVote] = useState(null)
+  const [userVote, setUserVote] = useState(initialUserVote || null)
   const [pending, setPending] = useState(false)
 
   // If the parent re-fetches and sends fresh counts, re-sync our local score.
@@ -1174,6 +1180,7 @@ function CommentRow({ comment, replies = [], index, postId, currentUser, isAuthe
                   downvotes={comment.downvotes}
                   onVote={onVote}
                   isAuthed={isAuthed}
+                  initialUserVote={comment.user_vote}
                 />
                 {isAuthed && (
                   <button
@@ -1463,6 +1470,7 @@ function ReplyRow({ reply, postId, currentUser, isAuthed, onChange, onReplyToRep
                 onVote={onVote}
                 isAuthed={isAuthed}
                 compact
+                initialUserVote={reply.user_vote}
               />
               {isAuthed && (
                 <button

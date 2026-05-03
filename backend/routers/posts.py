@@ -143,6 +143,48 @@ def _viewer_is_mod(user) -> bool:
     return bool(user) and getattr(user, "role", None) in ("admin", "moderator")
 
 
+def _attach_user_post_votes(posts, viewer_id: int | None, db: Session) -> None:
+    """Populate `post.user_vote` (shadow attribute, picked up by Pydantic
+    via from_attributes) with the viewer's existing vote on each post.
+
+    One batch query rather than N queries — for a 50-row feed that's the
+    difference between a snappy load and a stutter on Render's free tier.
+
+    Without this, the frontend always shows "neutral" arrows on page load
+    even though the backend has the user's prior vote in the DB. A user
+    re-logging in would click upvote, the backend would correctly toggle
+    the existing vote off (decrement), but the frontend's optimistic +1
+    would leave the UI desynced — looking like votes were stacking when
+    they were really flipping on/off.
+    """
+    if viewer_id is None or not posts:
+        return
+    post_ids = [p.id for p in posts]
+    rows = (
+        db.query(Vote.post_id, Vote.vote_type)
+        .filter(Vote.user_id == viewer_id, Vote.post_id.in_(post_ids))
+        .all()
+    )
+    by_post = {pid: vtype for pid, vtype in rows}
+    for p in posts:
+        p.user_vote = by_post.get(p.id)
+
+
+def _attach_user_comment_votes(comments, viewer_id: int | None, db: Session) -> None:
+    """Same shape as _attach_user_post_votes, for comments."""
+    if viewer_id is None or not comments:
+        return
+    comment_ids = [c.id for c in comments]
+    rows = (
+        db.query(CommentVote.comment_id, CommentVote.vote_type)
+        .filter(CommentVote.user_id == viewer_id, CommentVote.comment_id.in_(comment_ids))
+        .all()
+    )
+    by_comment = {cid: vtype for cid, vtype in rows}
+    for c in comments:
+        c.user_vote = by_comment.get(c.id)
+
+
 def _try_get_user(request: Request, db: Session) -> User | None:
     """Best-effort current-user lookup for endpoints that don't require auth
     (the public feed and post detail). We need this to know whether to
@@ -217,9 +259,11 @@ def get_posts(
             p.comment_count = counts.get(p.id, 0)
 
     viewer = _try_get_user(request, db)
+    viewer_id = viewer.id if viewer else None
+    _attach_user_post_votes(posts, viewer_id, db)
     return _anonymize_list(
         posts,
-        viewer_id=viewer.id if viewer else None,
+        viewer_id=viewer_id,
         viewer_is_mod=_viewer_is_mod(viewer),
     )
 
@@ -305,6 +349,8 @@ def get_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     viewer = _try_get_user(request, db)
     viewer_id = viewer.id if viewer else None
     is_mod = _viewer_is_mod(viewer)
+    _attach_user_post_votes([post], viewer_id, db)
+    _attach_user_comment_votes(post.comments, viewer_id, db)
     _anonymize_if_needed(post, viewer_id=viewer_id, viewer_is_mod=is_mod)
     _anonymize_comment_list(post.comments, viewer_id=viewer_id, viewer_is_mod=is_mod)
     return post

@@ -1129,7 +1129,14 @@ function PostCard({ post, onUpdated, onDeleted }) {
 
   const initialScore = (post.upvotes ?? 0) - (post.downvotes ?? 0)
   const [score, setScore] = useState(initialScore)
-  const [userVote, setUserVote] = useState(null)
+  // Initialize from the server's record of the viewer's existing vote.
+  // Without this, the arrows always rendered "neutral" after a re-login,
+  // so a user who already voted would click upvote, the backend would
+  // correctly TOGGLE OFF the prior vote (one-vote-per-user is enforced
+  // by the Vote table's UniqueConstraint), but the optimistic UI would
+  // leave the score looking like it had stacked. See the post.user_vote
+  // field on the API for where this comes from.
+  const [userVote, setUserVote] = useState(post.user_vote || null)
   const [pending, setPending] = useState(false)
   const [voteError, setVoteError] = useState(null)
   const [popKey, setPopKey] = useState(0)
@@ -1175,10 +1182,17 @@ function PostCard({ post, onUpdated, onDeleted }) {
     setVoteError(null)
 
     try {
-      await apiFetch(`/api/posts/${post.id}/vote`, {
+      const result = await apiFetch(`/api/posts/${post.id}/vote`, {
         method: 'POST',
         body: JSON.stringify({ vote_type: voteType }),
       })
+      // Reconcile against the server's authoritative count. The optimistic
+      // update covers the happy path; this catches the case where the
+      // client and server disagreed (e.g. cached page state pre-dated a
+      // vote made on another device).
+      if (result && typeof result.upvotes === 'number') {
+        setScore((result.upvotes ?? 0) - (result.downvotes ?? 0))
+      }
     } catch (err) {
       setScore(prevScore)
       setUserVote(prevVote)

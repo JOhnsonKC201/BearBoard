@@ -154,6 +154,12 @@ class CommentResponse(BaseModel):
     is_anonymous: bool = False
     author: Optional[AuthorInfo] = None
     created_at: Optional[datetime] = None
+    # The current viewer's vote on this comment, or None if they haven't
+    # voted (or aren't authenticated). Populated by the route handler via a
+    # batch query so the frontend can render the correct active arrow on
+    # page load — without this, the UI defaulted to "neutral" for every
+    # comment after a re-login, masking the backend's existing dedup.
+    user_vote: Optional[Literal["up", "down"]] = None
 
     class Config:
         from_attributes = True
@@ -180,6 +186,9 @@ class PostResponse(BaseModel):
     image_url: Optional[str] = None
     comment_count: int = 0
     created_at: Optional[datetime] = None
+    # The current viewer's vote on this post — same purpose as
+    # CommentResponse.user_vote. See its docstring.
+    user_vote: Optional[Literal["up", "down"]] = None
 
     class Config:
         from_attributes = True

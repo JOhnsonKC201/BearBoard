@@ -270,6 +270,65 @@ def test_repeat_comment_rearms_existing_notification(client, fresh_users, db):
     assert len([n for n in rows if n["kind"] == "comment" and n["post_id"] == post.id]) == 1
 
 
+def test_post_response_includes_user_vote_for_authed_viewer(client, fresh_users, db):
+    """The list and detail endpoints surface the viewer's own vote on each
+    post via PostResponse.user_vote, so the frontend can render the active
+    arrow correctly after a re-login. Without this, the UI looked like
+    one-vote-per-user wasn't being enforced."""
+    from models.vote import Vote
+
+    author, voter, _admin = fresh_users
+    post = _make_post(db, author_id=author.id)
+    db.add(Vote(user_id=voter.id, post_id=post.id, vote_type="up"))
+    db.commit()
+
+    voter_token = _make_token(voter.id)
+    res = client.get(
+        f"/api/posts/{post.id}",
+        headers={"Authorization": f"Bearer {voter_token}"},
+    )
+    assert res.status_code == 200
+    assert res.json()["user_vote"] == "up"
+
+    # Author of the post hasn't voted on it -> user_vote is null.
+    author_token = _make_token(author.id)
+    res = client.get(
+        f"/api/posts/{post.id}",
+        headers={"Authorization": f"Bearer {author_token}"},
+    )
+    assert res.status_code == 200
+    assert res.json()["user_vote"] is None
+
+    # Unauthenticated viewer: user_vote should be null too.
+    res = client.get(f"/api/posts/{post.id}")
+    assert res.status_code == 200
+    assert res.json()["user_vote"] is None
+
+
+def test_comment_response_includes_user_vote_for_authed_viewer(client, fresh_users, db):
+    """Same contract as the post test, applied to comments."""
+    from models.comment_vote import CommentVote
+
+    author, voter, _admin = fresh_users
+    post = _make_post(db, author_id=author.id)
+    comment = Comment(body="ok", author_id=author.id, post_id=post.id)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    db.add(CommentVote(user_id=voter.id, comment_id=comment.id, vote_type="down"))
+    db.commit()
+
+    voter_token = _make_token(voter.id)
+    res = client.get(
+        f"/api/posts/{post.id}",
+        headers={"Authorization": f"Bearer {voter_token}"},
+    )
+    assert res.status_code == 200
+    comments = res.json()["comments"]
+    assert len(comments) == 1
+    assert comments[0]["user_vote"] == "down"
+
+
 def test_reply_notifies_parent_author_with_reply_kind(client, fresh_users, db):
     """A reply to a comment notifies the parent author with kind=reply,
     and the post author with kind=comment (if they're different people
