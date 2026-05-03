@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { parseUtcDate } from '../../utils/format'
 
 function fmtTime(iso) {
   if (!iso) return ''
   try {
-    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const d = parseUtcDate(iso)
+    if (!d || Number.isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   } catch {
     return ''
   }
@@ -17,7 +20,8 @@ const EDIT_WINDOW_MS = 15 * 60 * 1000
 
 function withinEditWindow(iso) {
   if (!iso) return false
-  const t = new Date(iso).getTime()
+  const d = parseUtcDate(iso)
+  const t = d ? d.getTime() : NaN
   if (Number.isNaN(t)) return false
   return Date.now() - t < EDIT_WINDOW_MS
 }

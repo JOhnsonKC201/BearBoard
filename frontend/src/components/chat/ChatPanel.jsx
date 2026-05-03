@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import MessageBubble from './MessageBubble'
+import { parseUtcDate } from '../../utils/format'
 
 function initialsFor(name) {
   if (!name) return '?'
@@ -9,7 +10,8 @@ function initialsFor(name) {
 function activeLabel(isOnline, lastSeenIso) {
   if (isOnline) return 'Active now'
   if (!lastSeenIso) return 'Offline'
-  const d = new Date(lastSeenIso)
+  const d = parseUtcDate(lastSeenIso)
+  if (!d || Number.isNaN(d.getTime())) return 'Offline'
   const diffSec = Math.max(0, (Date.now() - d.getTime()) / 1000)
   if (diffSec < 60) return 'Active just now'
   if (diffSec < 3600) return `Active ${Math.floor(diffSec / 60)}m ago`
@@ -20,7 +22,8 @@ function activeLabel(isOnline, lastSeenIso) {
 
 function dayLabel(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
+  const d = parseUtcDate(iso)
+  if (!d || Number.isNaN(d.getTime())) return ''
   const today = new Date()
   const yest = new Date()
   yest.setDate(today.getDate() - 1)
@@ -40,23 +43,26 @@ function buildTimeline(messages) {
   let lastDay = null
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i]
-    const day = new Date(m.created_at).toDateString()
+    const mDate = parseUtcDate(m.created_at)
+    const day = mDate ? mDate.toDateString() : ''
     if (day !== lastDay) {
       items.push({ kind: 'day', key: `d-${day}`, iso: m.created_at })
       lastDay = day
     }
     const prev = messages[i - 1]
     const next = messages[i + 1]
+    const prevDate = prev ? parseUtcDate(prev.created_at) : null
+    const nextDate = next ? parseUtcDate(next.created_at) : null
     const sameAsPrev =
-      prev &&
+      prev && prevDate && mDate &&
       prev.from === m.from &&
-      new Date(prev.created_at).toDateString() === day &&
-      Math.abs(new Date(m.created_at) - new Date(prev.created_at)) < 5 * 60 * 1000
+      prevDate.toDateString() === day &&
+      Math.abs(mDate - prevDate) < 5 * 60 * 1000
     const sameAsNext =
-      next &&
+      next && nextDate && mDate &&
       next.from === m.from &&
-      new Date(next.created_at).toDateString() === day &&
-      Math.abs(new Date(next.created_at) - new Date(m.created_at)) < 5 * 60 * 1000
+      nextDate.toDateString() === day &&
+      Math.abs(nextDate - mDate) < 5 * 60 * 1000
     items.push({
       kind: 'msg',
       key: `m-${m.id}`,

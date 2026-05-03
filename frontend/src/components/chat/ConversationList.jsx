@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { parseUtcDate } from '../../utils/format'
 
 function initialsFor(name) {
   if (!name) return '?'
@@ -13,7 +14,8 @@ function shortPreview(body, max = 64) {
 
 function fmtRelative(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
+  const d = parseUtcDate(iso)
+  if (!d || Number.isNaN(d.getTime())) return ''
   const diff = (Date.now() - d.getTime()) / 1000
   if (diff < 60) return 'now'
   if (diff < 3600) return `${Math.floor(diff / 60)}m`
