@@ -29,6 +29,9 @@ const Groups = lazy(() => import('./pages/Groups'))
 const Events = lazy(() => import('./pages/Events'))
 const Team = lazy(() => import('./pages/Team'))
 const Chat = lazy(() => import('./pages/Chat'))
+// Mounted globally inside WithNav so the AI tab in BottomNav can summon
+// it from any page. Lazy so it doesn't compete with first-paint.
+const ChatWidget = lazy(() => import('./components/ChatWidget'))
 
 function WithNav({ children }) {
   // Bottom padding clears the fixed mobile BottomNav (56px tall) plus the
@@ -42,6 +45,14 @@ function WithNav({ children }) {
         <Footer />
       </div>
       <BottomNav />
+      {/* Always mounted on nav-bearing pages — the floating bubble inside
+          self-hides on mobile (`hidden lg:flex`) and the modal opens
+          either via the bubble (desktop) or via the BottomNav AI tab's
+          window event (mobile). Keeping the mount global means the
+          event listener exists no matter what page the user is on. */}
+      <Suspense fallback={null}>
+        <ChatWidget />
+      </Suspense>
     </>
   )
 }
