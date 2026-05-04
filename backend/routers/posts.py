@@ -305,6 +305,23 @@ def create_post(
                 detail=f"SOS limit reached: {SOS_RECENT_LIMIT} per {SOS_RECENT_WINDOW_HOURS}h.",
             )
 
+        # Pre-warm the BearBoard Bot account before we start the SOS post
+        # transaction. services.bot_user.get_or_create_bot may db.commit()
+        # internally (when creating the bot for the first time on a fresh
+        # deploy, or self-healing role drift). If that commit fired
+        # mid-flow, it would partially commit the SOS post + notifications
+        # before the bot's safety reply was added — breaking atomicity.
+        # Calling it here, BEFORE db.add(db_post), means any bot-creation
+        # commit happens cleanly on its own, and the later call inside
+        # post_safety_reply finds the bot and returns without committing.
+        # Best-effort: a failure to create/find the bot here just means
+        # the safety reply will be skipped later (graceful degrade).
+        try:
+            from services.bot_user import get_or_create_bot
+            get_or_create_bot(db)
+        except Exception:
+            logger.exception("sos pre-warm of bot account failed; safety reply may be skipped")
+
     _guard_content(f"{post.title or ''}\n\n{post.body or ''}", kind="post", author_id=current_user.id)
 
     db_post = Post(
