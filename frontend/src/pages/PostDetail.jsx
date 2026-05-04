@@ -7,6 +7,7 @@ import { formatRelativeTime as formatRelative, initialsFor, parseUtcDate } from 
 import { catClassFor, paletteFor, flairLabel } from '../utils/avatar'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck } from '../components/ActionIcons'
 import PostAuthorMenu from '../components/PostAuthorMenu'
+import SosBanner from '../components/SosBanner'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import AuthorAvatar from '../components/AuthorAvatar'
@@ -209,7 +210,19 @@ function PostDetail() {
             asked for and prevents the article from feeling disconnected
             from its actions. */}
         <main className="min-w-0">
-          <article className="bg-card border border-lightgray border-l-[3px] border-l-gold relative">
+          <article
+            className={`bg-card relative ${
+              post.is_sos && !post.sos_resolved
+                ? 'sos-card bg-[#FBF3F2]'
+                : 'border border-lightgray border-l-[3px] border-l-gold'
+            }`}
+          >
+            {/* SOS treatment — loud banner above the article header so an
+                emergency post is unmistakable from the moment the page loads.
+                Hidden entirely on non-SOS posts so the layout is unchanged. */}
+            {post.is_sos && (
+              <SosBanner resolved={post.sos_resolved} size="detail" />
+            )}
             {/* Featured-article header */}
             <header className="px-5 sm:px-8 pt-7 pb-5">
               <div className="flex items-center gap-2 mb-4">

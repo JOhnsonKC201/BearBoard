@@ -110,6 +110,47 @@ textarea:focus-visible,
   animation: status-pulse 2s ease-in-out infinite;
 }
 
+/* SOS posts — eye-catching treatment for emergency-help posts.
+   The card-pulse expands a red halo outward then fades it, so the
+   animation reads as "this needs attention" without flickering hard
+   enough to disorient the reader. The banner flash cross-fades between
+   two reds (8B1A1A → C53030) so the bar visibly breathes.
+
+   Both animations honor `prefers-reduced-motion`: the static red border
+   and dark banner remain (still distinct from a normal post) but the
+   motion is suppressed for users who've opted into reduced motion. */
+@keyframes sos-card-pulse {
+  0%, 100% {
+    border-color: #8B1A1A;
+    box-shadow: 0 0 0 0 rgba(139, 26, 26, 0.45);
+  }
+  50% {
+    border-color: #C53030;
+    box-shadow: 0 0 0 8px rgba(139, 26, 26, 0);
+  }
+}
+
+.sos-card {
+  border: 2px solid #8B1A1A;
+  animation: sos-card-pulse 2s ease-in-out infinite;
+}
+
+@keyframes sos-banner-flash {
+  0%, 100% { background-color: #8B1A1A; }
+  50%      { background-color: #C53030; }
+}
+
+.sos-banner {
+  animation: sos-banner-flash 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sos-card,
+  .sos-banner {
+    animation: none !important;
+  }
+}
+
 @keyframes vote-pop {
   0% { transform: scale(1); }
   35% { transform: scale(1.4); }
