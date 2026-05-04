@@ -365,12 +365,51 @@ def delete_post(
     current_user: User = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
+    """Delete a post. Authors can delete their own; moderators and admins
+    can delete anyone's.
+
+    Application-level cascade. Several child tables (votes, notifications,
+    comments, comment_votes) reference posts.id without ON DELETE CASCADE
+    at the DB layer, so a naked db.delete(post) hits a foreign-key
+    constraint whenever the post has any votes, comments, or — most
+    commonly — SOS / comment notifications fanned out at creation. We
+    clean up child rows here in dependency order before removing the post
+    so any post is deletable, regardless of how much activity it
+    accumulated. Rebuilding the FKs with ondelete=CASCADE would be the
+    "real" fix but requires a migration touching every dialect; this
+    keeps the contract identical and ships the same hour.
+    """
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     is_mod = current_user.role in ("admin", "moderator")
     if post.author_id != current_user.id and not is_mod:
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+
+    # 1. Comments → comment_votes. Pull comment ids first so the votes
+    #    bulk-delete can scope cleanly.
+    comment_ids = [
+        cid for (cid,) in db.query(Comment.id).filter(Comment.post_id == post_id).all()
+    ]
+    if comment_ids:
+        db.query(CommentVote).filter(CommentVote.comment_id.in_(comment_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(Comment).filter(Comment.post_id == post_id).delete(
+            synchronize_session=False
+        )
+
+    # 2. Post votes.
+    db.query(Vote).filter(Vote.post_id == post_id).delete(synchronize_session=False)
+
+    # 3. Notifications that pointed at this post (SOS fan-outs, comment
+    #    pings, reply pings). The recipient + post + kind unique constraint
+    #    means this is at most O(recipients × kinds) rows.
+    db.query(Notification).filter(Notification.post_id == post_id).delete(
+        synchronize_session=False
+    )
+
+    # 4. Finally the post row itself.
     db.delete(post)
     db.commit()
     return {"detail": "Post deleted", "by_mod": is_mod and post.author_id != current_user.id}
