@@ -2,27 +2,54 @@ import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import EditPostModal from './EditPostModal'
+import ReportPostModal from './ReportPostModal'
+
+// localStorage key for "I already reported this" state. Cheap, per-browser
+// memory of which posts the current user has flagged so we can swap the
+// menu copy to "Reported" without an extra fetch on every render. Backend
+// remains the source of truth — the unique constraint there blocks any
+// real duplicate even if this storage is cleared.
+const REPORTED_KEY = 'bb:reported-post-ids'
+
+function loadReportedSet() {
+  try {
+    const raw = localStorage.getItem(REPORTED_KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return new Set(Array.isArray(arr) ? arr : [])
+  } catch { return new Set() }
+}
+
+function rememberReported(id) {
+  try {
+    const set = loadReportedSet()
+    set.add(id)
+    localStorage.setItem(REPORTED_KEY, JSON.stringify(Array.from(set)))
+  } catch { /* storage unavailable — non-fatal */ }
+}
 
 /**
- * PostAuthorMenu — three-dot kebab shown on a post card when the
- * current user is the author (or a moderator for delete).
+ * PostAuthorMenu — three-dot kebab on a post card. Renders for every
+ * authed user with a context-appropriate menu:
  *
- * - Author sees: Edit, Delete
- * - Moderator/admin (not author) sees: Delete only
- * - Everyone else: the menu doesn't render at all
+ * - Author      → Edit, Delete
+ * - Moderator   → Delete (mod), Report (if not also author)
+ * - Other authed user → Report
+ * - Logged-out  → not rendered
  *
- * `onDeleted(id)` is called after a successful delete so the caller
- * can remove the post from its local state without a refetch.
- * `onUpdated(post)` is called after an edit so the caller can replace
- * the post record with the updated one.
+ * `onDeleted(id)` runs after a successful delete; `onUpdated(post)` runs
+ * after a successful edit. Reporting fires-and-forgets — no list-state
+ * mutation is needed, the modal handles its own success UI.
  */
 function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showReport, setShowReport] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [err, setErr] = useState(null)
+  const [reported, setReported] = useState(() => loadReportedSet().has(post?.id))
   const rootRef = useRef(null)
 
   // Close on outside click + Esc.
@@ -47,7 +74,11 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
   if (!user) return null
   const isAuthor = post.author_id === user.id
   const isMod = user.role === 'moderator' || user.role === 'admin'
-  if (!isAuthor && !isMod) return null
+  // Anyone authed who isn't the author can file a report. Moderators get
+  // both Report and the delete button — they often want to act fast on
+  // egregious posts without going through the queue, and Report still
+  // logs an audit trail of why they were looking.
+  const canReport = !isAuthor
 
   const doDelete = async (e) => {
     e.stopPropagation()
@@ -70,6 +101,18 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
     e.preventDefault()
     setShowEdit(true)
     setOpen(false)
+  }
+
+  const openReport = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setShowReport(true)
+    setOpen(false)
+  }
+
+  const onReportSuccess = (postId) => {
+    rememberReported(postId)
+    setReported(true)
   }
 
   // The kebab needs to be discoverable at a glance — previously it was
@@ -116,7 +159,28 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
               Edit post
             </button>
           )}
-          {!confirm ? (
+          {canReport && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={openReport}
+              disabled={reported}
+              className={`w-full text-left px-4 py-2.5 text-[0.82rem] font-archivo font-semibold bg-transparent border-none flex items-center gap-2.5 ${
+                isAuthor ? 'border-t border-divider' : ''
+              } ${
+                reported
+                  ? 'text-gray cursor-default'
+                  : 'cursor-pointer hover:bg-offwhite text-ink'
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M4 21V4a1 1 0 0 1 1-1h11l-2 5 2 5H5" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+              {reported ? 'Reported · pending review' : 'Report post'}
+            </button>
+          )}
+          {(isAuthor || isMod) && !confirm ? (
             <button
               type="button"
               role="menuitem"
@@ -131,7 +195,7 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
               </svg>
               {isAuthor ? 'Delete post' : 'Delete (mod)'}
             </button>
-          ) : (
+          ) : confirm ? (
             <div className="px-4 py-3 border-t border-divider bg-danger-bg/50">
               <div className="text-[0.78rem] font-archivo font-bold text-danger mb-2">
                 Delete this post?
@@ -158,7 +222,7 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
                 <div className="text-[0.7rem] text-danger font-archivo font-bold mt-2">{err}</div>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -172,6 +236,13 @@ function PostAuthorMenu({ post, onDeleted, onUpdated, variant = 'light' }) {
           }}
         />
       )}
+
+      <ReportPostModal
+        post={post}
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        onReported={onReportSuccess}
+      />
     </div>
   )
 }

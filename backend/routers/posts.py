@@ -26,6 +26,8 @@ from models.comment_vote import CommentVote
 from models.event import Event
 from models.group import Group
 from models.user import User
+from models.report import Report
+from schemas.report import ReportCreate
 from routers.auth import get_current_user_dep
 from services.streak import bump_streak
 from services.resurface import find_relevant_recipients
@@ -36,6 +38,7 @@ from datetime import datetime, timedelta, timezone
 SOS_NOTIFICATION_KIND = "sos"
 COMMENT_NOTIFICATION_KIND = "comment"
 REPLY_NOTIFICATION_KIND = "reply"
+REPORT_NOTIFICATION_KIND = "report"
 
 logger = logging.getLogger("bearboard.posts")
 
@@ -403,6 +406,88 @@ def update_post(
     db.commit()
     db.refresh(post)
     return post
+
+
+@router.post("/{post_id}/report", status_code=201)
+@limiter.limit("5/hour")
+def report_post(
+    request: Request,
+    post_id: int,
+    payload: ReportCreate,
+    current_user: User = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """File a report on a post. Any authed user can submit; the post's own
+    author cannot report themselves. The unique (post_id, reporter_id)
+    constraint silently no-ops a duplicate — the user gets a 200-style
+    success either way so they don't learn that a duplicate was caught.
+
+    On the first report against a given post we fan out a notification to
+    every active admin/moderator. Subsequent reports against the same post
+    bump the existing notification's created_at so it floats back to the
+    top of the bell — mods don't drown in N copies, but they do get
+    re-pinged.
+    """
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot report your own post")
+
+    existing = (
+        db.query(Report)
+        .filter(Report.post_id == post_id, Report.reporter_id == current_user.id)
+        .first()
+    )
+    if existing is not None:
+        # Idempotent — return 201 either way so the UI can render
+        # "Reported" without leaking duplicate-detection info.
+        return {"detail": "Report received", "report_id": existing.id, "duplicate": True}
+
+    report = Report(
+        post_id=post_id,
+        reporter_id=current_user.id,
+        reason=payload.reason,
+        note=(payload.note.strip() if payload.note else None) or None,
+        status="pending",
+    )
+    db.add(report)
+    db.flush()
+
+    # Fan-out to every admin/moderator. The unique constraint on
+    # (recipient, post, kind) means a 2nd report on the same post just
+    # re-arms the existing notification rather than creating a duplicate.
+    mod_ids = [
+        uid
+        for (uid,) in db.query(User.id).filter(User.role.in_(("admin", "moderator"))).all()
+    ]
+    now = datetime.now(timezone.utc)
+    for mod_id in mod_ids:
+        existing_notif = (
+            db.query(Notification)
+            .filter(
+                Notification.recipient_id == mod_id,
+                Notification.post_id == post_id,
+                Notification.kind == REPORT_NOTIFICATION_KIND,
+            )
+            .first()
+        )
+        if existing_notif is None:
+            db.add(
+                Notification(
+                    recipient_id=mod_id,
+                    post_id=post_id,
+                    kind=REPORT_NOTIFICATION_KIND,
+                    read=False,
+                )
+            )
+        else:
+            existing_notif.read = False
+            existing_notif.created_at = now
+
+    db.commit()
+    db.refresh(report)
+    return {"detail": "Report received", "report_id": report.id, "duplicate": False}
 
 
 @router.post("/{post_id}/resolve-sos")
