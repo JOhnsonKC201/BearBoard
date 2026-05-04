@@ -334,6 +334,18 @@ def create_post(
                 read=False,
             ))
 
+        # Drop a Campus Safety reply from the BearBoard Bot so help-now
+        # numbers land in the comment thread the moment the SOS posts.
+        # Imported lazily so an issue in the helper module can't break
+        # the rest of post creation at import time. The helper is
+        # exception-safe internally; this try/except is belt-and-suspenders
+        # so a 500 from the bot path can never deny the user their SOS.
+        try:
+            from services.sos_safety_reply import post_safety_reply
+            post_safety_reply(db, db_post)
+        except Exception:
+            logger.exception("sos_safety_reply failed for post=%s; continuing", db_post.id)
+
     db.commit()
     db.refresh(db_post)
     return db_post
