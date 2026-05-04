@@ -45,6 +45,15 @@ const KIND_META = {
     accent: 'navy',
     icon: IconChat,
   },
+  // Direct-message ping from BearChat. These rows have post_id=null (the
+  // notification isn't tied to a post — see _ensure_chat_notification in
+  // backend/routers/chat.py) so we send the click straight to the chat inbox.
+  chat: {
+    label: 'New message',
+    body: "You've got a direct message in BearChat.",
+    accent: 'navy',
+    icon: IconChat,
+  },
 }
 
 function kindMeta(kind) {
@@ -170,7 +179,14 @@ function NotificationBell() {
       setUnread((c) => Math.max(0, c - 1))
       apiFetch(`/api/notifications/${n.id}/read`, { method: 'POST' }).catch(() => {})
     }
-    if (n.post_id) navigate(`/post/${n.post_id}`)
+    // Routing per kind: post-tied notifications go to the post detail page;
+    // chat notifications (post_id=null by design) go to the chat inbox so
+    // tapping the bell isn't a silent no-op when the row is a DM ping.
+    if (n.kind === 'chat') {
+      navigate('/chat')
+    } else if (n.post_id) {
+      navigate(`/post/${n.post_id}`)
+    }
   }
 
   const markAllRead = async () => {
