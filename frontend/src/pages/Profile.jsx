@@ -7,13 +7,13 @@ import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import AdminDashboard from '../components/AdminDashboard'
 import EditProfileModal from '../components/EditProfileModal'
+import SosBanner from '../components/SosBanner'
 import { useAuth } from '../context/AuthContext'
 import { initialsFor as getInitials, formatRelativeTime as formatTimeAgo, parseUtcDate } from '../utils/format'
 import { catClassFor } from '../utils/avatar'
 import {
   IconCaretUp,
   IconChat,
-  IconSiren,
   IconCalendar,
   IconBookmark,
 } from '../components/ActionIcons'
@@ -641,10 +641,19 @@ function PostCard({ post, featured = false }) {
   return (
     <Link
       to={`/post/${post.id}`}
-      className={`block bg-card border border-lightgray hover:border-l-gold transition-all no-underline text-ink overflow-hidden ${
-        featured ? 'border-l-[4px] border-l-gold shadow-[0_6px_24px_-14px_rgba(11,29,52,0.4)]' : 'border-l-[3px] border-l-lightgray hover:-translate-y-[1px] hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)]'
+      className={`block bg-card transition-all no-underline text-ink overflow-hidden ${
+        post.is_sos && !post.sos_resolved
+          ? 'sos-card bg-[#FBF3F2]'
+          : `border border-lightgray hover:border-l-gold ${
+              featured
+                ? 'border-l-[4px] border-l-gold shadow-[0_6px_24px_-14px_rgba(11,29,52,0.4)]'
+                : 'border-l-[3px] border-l-lightgray hover:-translate-y-[1px] hover:shadow-[0_4px_18px_-8px_rgba(11,29,52,0.18)]'
+            }`
       }`}
     >
+      {/* Loud SOS banner — same shared component used by the feed and the
+          post detail page so the visual language is consistent everywhere. */}
+      {post.is_sos && <SosBanner resolved={post.sos_resolved} size="card" />}
       {featured && (
         <div className="bg-navy text-gold px-4 py-1.5 font-archivo font-black text-[0.62rem] uppercase tracking-[0.26em] flex items-center gap-2">
           <IconBookmark />
@@ -660,11 +669,9 @@ function PostCard({ post, featured = false }) {
             {post.category}
           </span>
           <span className="text-[0.7rem] text-gray font-archivo">{formatTimeAgo(post.created_at)}</span>
-          {post.is_sos && !post.sos_resolved && (
-            <span className="font-archivo text-[0.58rem] font-extrabold uppercase tracking-wider py-[3px] px-2 rounded-full bg-danger text-white flex items-center gap-1">
-              <IconSiren /> SOS
-            </span>
-          )}
+          {/* SOS pill is no longer rendered here — the SosBanner above the
+              card already surfaces the emergency state with full visual
+              weight, so the inline pill became redundant. */}
         </div>
         <h3
           className={`${featured ? 'font-editorial italic' : 'font-archivo font-bold'} leading-tight tracking-tight mb-1 text-navy`}

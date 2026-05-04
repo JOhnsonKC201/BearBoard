@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconSiren, IconClock, IconPin, IconUser } from '../components/ActionIcons'
+import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck, IconFire, IconCalendar, IconClock, IconPin, IconUser } from '../components/ActionIcons'
 import AuthorAvatar from '../components/AuthorAvatar'
 import FloatingParticles from '../components/FloatingParticles'
 import { FeedSkeleton, SidebarSkeleton } from '../components/Skeletons'
 import EmptyState from '../components/EmptyState'
 import SafetyBox from '../components/SafetyBox'
+import SosBanner from '../components/SosBanner'
 import NavRail from '../components/NavRail'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
@@ -1247,25 +1248,17 @@ function PostCard({ post, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className={`group bg-card border border-lightgray border-l-[3px] mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.28)] hover:-translate-y-[1px] hover:border-navy/20 ${
-      post.is_sos && !post.sos_resolved ? 'border-l-[#8B1A1A] bg-[#FBF3F2]' : isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'
+    <div className={`group bg-card mb-3 overflow-hidden transition-all duration-150 hover:shadow-[0_8px_28px_-12px_rgba(11,29,52,0.28)] hover:-translate-y-[1px] ${
+      post.is_sos && !post.sos_resolved
+        ? 'sos-card bg-[#FBF3F2]'
+        : `border border-lightgray border-l-[3px] hover:border-navy/20 ${isEvent ? 'border-l-gold' : 'border-l-lightgray hover:border-l-gold'}`
     }`}>
+      {/* Loud SOS banner above the eyebrow row when this is an emergency
+          post. Replaces the small inline pill that was easy to miss. */}
+      {post.is_sos && <SosBanner resolved={post.sos_resolved} size="card" />}
       {/* Header — eyebrow row (category + status chips + kebab) sits above
-          the byline so the inline content is uncluttered. SOS still owns
-          its own row when active because it needs maximum visibility. */}
+          the byline so the inline content is uncluttered. */}
       <div className="px-5 pt-4 pb-2">
-        {post.is_sos && (
-          <div className={`mb-2.5 flex items-center gap-2 text-[0.65rem] font-archivo font-extrabold uppercase tracking-wider ${
-            post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'
-          }`}>
-            <span className={`px-2 py-[3px] rounded-sm flex items-center gap-1 ${
-              post.sos_resolved ? 'bg-success-bg' : 'bg-danger text-white status-dot'
-            }`}>
-              <IconSiren />
-              {post.sos_resolved ? 'SOS resolved' : 'SOS needs help'}
-            </span>
-          </div>
-        )}
         <div className="flex items-center gap-2 mb-3">
           <span className={`font-archivo text-[0.6rem] font-extrabold uppercase tracking-[0.18em] py-1 px-2.5 ${catClass}`}>
             {flairLabel(post.category)}

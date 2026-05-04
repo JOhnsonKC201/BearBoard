@@ -6,6 +6,7 @@ import { catClassFor } from '../utils/avatar'
 import { formatRelativeShort as formatRelative, formatEventDateTime } from '../utils/format'
 import { VerifiedBadge } from './VerifiedBadge'
 import PostAuthorMenu from './PostAuthorMenu'
+import SosBanner from './SosBanner'
 import {
   IconCaretUp,
   IconCaretDown,
@@ -14,7 +15,6 @@ import {
   IconShare,
   IconCheck,
   IconClock,
-  IconSiren,
   IconFire,
 } from './ActionIcons'
 
@@ -161,7 +161,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
 
   return (
     <article className={`bg-card border-t border-ink/10 first:border-t-0 relative ${
-      post.is_sos && !post.sos_resolved ? 'border-l-[3px] border-l-[#8B1A1A] bg-[#FBF3F2]' : ''
+      post.is_sos && !post.sos_resolved ? 'sos-card bg-[#FBF3F2]' : ''
     }`}>
       {/* Kebab — sits above the tappable header Link. PostAuthorMenu only
           renders for the author or moderators, so non-authors see nothing. */}
@@ -169,18 +169,10 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
         <PostAuthorMenu post={post} onUpdated={onUpdated} onDeleted={onDeleted} />
       </div>
 
-      {/* SOS banner — only when active. Resolved SOS doesn't need the
-          attention-grab; the resolved variant is stylistically lighter. */}
-      {post.is_sos && (
-        <div className={`px-4 pt-3 ${post.sos_resolved ? 'text-[#0F5E54]' : 'text-[#8B1A1A]'}`}>
-          <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-sm font-archivo font-extrabold text-[0.6rem] uppercase tracking-wider ${
-            post.sos_resolved ? 'bg-success-bg' : 'bg-danger text-white'
-          }`}>
-            <IconSiren />
-            {post.sos_resolved ? 'SOS resolved' : 'SOS needs help'}
-          </span>
-        </div>
-      )}
+      {/* Loud full-width SOS banner. Replaces the small inline pill that was
+          easy to miss while scrolling. Only renders for SOS posts; non-SOS
+          cards are byte-identical to before. */}
+      {post.is_sos && <SosBanner resolved={post.sos_resolved} size="card" />}
 
       {/* Metadata + title - tappable to post detail */}
       <Link
