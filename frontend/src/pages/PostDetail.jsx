@@ -8,6 +8,7 @@ import { catClassFor, paletteFor, flairLabel } from '../utils/avatar'
 import { IconCaretUp, IconCaretDown, IconChat, IconBookmark, IconShare, IconCheck } from '../components/ActionIcons'
 import PostAuthorMenu from '../components/PostAuthorMenu'
 import SosBanner from '../components/SosBanner'
+import SafetyBox from '../components/SafetyBox'
 import RoleBadge from '../components/RoleBadge'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import AuthorAvatar from '../components/AuthorAvatar'
@@ -326,6 +327,22 @@ function PostDetail() {
                 {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
               </span>
             </div>
+
+            {/* SOS-only pinned reply: BearBoard automatically responds to every
+                SOS post with a Campus Safety contact card so help is one tap
+                away before the first user reply lands. Reuses the existing
+                SafetyBox component (single source of truth for campus
+                numbers) so adding/correcting a number happens in one place. */}
+            {post.is_sos && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2 text-[0.62rem] font-archivo font-extrabold uppercase tracking-[0.22em] text-danger">
+                  <span aria-hidden>📌</span>
+                  Pinned by BearBoard · Help is one tap away
+                  <span aria-hidden className="h-px flex-1 bg-danger/30" />
+                </div>
+                <SafetyBox />
+              </div>
+            )}
 
             {/* Composer — featured "write a letter" block */}
             <form
