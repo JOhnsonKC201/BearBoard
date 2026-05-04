@@ -141,6 +141,11 @@ textarea:focus-visible,
 }
 
 .sos-banner {
+  /* Static base color so the banner remains a readable dark-red rectangle
+     when prefers-reduced-motion suppresses the animation. The keyframe
+     overrides this while running, so the cross-fade still cycles cleanly
+     between 8B1A1A and C53030 for users who allow motion. */
+  background-color: #8B1A1A;
   animation: sos-banner-flash 1.6s ease-in-out infinite;
 }
 
