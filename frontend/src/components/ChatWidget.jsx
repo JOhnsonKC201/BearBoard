@@ -132,7 +132,7 @@ function ChatWidget() {
 
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-[152px] right-4 lg:bottom-[84px] lg:right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[170] flex flex-col overflow-hidden rounded-2xl shadow-2xl max-[768px]:w-[calc(100vw-16px)] max-[768px]:right-2 max-[768px]:h-[60dvh] max-[768px]:max-h-[480px]">
+        <div className="fixed bottom-[152px] right-4 lg:bottom-[84px] lg:right-6 w-[360px] h-[480px] bg-card border border-lightgray z-[170] flex flex-col overflow-hidden rounded-2xl shadow-2xl max-[768px]:left-2 max-[768px]:right-2 max-[768px]:w-auto max-[768px]:max-w-[calc(100vw-16px)] max-[768px]:h-[min(70dvh,560px)] max-[768px]:max-h-none">
           {/* Header */}
           <div className="bg-navy px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -162,7 +162,7 @@ function ChatWidget() {
           </div>
 
           {/* Messages */}
-          <div ref={msgsRef} className="flex-1 overflow-y-auto px-3.5 py-3.5 flex flex-col gap-3 bg-offwhite">
+          <div ref={msgsRef} className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-3.5 flex flex-col gap-3 bg-offwhite min-w-0">
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -194,14 +194,20 @@ function ChatWidget() {
               </div>
             ))}
 
-            {/* Suggestions */}
+            {/* Suggestions — chips share remaining row space and wrap to a
+                second line when needed. `min-w-0` is the load-bearing class
+                here: without it, each chip's flex `min-width: auto` refuses
+                to shrink below its single-line content width, so a long
+                chip overflows the modal (clipped by `overflow-hidden`
+                above). With `min-w-0` + `whitespace-normal`, the text wraps
+                inside the chip on narrow viewports rather than spilling. */}
             {showSuggestions && (
-              <div className="flex flex-wrap gap-[5px] py-1">
+              <div className="flex flex-wrap gap-2 py-1 w-full">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
                     onClick={() => sendMessage(s)}
-                    className="bg-card border border-lightgray px-2.5 py-[5px] text-[0.7rem] font-franklin font-medium text-navy cursor-pointer hover:bg-navy hover:text-white hover:border-navy transition-colors rounded-full"
+                    className="flex-1 basis-[150px] min-w-0 bg-card border border-lightgray px-3 py-2 text-[0.72rem] font-franklin font-medium text-navy cursor-pointer hover:bg-navy hover:text-white hover:border-navy transition-colors rounded-2xl text-left whitespace-normal break-words leading-snug"
                   >
                     {s}
                   </button>
@@ -225,18 +231,19 @@ function ChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="flex gap-1.5 px-3 py-2.5 border-t border-lightgray">
+          <div className="flex gap-1.5 px-3 py-2.5 border-t border-lightgray min-w-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
               placeholder="Ask anything about BearBoard..."
-              className="flex-1 border border-lightgray py-[9px] px-3.5 text-[0.82rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray rounded-full"
+              className="flex-1 min-w-0 border border-lightgray py-[9px] px-3.5 text-[0.82rem] font-franklin outline-none bg-offwhite focus:border-navy focus:bg-white placeholder:text-gray rounded-full"
             />
             <button
               onClick={() => sendMessage(input)}
-              className="w-9 h-9 bg-gold text-navy border-none cursor-pointer text-[1rem] flex items-center justify-center hover:bg-[#E5A92E] transition-colors rounded-full"
+              aria-label="Send message"
+              className="shrink-0 w-9 h-9 bg-gold text-navy border-none cursor-pointer text-[1rem] flex items-center justify-center hover:bg-[#E5A92E] transition-colors rounded-full"
             >
               &#10148;
             </button>
