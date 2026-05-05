@@ -331,6 +331,7 @@ def create_post(
         author_id=current_user.id,
         event_date=post.event_date if is_event else None,
         event_time=post.event_time if is_event else None,
+        event_location=(post.event_location.strip() or None) if (is_event and post.event_location) else None,
         is_sos=bool(post.is_sos),
         is_anonymous=bool(post.is_anonymous) or post.category.lower() == "anonymous",
         price=(post.price or None) if is_listing else None,

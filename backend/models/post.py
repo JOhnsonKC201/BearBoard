@@ -15,6 +15,7 @@ class Post(Base):
     downvotes = Column(Integer, default=0)
     event_date = Column(Date, nullable=True)
     event_time = Column(String(20), nullable=True)
+    event_location = Column(String(200), nullable=True)
     # SOS posts float to the top of the feed and trigger immediate notifications
     # to users who share the author's major. Auto-resolved when a comment lands.
     is_sos = Column(Boolean, nullable=False, default=False)

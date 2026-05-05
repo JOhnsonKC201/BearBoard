@@ -222,7 +222,7 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
           rather than a list of headlines. Skipped entirely when the post has
           no body, no listing chip, and no event metadata so plain title +
           image posts stay visually clean. */}
-      {(bodyRaw || post.price || post.contact_info || (isEvent && eventLabel)) && (
+      {(bodyRaw || post.price || post.contact_info || (isEvent && (eventLabel || post.event_location))) && (
         <div className="px-4 pt-2.5 pb-1">
           {(post.price || post.contact_info) && (
             <div className="flex flex-wrap items-center gap-2 mb-2 text-[0.74rem]">
@@ -238,9 +238,21 @@ function MobilePostCard({ post, onUpdated, onDeleted }) {
               )}
             </div>
           )}
-          {isEvent && eventLabel && (
-            <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.78rem] text-warning flex items-center gap-2">
-              <IconClock /> {eventLabel}
+          {isEvent && (eventLabel || post.event_location) && (
+            <div className="bg-warning-bg border-l-[3px] border-gold px-3 py-2 mb-2 font-archivo font-bold text-[0.78rem] text-warning flex flex-wrap items-center gap-x-2 gap-y-1">
+              {eventLabel && (
+                <span className="inline-flex items-center gap-1.5">
+                  <IconClock />
+                  {eventLabel}
+                </span>
+              )}
+              {post.event_location && (
+                <span className="inline-flex items-center gap-1.5">
+                  {eventLabel && <span aria-hidden className="text-warning/60">·</span>}
+                  <span aria-hidden>📍</span>
+                  {post.event_location}
+                </span>
+              )}
             </div>
           )}
           {bodyRaw && (() => {
