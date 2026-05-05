@@ -166,6 +166,14 @@ function MobileHome({
   onPostUpdated,
   onPostDeleted,
   loading = false,
+  // Pagination plumbing — Home.jsx attaches an IntersectionObserver to
+  // the node passed via loadMoreRef. When the user scrolls near it, more
+  // posts are appended to the `posts` prop, which expands moreOnBoard
+  // below. loadMoreRef may be undefined on older callers that don't
+  // paginate; the sentinel just won't fire in that case.
+  loadMoreRef,
+  loadingMore = false,
+  hasMore = false,
 }) {
   const { user, isAuthed } = useAuth()
 
@@ -222,8 +230,9 @@ function MobileHome({
     const list = trending.length ? trending : posts
     return list.filter((p) => !topIds.has(p.id)).slice(0, 5)
   }, [trending, posts, topIds])
+  // No client-side cap — the source list grows as Home.jsx paginates.
   const moreOnBoard = useMemo(() => {
-    return posts.filter((p) => !topIds.has(p.id)).slice(0, 20)
+    return posts.filter((p) => !topIds.has(p.id))
   }, [posts, topIds])
 
   return (
@@ -477,6 +486,19 @@ function MobileHome({
                 onDeleted={onPostDeleted}
               />
             ))}
+            {/* Pagination sentinel + status. Home.jsx wires up the
+                IntersectionObserver via loadMoreRef so scrolling near the
+                bottom triggers the next page fetch. */}
+            <div ref={loadMoreRef} aria-hidden style={{ height: 1 }} />
+            {hasMore ? (
+              <div className="text-center text-[0.74rem] text-gray font-archivo uppercase tracking-wider py-4">
+                {loadingMore ? 'Loading more dispatches…' : 'Scroll for more'}
+              </div>
+            ) : moreOnBoard.length > 0 ? (
+              <div className="text-center text-[0.72rem] text-gray font-franklin italic py-4">
+                — End of feed —
+              </div>
+            ) : null}
           </div>
         )}
       </section>
